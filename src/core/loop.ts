@@ -31,8 +31,11 @@ export function boilStep(f: SceneFrame, o: BoilOptions = {}): number {
   return Math.floor((f.frame - f.loopFromFrame) / hold) % variants;
 }
 
-/** Frames since the loop section started, wrapped into [0, loopFrames); -1 before it. Phase 1 maps to 0. */
+/**
+ * Frames since the loop section started, [0, loopFrames]; -1 before it. Not wrapped: at phase 1 (the seam frame,
+ * never shown) it is `loopFrames`, so a seam check sees the scene's natural continuation, not phase 0 again.
+ */
 export function loopFrame(f: SceneFrame): number {
   if (f.loopFromFrame === null || f.loopPhase === null) return -1;
-  return (f.frame - f.loopFromFrame) % f.loopFrames;
+  return f.frame - f.loopFromFrame;
 }

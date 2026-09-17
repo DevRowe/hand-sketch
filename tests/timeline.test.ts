@@ -21,7 +21,7 @@ describe('loop section', () => {
     expect(boilStep(frameAt(40))).toBe(0);
     expect([48, 50, 51, 57, 60].map(i => boilStep(frameAt(i)))).toEqual([0, 0, 1, 3, 0]);
     expect(boilStep(frameAt(84))).toBe(boilStep(frameAt(48)));
-    expect(loopFrame(frameAt(84))).toBe(0);
+    expect(loopFrame(frameAt(84))).toBe(36);
     expect(loopFrame(frameAt(40))).toBe(-1);
   });
 

@@ -3,6 +3,7 @@ import type { Scene } from '../../core/scene';
 import catalogJson from './catalog.json';
 import { untangleScene } from './k01-untangle';
 import { runsItselfScene } from './k02-runs-itself';
+import { sortedScene } from './k03-sorted';
 
 export interface KeystoneEntry {
   id: string;
@@ -25,4 +26,5 @@ export const KEYSTONE_CATALOG: readonly KeystoneEntry[] = catalogJson;
 export const keystoneScenes: Record<string, Scene> = Object.fromEntries([
   untangleScene,
   runsItselfScene,
+  sortedScene,
 ].map(s => [s.name, s]));

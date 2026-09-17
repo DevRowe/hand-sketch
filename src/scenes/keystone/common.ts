@@ -98,8 +98,12 @@ export const LOOP = 36;
 /** Local time in 12 fps drawn frames (fractional when rendered on ones), so storyboards can key frames directly. */
 export const nf = (f: SceneFrame): number => Math.round(f.t * 12 * 1e6) / 1e6;
 
-/** Frame inside the loop section in 12 fps drawn frames, [0, LOOP); -1 in the intro. Phase 1 (the seam) maps to 0. */
+/**
+ * Frame inside the loop section in 12 fps drawn frames, [0, LOOP]; -1 in the intro. It deliberately does not wrap:
+ * phase 1 (the never-shown seam frame) is LOOP, so the seam check compares the scene's natural continuation with
+ * the loop start instead of the same number twice. Periodic helpers (emitters, boil) do their own modulo.
+ */
 export function lf(f: SceneFrame, loop = LOOP): number {
   if (f.loopPhase === null) return -1;
-  return (Math.round(f.loopPhase * loop * 1e6) / 1e6) % loop;
+  return Math.round(f.loopPhase * loop * 1e6) / 1e6;
 }
