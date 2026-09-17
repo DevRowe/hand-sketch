@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { arcLengths, catmullRom, cutAtLength, ellipsePoints, polylineLength, resample } from '../src/core/geometry';
+import { arcLengths, catmullRom, cutAtLength, ellipsePoints, polylineLength, resample, resampleCount, tangentAtLength } from '../src/core/geometry';
 import type { Vec2 } from '../src/core/math';
 
 const line: Vec2[] = [[0, 0], [100, 0], [100, 50]];
@@ -35,5 +35,21 @@ describe('geometry', () => {
     const one = polylineLength(ellipsePoints(0, 0, 100, 100, { turns: 1, n: 200 }));
     expect(one).toBeCloseTo(2 * Math.PI * 100, -1);
     expect(polylineLength(ellipsePoints(0, 0, 100, 100, { turns: 1.2, n: 200 }))).toBeGreaterThan(one * 1.15);
+  });
+
+  it('resamples to an exact point count', () => {
+    const r = resampleCount(line, 4);
+    expect(r).toHaveLength(4);
+    expect(r[0]).toEqual([0, 0]);
+    expect(r[3]).toEqual([100, 50]);
+    expect(r[1]![0]).toBeCloseTo(50);
+  });
+
+  it('gives the direction of travel at an arc length, skipping repeated vertices', () => {
+    const s = arcLengths(line);
+    expect(tangentAtLength(line, s, 50)).toEqual([1, 0]);
+    expect(tangentAtLength(line, s, 120)).toEqual([0, 1]);
+    const dup: Vec2[] = [[0, 0], [0, 0], [0, 10]];
+    expect(tangentAtLength(dup, arcLengths(dup), 0)).toEqual([0, 1]);
   });
 });
