@@ -75,8 +75,11 @@ export function scratch(f: SceneFrame, key: string, draw: (g: SceneFrame) => voi
   g.globalCompositeOperation = 'source-over';
   g.filter = 'none';
   g.clearRect(0, 0, layer.width, layer.height);
+  // the layer's context outlives the frame: nothing it sets (a clip above all) may leak into the next one
+  g.save();
   stage.reset(g);
   draw({ ...f, ctx: g });
+  g.restore();
   stage.reset(g);
   g.filter = 'none';
   return layer;
