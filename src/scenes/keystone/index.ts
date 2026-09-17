@@ -9,6 +9,7 @@ import { oneTriggerScene } from './k05-one-trigger';
 import { printRunScene } from './k06-print-run';
 import { busyworkScene } from './k07-busywork';
 import { gateScene } from './k08-gate';
+import { checklistScene } from './k09-checklist';
 
 export interface KeystoneEntry {
   id: string;
@@ -37,4 +38,5 @@ export const keystoneScenes: Record<string, Scene> = Object.fromEntries([
   printRunScene,
   busyworkScene,
   gateScene,
+  checklistScene,
 ].map(s => [s.name, s]));
