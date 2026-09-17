@@ -42,7 +42,10 @@ const ui = {
 };
 
 for (const id of PROGRAM_IDS) ui.program.add(new Option(id, id));
-ui.program.value = q.get('program') ?? 'sequence';
+// same trap as the aspect below: an id without a matching <option> would empty the select, so resolve it first
+const programId = q.get('program') ?? 'sequence';
+programById(programId);
+ui.program.value = programId;
 ui.strokes.value = q.get('strokes') === 'legacy' ? 'legacy' : 'engine';
 // read the aspect from the query string itself: assigning a value with no matching <option> empties the
 // select, which used to fall back to a square frame without a word (`--ar 4:3` rendered 1:1)
