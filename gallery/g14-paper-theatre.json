@@ -1,0 +1,19 @@
+{
+  "program": "loop:paper-theatre",
+  "ar": "4:3",
+  "width": 1440,
+  "height": 1080,
+  "fps": 12,
+  "frames": 144,
+  "loopFrom": 0,
+  "loopFromSeconds": 0,
+  "poster": 30,
+  "video": {
+    "mp4": "g14-paper-theatre.mp4",
+    "webm": "g14-paper-theatre.webm"
+  },
+  "posterImage": {
+    "png": "g14-paper-theatre-poster.png",
+    "jpg": "g14-paper-theatre-poster.jpg"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "program": "loop:snow-fox",
+  "ar": "1:1",
+  "width": 1080,
+  "height": 1080,
+  "fps": 12,
+  "frames": 144,
+  "loopFrom": 0,
+  "loopFromSeconds": 0,
+  "poster": 20,
+  "video": {
+    "mp4": "g10-snow-fox.mp4",
+    "webm": "g10-snow-fox.webm"
+  },
+  "posterImage": {
+    "png": "g10-snow-fox-poster.png",
+    "jpg": "g10-snow-fox-poster.jpg"
+  }
+}

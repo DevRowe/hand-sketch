@@ -7,7 +7,7 @@
  *   are printed);
  * - page-locked marks: `screen` (halftone dots), `hatchLines` (etched parallel lines) and `stipple` keep their grid
  *   fixed to the page while the shapes they fill move, so tones never swim;
- * - textures: `tooth` (seeded specks, streaks or woodgrain) knocked out of a layer, for pastel on toothy paper,
+ * - textures: `toothMask` (seeded specks, streaks or woodgrain) knocked out of a layer, for pastel on toothy paper,
  *   ink starvation and block-print grain;
  * - wet media: `wash`, a watercolour glaze with a pigment edge;
  * - cut paper: `scissor`, a hand-cut polygon of straight facets;

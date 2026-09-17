@@ -29,6 +29,7 @@ There is no CI pipeline; run `npm run check` before opening a PR.
 | `npm run render -- --program loop:untangle --ar 1:1 --width 1080 --web --out dir` | web delivery: 12 fps H.264 + VP9 with a keyframe at `loopFrom`, poster PNG/JPEG at `Scene.poster`, JSON sidecar; implies `--seam` |
 | `npm run keystone` | web-render the ten Keystone scenes from `src/scenes/keystone/catalog.json` into `keystone/` plus `manifest.json` and `board.html` (`-- --only K01,K08`, `-- --verify`, `-- --board-only`) |
 | `npm run poetic` | the same for the ten poetic scenes (`src/scenes/poetic/catalog.json`) into `poetic/`, with a gallery board; same flags (`-- --only P01,P08`) |
+| `npm run gallery` | the same for the twenty "Many Hands" pieces (`src/scenes/gallery/catalog.json`) into `gallery/`, board grouped by visual style; same flags (`-- --only G01,G08`) |
 
 `scripts/render.mjs` finds Chrome on PATH; otherwise set `CHROME=/path/to/chrome` (on this machine `~/.local/chrome-for-testing/chrome-linux64/chrome`).
 It fails fast on any page error, console error or failed request.
@@ -55,7 +56,8 @@ Preview query string (also what the renderer uses): `program`, `ar` (any `W:H`; 
 - `src/scenes/`: the demo `house` scene (the vertical slice), `night`, `demo.ts` with the two-scene sequence and program ids, and `kit.ts` (design-box `fit`, `perSize` layout caches, fills, 12 fps `nf`/`loopClock` clocks) shared by the sets.
   `src/scenes/keystone/` holds the ten Keystone Systems scenes (`k01-untangle.ts` .. `k10-keystone.ts`, shared `common.ts`) and `catalog.json` (format, poster policy, alt text); the rendered delivery lives in `keystone/` and is regenerated with `npm run keystone`.
   `src/scenes/poetic/` holds the ten poetic scenes (`p01-wishes.ts` .. `p10-small-light.ts`, shared `common.ts` with stock, light-as-print `glow`, `lit` reveal-by-light and rising wisps) and `catalog.json` (title, line, arc, loop, poster policy, alt text); delivery in `poetic/`, regenerated with `npm run poetic`.
-  Both set renderers share `scripts/lib/web-set.mjs` (render loop, sidecars, board player).
+  `src/scenes/gallery/` holds the twenty gallery pieces (`g01-rolling-sea.ts` .. `g20-koi.ts`), each in its own visual language with its palette in `palettes.ts`; `common.ts` is the technique kit (cached `still` layers, per-frame `scratch` layers and `ink` plates printed with registration offsets and tooth, page-locked `screen` halftone, `hatchLines` and `stipple`, `wash`, `scissor`); delivery in `gallery/`, regenerated with `npm run gallery`.
+  The set renderers share `scripts/lib/web-set.mjs` (render loop, sidecars, board player).
 - `src/preview/` and `src/runtime/player.ts`: the preview UI and the `window.__handSketch` hooks the renderer calls.
 
 ## Invariants
@@ -65,6 +67,8 @@ Preview query string (also what the renderer uses): `program`, `ar` (any `W:H`; 
 - Scenes keep no state between frames; caches must be pure functions of their key (layout per frame size, prepared strokes per boil step).
 - Boil (re-seeded wobble) belongs in idle sections only, stepped every few drawn frames, never on paper or finishes.
 - Loop sections must be seamless: compute loop motion from an unwrapped loop clock (phase 1 must be the natural continuation, not phase 0 again) and let periodic helpers do the modulo; `--seam` checks it.
+  Anything tied to a whole number of frames (beats, look-backs along a periodic path) is safest counted in integer frames or ticks, so the seam frame is exact rather than equal up to rounding.
+- A cached offscreen layer's context outlives the frame: draw into it inside `save`/`restore`, or a clip or style set in one frame leaks into the next (and into `--seam`/`--verify`).
 - Default timing is on twos: 12 drawn fps held to 24 output fps.
 
 ## Licence and attribution

@@ -1,0 +1,19 @@
+{
+  "program": "loop:rolling-sea",
+  "ar": "16:9",
+  "width": 1600,
+  "height": 900,
+  "fps": 12,
+  "frames": 144,
+  "loopFrom": 0,
+  "loopFromSeconds": 0,
+  "poster": 30,
+  "video": {
+    "mp4": "g01-rolling-sea.mp4",
+    "webm": "g01-rolling-sea.webm"
+  },
+  "posterImage": {
+    "png": "g01-rolling-sea-poster.png",
+    "jpg": "g01-rolling-sea-poster.jpg"
+  }
+}

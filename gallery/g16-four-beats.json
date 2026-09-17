@@ -1,0 +1,19 @@
+{
+  "program": "loop:four-beats",
+  "ar": "16:9",
+  "width": 1600,
+  "height": 900,
+  "fps": 12,
+  "frames": 192,
+  "loopFrom": 0,
+  "loopFromSeconds": 0,
+  "poster": 70,
+  "video": {
+    "mp4": "g16-four-beats.mp4",
+    "webm": "g16-four-beats.webm"
+  },
+  "posterImage": {
+    "png": "g16-four-beats-poster.png",
+    "jpg": "g16-four-beats-poster.jpg"
+  }
+}

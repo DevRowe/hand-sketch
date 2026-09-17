@@ -1,0 +1,19 @@
+{
+  "program": "loop:truchet",
+  "ar": "1:1",
+  "width": 1080,
+  "height": 1080,
+  "fps": 12,
+  "frames": 144,
+  "loopFrom": 0,
+  "loopFromSeconds": 0,
+  "poster": 30,
+  "video": {
+    "mp4": "g15-truchet.mp4",
+    "webm": "g15-truchet.webm"
+  },
+  "posterImage": {
+    "png": "g15-truchet-poster.png",
+    "jpg": "g15-truchet-poster.jpg"
+  }
+}

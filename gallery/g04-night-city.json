@@ -1,0 +1,19 @@
+{
+  "program": "loop:night-city",
+  "ar": "4:5",
+  "width": 1080,
+  "height": 1350,
+  "fps": 12,
+  "frames": 144,
+  "loopFrom": 0,
+  "loopFromSeconds": 0,
+  "poster": 64,
+  "video": {
+    "mp4": "g04-night-city.mp4",
+    "webm": "g04-night-city.webm"
+  },
+  "posterImage": {
+    "png": "g04-night-city-poster.png",
+    "jpg": "g04-night-city-poster.jpg"
+  }
+}

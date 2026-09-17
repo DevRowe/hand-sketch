@@ -1,0 +1,19 @@
+{
+  "program": "loop:moon-tides",
+  "ar": "4:5",
+  "width": 1080,
+  "height": 1350,
+  "fps": 12,
+  "frames": 192,
+  "loopFrom": 0,
+  "loopFromSeconds": 0,
+  "poster": 96,
+  "video": {
+    "mp4": "g17-moon-tides.mp4",
+    "webm": "g17-moon-tides.webm"
+  },
+  "posterImage": {
+    "png": "g17-moon-tides-poster.png",
+    "jpg": "g17-moon-tides-poster.jpg"
+  }
+}

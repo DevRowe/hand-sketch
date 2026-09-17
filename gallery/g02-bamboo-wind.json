@@ -1,0 +1,19 @@
+{
+  "program": "loop:bamboo-wind",
+  "ar": "4:5",
+  "width": 1080,
+  "height": 1350,
+  "fps": 12,
+  "frames": 144,
+  "loopFrom": 0,
+  "loopFromSeconds": 0,
+  "poster": 40,
+  "video": {
+    "mp4": "g02-bamboo-wind.mp4",
+    "webm": "g02-bamboo-wind.webm"
+  },
+  "posterImage": {
+    "png": "g02-bamboo-wind-poster.png",
+    "jpg": "g02-bamboo-wind-poster.jpg"
+  }
+}

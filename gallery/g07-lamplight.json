@@ -1,0 +1,19 @@
+{
+  "program": "loop:lamplight",
+  "ar": "1:1",
+  "width": 1080,
+  "height": 1080,
+  "fps": 12,
+  "frames": 144,
+  "loopFrom": 0,
+  "loopFromSeconds": 0,
+  "poster": 22,
+  "video": {
+    "mp4": "g07-lamplight.mp4",
+    "webm": "g07-lamplight.webm"
+  },
+  "posterImage": {
+    "png": "g07-lamplight-poster.png",
+    "jpg": "g07-lamplight-poster.jpg"
+  }
+}

@@ -126,7 +126,12 @@ const layout = perSize((w, h): Layout => {
 });
 
 /** Whole loops of the mechanism since it started: 0 at rest, then ramping, then one per LOOP frames. */
-const run = (n: number): number => rampToConstant(n, F.start, RAMP, 1) / LOOP;
+const run = (n: number): number => {
+  const frames = rampToConstant(n, F.start, RAMP, 1);
+  // at speed, every part turns a whole number of times per loop, so only the frames into the current loop matter;
+  // counting them as a whole-frame remainder makes the seam frame exact, not merely equal up to rounding
+  return n >= LOOP_FROM && Number.isInteger(frames) ? (frames % LOOP) / LOOP : frames / LOOP;
+};
 
 export const orreryScene: Scene = {
   name: 'orrery',

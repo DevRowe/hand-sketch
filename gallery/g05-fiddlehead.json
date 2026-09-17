@@ -1,0 +1,19 @@
+{
+  "program": "loop:fiddlehead",
+  "ar": "4:5",
+  "width": 1080,
+  "height": 1350,
+  "fps": 12,
+  "frames": 192,
+  "loopFrom": 96,
+  "loopFromSeconds": 8,
+  "poster": 126,
+  "video": {
+    "mp4": "g05-fiddlehead.mp4",
+    "webm": "g05-fiddlehead.webm"
+  },
+  "posterImage": {
+    "png": "g05-fiddlehead-poster.png",
+    "jpg": "g05-fiddlehead-poster.jpg"
+  }
+}

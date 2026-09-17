@@ -1,0 +1,442 @@
+[
+  {
+    "id": "G01",
+    "title": "Rolling Sea",
+    "line": "Every wave is the same wave, arriving.",
+    "theme": "The sea",
+    "style": "Woodblock",
+    "autoplay": true,
+    "alt": "Sketch in woodblock-print style: bands of curling indigo waves with foam beads roll to the right under a red sun and a snow-capped peak, and a boat of rowers rides the swell.",
+    "width": 1600,
+    "height": 900,
+    "fps": 12,
+    "loopFromSeconds": 0,
+    "posterSeconds": 2.5,
+    "video": {
+      "mp4": "g01-rolling-sea.mp4",
+      "webm": "g01-rolling-sea.webm"
+    },
+    "poster": {
+      "png": "g01-rolling-sea-poster.png",
+      "jpg": "g01-rolling-sea-poster.jpg"
+    }
+  },
+  {
+    "id": "G02",
+    "title": "Bamboo Wind",
+    "line": "You only see the wind by what it bends.",
+    "theme": "Wind",
+    "style": "Sumi brush",
+    "autoplay": false,
+    "alt": "Sketch in sumi ink: black and grey bamboo stalks with clusters of brush-stroke leaves bend and sway in gusts of wind on cream rice paper, with a red seal in the corner.",
+    "width": 1080,
+    "height": 1350,
+    "fps": 12,
+    "loopFromSeconds": 0,
+    "posterSeconds": 3.3333333333333335,
+    "video": {
+      "mp4": "g02-bamboo-wind.mp4",
+      "webm": "g02-bamboo-wind.webm"
+    },
+    "poster": {
+      "png": "g02-bamboo-wind-poster.png",
+      "jpg": "g02-bamboo-wind-poster.jpg"
+    }
+  },
+  {
+    "id": "G03",
+    "title": "Orrery",
+    "line": "Draw the heavens carefully enough and they start to turn.",
+    "theme": "The cosmos",
+    "style": "Blueprint and cyanotype",
+    "autoplay": false,
+    "alt": "Sketch of a blueprint: a planetary orrery drawn in white lines on blue grid paper, with orbit ellipses, a yellow sun, planets on arms, a gear train and dimension lines; the planets and gears turn.",
+    "width": 1080,
+    "height": 1080,
+    "fps": 12,
+    "loopFromSeconds": 6.5,
+    "posterSeconds": 8.166666666666666,
+    "video": {
+      "mp4": "g03-orrery.mp4",
+      "webm": "g03-orrery.webm"
+    },
+    "poster": {
+      "png": "g03-orrery-poster.png",
+      "jpg": "g03-orrery-poster.jpg"
+    }
+  },
+  {
+    "id": "G04",
+    "title": "Night City",
+    "line": "Every lit window is somebody still awake.",
+    "theme": "Cities",
+    "style": "Riso poster",
+    "autoplay": false,
+    "alt": "Sketch in risograph style: a blue and pink city skyline with yellow lit windows under a big yellow moon, a pink train crossing on an elevated line, and the city reflected in the river below.",
+    "width": 1080,
+    "height": 1350,
+    "fps": 12,
+    "loopFromSeconds": 0,
+    "posterSeconds": 5.333333333333333,
+    "video": {
+      "mp4": "g04-night-city.mp4",
+      "webm": "g04-night-city.webm"
+    },
+    "poster": {
+      "png": "g04-night-city-poster.png",
+      "jpg": "g04-night-city-poster.jpg"
+    }
+  },
+  {
+    "id": "G05",
+    "title": "Fiddlehead",
+    "line": "It was holding all of this, rolled up small.",
+    "theme": "Plants growing",
+    "style": "Blueprint and cyanotype",
+    "autoplay": false,
+    "alt": "Sketch of a cyanotype sun print: on a brushed field of Prussian blue, a pale fern fiddlehead unrolls into a tall frond beside grass stems and a small curled crozier.",
+    "width": 1080,
+    "height": 1350,
+    "fps": 12,
+    "loopFromSeconds": 8,
+    "posterSeconds": 10.5,
+    "video": {
+      "mp4": "g05-fiddlehead.mp4",
+      "webm": "g05-fiddlehead.webm"
+    },
+    "poster": {
+      "png": "g05-fiddlehead-poster.png",
+      "jpg": "g05-fiddlehead-poster.jpg"
+    }
+  },
+  {
+    "id": "G06",
+    "title": "Murmuration",
+    "line": "Thousands of birds, and not one of them is in charge.",
+    "theme": "Creatures",
+    "style": "Stipple",
+    "autoplay": false,
+    "alt": "Sketch in stipple: a dusk sky over reeds made of ink dots, with a rose-coloured low sun, and a vast flock of starlings shown as dots that flows into changing shapes.",
+    "width": 1600,
+    "height": 900,
+    "fps": 12,
+    "loopFromSeconds": 0,
+    "posterSeconds": 10.166666666666666,
+    "video": {
+      "mp4": "g06-murmuration.mp4",
+      "webm": "g06-murmuration.webm"
+    },
+    "poster": {
+      "png": "g06-murmuration-poster.png",
+      "jpg": "g06-murmuration-poster.jpg"
+    }
+  },
+  {
+    "id": "G07",
+    "title": "Lamplight",
+    "line": "Everything on the table leans away from the light.",
+    "theme": "Light and shadow",
+    "style": "Etching",
+    "autoplay": false,
+    "alt": "Sketch in etching style: a jug, two pears and a bowl on a table under a hanging lamp; the lamp swings and the cross-hatched shadows and pool of warm light move with it.",
+    "width": 1080,
+    "height": 1080,
+    "fps": 12,
+    "loopFromSeconds": 0,
+    "posterSeconds": 1.8333333333333333,
+    "video": {
+      "mp4": "g07-lamplight.mp4",
+      "webm": "g07-lamplight.webm"
+    },
+    "poster": {
+      "png": "g07-lamplight-poster.png",
+      "jpg": "g07-lamplight-poster.jpg"
+    }
+  },
+  {
+    "id": "G08",
+    "title": "Sea Chart",
+    "line": "The route is only ever the wake behind you.",
+    "theme": "Maps and journeys",
+    "style": "Etching",
+    "autoplay": false,
+    "alt": "Sketch of an antique sea chart in sepia ink on stained vellum: islands with ripple lines, a compass rose, a sea serpent, and a small ship sailing a dotted red route around the islands.",
+    "width": 1600,
+    "height": 900,
+    "fps": 12,
+    "loopFromSeconds": 5,
+    "posterSeconds": 8.666666666666666,
+    "video": {
+      "mp4": "g08-sea-chart.mp4",
+      "webm": "g08-sea-chart.webm"
+    },
+    "poster": {
+      "png": "g08-sea-chart-poster.png",
+      "jpg": "g08-sea-chart-poster.jpg"
+    }
+  },
+  {
+    "id": "G09",
+    "title": "Rain Window",
+    "line": "The city dissolves, and the room gets warmer.",
+    "theme": "Weather",
+    "style": "Watercolour",
+    "autoplay": false,
+    "alt": "Sketch in watercolour: a window at night between rose curtains, rain drops on the glass and blurred city lights beyond, with a potted plant and a steaming cup on the sill.",
+    "width": 1080,
+    "height": 1350,
+    "fps": 12,
+    "loopFromSeconds": 0,
+    "posterSeconds": 4.166666666666667,
+    "video": {
+      "mp4": "g09-rain-window.mp4",
+      "webm": "g09-rain-window.webm"
+    },
+    "poster": {
+      "png": "g09-rain-window-poster.png",
+      "jpg": "g09-rain-window-poster.jpg"
+    }
+  },
+  {
+    "id": "G10",
+    "title": "Snow Fox",
+    "line": "Curled up small enough, the winter goes around you.",
+    "theme": "Winter",
+    "style": "Woodblock",
+    "autoplay": false,
+    "alt": "Sketch as a black, red and cream linocut: a red fox curled asleep in snow below carved pine trees and a full moon with halo rings, with snow falling.",
+    "width": 1080,
+    "height": 1080,
+    "fps": 12,
+    "loopFromSeconds": 0,
+    "posterSeconds": 1.6666666666666667,
+    "video": {
+      "mp4": "g10-snow-fox.mp4",
+      "webm": "g10-snow-fox.webm"
+    },
+    "poster": {
+      "png": "g10-snow-fox-poster.png",
+      "jpg": "g10-snow-fox-poster.jpg"
+    }
+  },
+  {
+    "id": "G11",
+    "title": "Aurora",
+    "line": "The sky was drawing, and it would not hold still.",
+    "theme": "The night sky",
+    "style": "Pastel on black",
+    "autoplay": false,
+    "alt": "Sketch in pastel on black paper: green and magenta curtains of aurora ripple above dark mountains and pines, reflected in a lake below a starry sky.",
+    "width": 1600,
+    "height": 900,
+    "fps": 12,
+    "loopFromSeconds": 0,
+    "posterSeconds": 3.3333333333333335,
+    "video": {
+      "mp4": "g11-aurora.mp4",
+      "webm": "g11-aurora.webm"
+    },
+    "poster": {
+      "png": "g11-aurora-poster.png",
+      "jpg": "g11-aurora-poster.jpg"
+    }
+  },
+  {
+    "id": "G12",
+    "title": "Jellyfish",
+    "line": "It swims by closing its hand around the dark.",
+    "theme": "The deep",
+    "style": "Pastel on black",
+    "autoplay": false,
+    "alt": "Sketch in glowing pastel on black: three jellyfish in cyan, violet and pink pulse and drift in deep water, with long trailing tentacles and drifting particles.",
+    "width": 1080,
+    "height": 1920,
+    "fps": 12,
+    "loopFromSeconds": 0,
+    "posterSeconds": 3.6666666666666665,
+    "video": {
+      "mp4": "g12-jellyfish.mp4",
+      "webm": "g12-jellyfish.webm"
+    },
+    "poster": {
+      "png": "g12-jellyfish-poster.png",
+      "jpg": "g12-jellyfish-poster.jpg"
+    }
+  },
+  {
+    "id": "G13",
+    "title": "Ring Dance",
+    "line": "Nobody leads. Everybody holds on.",
+    "theme": "Dance",
+    "style": "Cut paper",
+    "autoplay": false,
+    "alt": "Sketch in cut paper after Matisse: five red figures holding hands dance in a turning ring on a green hill against a deep blue sky with yellow and cream paper shapes.",
+    "width": 1600,
+    "height": 900,
+    "fps": 12,
+    "loopFromSeconds": 0,
+    "posterSeconds": 2.5,
+    "video": {
+      "mp4": "g13-ring-dance.mp4",
+      "webm": "g13-ring-dance.webm"
+    },
+    "poster": {
+      "png": "g13-ring-dance-poster.png",
+      "jpg": "g13-ring-dance-poster.jpg"
+    }
+  },
+  {
+    "id": "G14",
+    "title": "Paper Theatre",
+    "line": "The sea was cardboard. We went anyway.",
+    "theme": "Dreams",
+    "style": "Cut paper",
+    "autoplay": false,
+    "alt": "Sketch of a toy paper theatre: red curtains frame a night sea of layered teal paper waves with a paper sailing boat, a gold crescent moon and stars hanging on threads.",
+    "width": 1440,
+    "height": 1080,
+    "fps": 12,
+    "loopFromSeconds": 0,
+    "posterSeconds": 2.5,
+    "video": {
+      "mp4": "g14-paper-theatre.mp4",
+      "webm": "g14-paper-theatre.webm"
+    },
+    "poster": {
+      "png": "g14-paper-theatre-poster.png",
+      "jpg": "g14-paper-theatre-poster.jpg"
+    }
+  },
+  {
+    "id": "G15",
+    "title": "Truchet",
+    "line": "Turn one tile and the whole path changes.",
+    "theme": "Geometric rhythm",
+    "style": "Bauhaus",
+    "autoplay": false,
+    "alt": "Sketch in Bauhaus screen-print style: a grid of square tiles with black curved bands and red, yellow and blue quarter circles that rotate in waves, re-forming winding paths.",
+    "width": 1080,
+    "height": 1080,
+    "fps": 12,
+    "loopFromSeconds": 0,
+    "posterSeconds": 2.5,
+    "video": {
+      "mp4": "g15-truchet.mp4",
+      "webm": "g15-truchet.webm"
+    },
+    "poster": {
+      "png": "g15-truchet-poster.png",
+      "jpg": "g15-truchet-poster.jpg"
+    }
+  },
+  {
+    "id": "G16",
+    "title": "Four Beats",
+    "line": "Every shape has its own way of hearing the same note.",
+    "theme": "Music",
+    "style": "Bauhaus",
+    "autoplay": false,
+    "alt": "Sketch of a Kandinsky-style score: a yellow and blue ringed circle, a red triangle, a black zigzag, coloured dots, a blue arc, a chequerboard and violet rings on staff lines, each moving as a red playhead passes.",
+    "width": 1600,
+    "height": 900,
+    "fps": 12,
+    "loopFromSeconds": 0,
+    "posterSeconds": 5.833333333333333,
+    "video": {
+      "mp4": "g16-four-beats.mp4",
+      "webm": "g16-four-beats.webm"
+    },
+    "poster": {
+      "png": "g16-four-beats-poster.png",
+      "jpg": "g16-four-beats-poster.jpg"
+    }
+  },
+  {
+    "id": "G17",
+    "title": "Moon Tides",
+    "line": "A whole month in one breath of the sea.",
+    "theme": "The moon and the sea",
+    "style": "Art deco",
+    "autoplay": false,
+    "alt": "Sketch in art deco gold on black: a moon engraved with fine lines passes through its phases above rows of teal and gold scalloped waves, inside a stepped gold frame with rays and star sparkles.",
+    "width": 1080,
+    "height": 1350,
+    "fps": 12,
+    "loopFromSeconds": 0,
+    "posterSeconds": 8,
+    "video": {
+      "mp4": "g17-moon-tides.mp4",
+      "webm": "g17-moon-tides.webm"
+    },
+    "poster": {
+      "png": "g17-moon-tides-poster.png",
+      "jpg": "g17-moon-tides-poster.jpg"
+    }
+  },
+  {
+    "id": "G18",
+    "title": "Fire Mountain",
+    "line": "The island is still being made.",
+    "theme": "Fire and earth",
+    "style": "Riso poster",
+    "autoplay": false,
+    "alt": "Sketch in risograph style: a teal volcano with orange lava streams smokes under a purple and orange sunset sky with a striped yellow sun, palm silhouettes in the foreground and a sea below.",
+    "width": 1080,
+    "height": 1350,
+    "fps": 12,
+    "loopFromSeconds": 0,
+    "posterSeconds": 5,
+    "video": {
+      "mp4": "g18-fire-mountain.mp4",
+      "webm": "g18-fire-mountain.webm"
+    },
+    "poster": {
+      "png": "g18-fire-mountain-poster.png",
+      "jpg": "g18-fire-mountain-poster.jpg"
+    }
+  },
+  {
+    "id": "G19",
+    "title": "Cyclist",
+    "line": "Keep the line going and it takes you somewhere.",
+    "theme": "Motion",
+    "style": "Continuous line",
+    "autoplay": false,
+    "alt": "Sketch in a single black line on white: a cyclist rides past rolling hills, bushes, telegraph poles and clouds under a red sun, drawn as one continuous pen line.",
+    "width": 1600,
+    "height": 900,
+    "fps": 12,
+    "loopFromSeconds": 6,
+    "posterSeconds": 7.666666666666667,
+    "video": {
+      "mp4": "g19-cyclist.mp4",
+      "webm": "g19-cyclist.webm"
+    },
+    "poster": {
+      "png": "g19-cyclist-poster.png",
+      "jpg": "g19-cyclist-poster.jpg"
+    }
+  },
+  {
+    "id": "G20",
+    "title": "Koi",
+    "line": "Two fish, one circle, no beginning.",
+    "theme": "Water",
+    "style": "Sumi brush",
+    "autoplay": false,
+    "alt": "Sketch in sumi ink: seen from above, a red and white koi and a black koi swim in a slow circle around each other among grey lily pads, with ripples on the water and a red seal.",
+    "width": 1080,
+    "height": 1080,
+    "fps": 12,
+    "loopFromSeconds": 0,
+    "posterSeconds": 3.3333333333333335,
+    "video": {
+      "mp4": "g20-koi.mp4",
+      "webm": "g20-koi.webm"
+    },
+    "poster": {
+      "png": "g20-koi-poster.png",
+      "jpg": "g20-koi-poster.jpg"
+    }
+  }
+]

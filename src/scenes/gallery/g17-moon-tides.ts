@@ -163,8 +163,8 @@ export const moonTidesScene: Scene = {
       g.ctx.scale(s, s);
       sea(g, p, Math.round(nf(f)));
       gold(g, p, stars);
-      // a sheen travels once across the gold, off the plate at both ends of the loop
-      const c = g.ctx, x = lerp(-700, W + 1400, p);
+      // a sheen travels once across the gold while the moon is dark; it wraps while wholly off the plate (at full moon)
+      const c = g.ctx, x = lerp(-700, W + 1400, wrap(p + 0.5, 1));
       c.globalCompositeOperation = 'source-atop';
       const band = c.createLinearGradient(x - 220, 0, x + 220, 160);
       band.addColorStop(0, 'rgba(255,248,220,0)');

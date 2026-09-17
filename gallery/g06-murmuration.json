@@ -1,0 +1,19 @@
+{
+  "program": "loop:murmuration",
+  "ar": "16:9",
+  "width": 1600,
+  "height": 900,
+  "fps": 12,
+  "frames": 192,
+  "loopFrom": 0,
+  "loopFromSeconds": 0,
+  "poster": 122,
+  "video": {
+    "mp4": "g06-murmuration.mp4",
+    "webm": "g06-murmuration.webm"
+  },
+  "posterImage": {
+    "png": "g06-murmuration-poster.png",
+    "jpg": "g06-murmuration-poster.jpg"
+  }
+}

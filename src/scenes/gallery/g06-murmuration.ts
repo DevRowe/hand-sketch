@@ -40,7 +40,7 @@ function flockAt(p: number): (bird: Bird) => Vec2 {
   return bird => {
     // a compression wave travelling along the flock: birds bunch into dark bands and spread again
     const a = bird.a + 0.13 * Math.sin(TAU * (p * 3 - bird.a * 0.9));
-    let x = a * A * 2.1, y = bird.b * B * 2.1 * (1 - 0.3 * a * a);
+    let x = a * A * 1.7, y = bird.b * B * 1.7 * (1 - 0.3 * a * a);
     // the flock folds over itself like a ribbon
     y += fold * Math.sin(a * 2.2 + TAU * p);
     // a wing of birds peels away from the top edge and returns
@@ -54,7 +54,7 @@ export const murmurationScene: Scene = {
   name: 'murmuration',
   duration: LOOP / 12,
   loopFrom: 0,
-  poster: 70 / 12,
+  poster: 122 / 12,
   draw(f) {
     const { ctx, stage } = f;
     const { F } = layout(stage.w, stage.h), p = phase(f), [ox, oy] = F.P(0, 0), s = F.s;
@@ -108,7 +108,7 @@ export const murmurationScene: Scene = {
     ctx.fillStyle = INK;
     ctx.beginPath();
     for (const bird of BIRDS) {
-      const [x, y] = at(bird), rad = lerp(1.3, 2.7, bird.z);
+      const [x, y] = at(bird), rad = lerp(1.7, 3.2, bird.z);
       ctx.moveTo(x + rad, y);
       ctx.arc(x, y, rad, 0, TAU);
     }
