@@ -166,6 +166,8 @@ try {
       mkdirSync(outRoot, { recursive: true });
       const input = ['-framerate', String(fps), '-start_number', '0', '-i', path.join(frameDir, '%05d.png')];
       const keys = ['-force_key_frames', loopFrom === null ? '0' : `0,${(loopFrom / fps).toFixed(6)}`];
+      // bitexact: no random container UIDs or encoder strings, so re-rendering unchanged frames gives identical files
+      keys.push('-fflags', '+bitexact', '-flags:v', '+bitexact');
       const mp4 = path.join(outRoot, `${name}.mp4`), webm = path.join(outRoot, `${name}.webm`);
       ff([...input, '-c:v', 'libx264', '-preset', 'slow', '-crf', '28', '-pix_fmt', 'yuv420p', ...keys, '-movflags', '+faststart', mp4]);
       ff([...input, '-c:v', 'libvpx-vp9', '-crf', '40', '-b:v', '0', '-row-mt', '1', '-pix_fmt', 'yuv420p', ...keys, webm]);
