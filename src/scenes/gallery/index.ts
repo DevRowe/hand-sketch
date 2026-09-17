@@ -15,6 +15,11 @@ import { lamplightScene } from './g07-lamplight';
 import { seaChartScene } from './g08-sea-chart';
 import { rainWindowScene } from './g09-rain-window';
 import { snowFoxScene } from './g10-snow-fox';
+import { auroraScene } from './g11-aurora';
+import { jellyfishScene } from './g12-jellyfish';
+import { ringDanceScene } from './g13-ring-dance';
+import { paperTheatreScene } from './g14-paper-theatre';
+import { truchetScene } from './g15-truchet';
 
 export interface GalleryEntry {
   id: string;
@@ -53,4 +58,9 @@ export const galleryScenes: Record<string, Scene> = Object.fromEntries([
   seaChartScene,
   rainWindowScene,
   snowFoxScene,
+  auroraScene,
+  jellyfishScene,
+  ringDanceScene,
+  paperTheatreScene,
+  truchetScene,
 ].map(s => [s.name, s]));
