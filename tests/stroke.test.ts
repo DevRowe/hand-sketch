@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bounds, ellipsePoints, polylineLength } from '../src/core/geometry';
-import { prepareMorph, prepareStroke, sampleStroke, scheduledProgress, strokeOutline, strokeRangeOutlines, strokeSchedule } from '../src/core/stroke';
+import { prepareMorph, prepareStroke, sampleStroke, scheduledProgress, strokeOutline, strokeRangeOutlines, strokeSchedule, withPressure } from '../src/core/stroke';
 import type { Vec2 } from '../src/core/math';
 
 const style = { color: '#000', size: 6 };
@@ -132,5 +132,18 @@ describe('prepareMorph', () => {
     const a = morph(0.8), b = morph(0.84);
     const worst = Math.max(...a.points.map((p, k) => Math.hypot(p[0] - b.points[k]![0], p[1] - b.points[k]![1])));
     expect(worst).toBeLessThan(15);
+  });
+});
+
+describe('withPressure', () => {
+  it('reshapes pressure along the length without moving the line', () => {
+    const plain = prepareStroke(path, style, 5);
+    const pressed = withPressure(plain, u => (u > 0.5 ? 1.5 : 0.5));
+    expect(pressed.points).toBe(plain.points);
+    expect(pressed.length).toBe(plain.length);
+    const k = plain.pressures.length - 2;
+    expect(pressed.pressures[1]).toBeCloseTo(Math.max(0.04, plain.pressures[1]! * 0.5), 9);
+    expect(pressed.pressures[k]).toBeCloseTo(Math.min(1.6, plain.pressures[k]! * 1.5), 9);
+    expect(Math.max(...withPressure(plain, () => 9).pressures)).toBeLessThanOrEqual(1.6);
   });
 });

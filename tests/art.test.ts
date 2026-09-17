@@ -57,4 +57,16 @@ describe('glyph kit', () => {
     const xs = pts.map(p => p[0]);
     expect(Math.abs(Math.min(...xs) + Math.max(...xs))).toBeLessThan(12);
   });
+
+  it('writes cursive that loops back on itself and stays on its line', async () => {
+    const { cursive } = await import('../src/art/glyphs');
+    const word = cursive(0, 120, 0, 7, { height: 10, step: 9 });
+    expect(word).toEqual(cursive(0, 120, 0, 7, { height: 10, step: 9 }));
+    // loops: x runs backwards somewhere, as a pen does going round an "e"
+    expect(word.some((p, k) => k > 0 && p[0] < word[k - 1]![0] - 0.5)).toBe(true);
+    const ys = word.map(p => p[1]), xs = word.map(p => p[0]);
+    expect(Math.max(...ys)).toBeLessThan(4);
+    expect(Math.min(...ys)).toBeGreaterThan(-22);
+    expect(Math.max(...xs)).toBeLessThan(140);
+  });
 });
