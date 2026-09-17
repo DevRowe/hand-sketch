@@ -10,6 +10,7 @@ import { printRunScene } from './k06-print-run';
 import { busyworkScene } from './k07-busywork';
 import { gateScene } from './k08-gate';
 import { checklistScene } from './k09-checklist';
+import { keystoneScene } from './k10-keystone';
 
 export interface KeystoneEntry {
   id: string;
@@ -39,4 +40,5 @@ export const keystoneScenes: Record<string, Scene> = Object.fromEntries([
   busyworkScene,
   gateScene,
   checklistScene,
+  keystoneScene,
 ].map(s => [s.name, s]));
