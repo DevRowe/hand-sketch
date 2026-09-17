@@ -1,0 +1,19 @@
+{
+  "program": "loop:small-light",
+  "ar": "1:1",
+  "width": 1080,
+  "height": 1080,
+  "fps": 12,
+  "frames": 180,
+  "loopFrom": 132,
+  "loopFromSeconds": 11,
+  "poster": 144,
+  "video": {
+    "mp4": "p10-small-light.mp4",
+    "webm": "p10-small-light.webm"
+  },
+  "posterImage": {
+    "png": "p10-small-light-poster.png",
+    "jpg": "p10-small-light-poster.jpg"
+  }
+}

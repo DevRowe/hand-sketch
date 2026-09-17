@@ -28,9 +28,11 @@ There is no CI pipeline; run `npm run check` before opening a PR.
 | `npm run render -- --program loop:gate --seam` | fail unless a looped scene's phase 1 (local frame `duration`) draws pixel-identical to `loopFrom`; reports the differing region |
 | `npm run render -- --program loop:untangle --ar 1:1 --width 1080 --web --out dir` | web delivery: 12 fps H.264 + VP9 with a keyframe at `loopFrom`, poster PNG/JPEG at `Scene.poster`, JSON sidecar; implies `--seam` |
 | `npm run keystone` | web-render the ten Keystone scenes from `src/scenes/keystone/catalog.json` into `keystone/` plus `manifest.json` and `board.html` (`-- --only K01,K08`, `-- --verify`, `-- --board-only`) |
+| `npm run poetic` | the same for the ten poetic scenes (`src/scenes/poetic/catalog.json`) into `poetic/`, with a gallery board; same flags (`-- --only P01,P08`) |
 
 `scripts/render.mjs` finds Chrome on PATH; otherwise set `CHROME=/path/to/chrome` (on this machine `~/.local/chrome-for-testing/chrome-linux64/chrome`).
 It fails fast on any page error, console error or failed request.
+To check a board in a real browser here, serve its folder with `python3 -m http.server`; chrome-devtools-axi cannot launch its own Chrome on this machine, so start that Chrome with `--headless=new --remote-debugging-port=<port>` and set `CHROME_DEVTOOLS_AXI_BROWSER_URL=http://127.0.0.1:<port>` (plus a `CHROME_DEVTOOLS_AXI_SESSION` name).
 Canvas 2D rendering here is CPU-bound; a 12 s 1080p sequence renders in about 8 s.
 
 Preview query string (also what the renderer uses): `program`, `ar` (any `W:H`; unparsable values fail loudly), `w` (output width), `strokes=engine|legacy`, `twos=1|0`, `frame=N`, `bare=1`.
@@ -45,13 +47,15 @@ Preview query string (also what the renderer uses): `program`, `ar` (any `W:H`; 
 - `src/core/program.ts` draws any global frame of a program, compositing transitions through stage layers.
 - `src/core/stroke.ts` is the stroke engine: even resampling, coherent-noise wobble along arc length, noise pressure, arc-length reveal with a tapered pen head, perfect-freehand outline, optional dry-brush breakup.
 - `src/core/ink.ts` groups strokes by one hand (`scheduleWithin` fits a group into a time window) and caches preparation per boil step.
-- Motion helpers: `stroke.ts` also draws sub-ranges (`drawStrokeRange`, wrapping on `closed` strokes), samples the wobbled line (`sampleStroke`) and morphs with a pinned wobble (`prepareMorph`); `puppet.ts` draws a drawing prepared once in local units under a pose; `emitter.ts` gives conveyor streams that are periodic by construction; `track.ts` has frame-keyed tracks (`hold`, one-frame `settle`), `chain` and `rampToConstant`; `loop.ts` has the seam-safe `boilStep`.
+- Motion helpers: `stroke.ts` also draws sub-ranges (`drawStrokeRange`, wrapping on `closed` strokes), samples the wobbled line (`sampleStroke`), morphs with a pinned wobble (`prepareMorph`) and shapes pressure by gesture (`withPressure`); `puppet.ts` draws a drawing prepared once in local units under a pose; `emitter.ts` gives conveyor streams that are periodic by construction; `track.ts` has frame-keyed tracks (`hold`, one-frame `settle`), `chain` and `rampToConstant`; `loop.ts` has the seam-safe `boilStep`.
 - `src/core/sketch.ts` wraps rough.js; every call needs a positive `seed` (rough.js falls back to `Math.random` otherwise).
 - `src/core/stage.ts`: logical frame with the short side fixed at 1080 units; scenes place things relative to `w`, `h`, `cx`, `cy`, and output width is a render-time choice.
 - `src/art/`: colour maths, palette schema and presets, finishes (hatch, grain, halftone), riso plates (`plate` + `printPlate`), cached paper stock.
-- `src/art/roles.ts` (colour by role: pencil = manual, key ink = the client's tools, accent = automation, with stroke presets) and `src/art/glyphs.ts` (the office glyph kit, local units centred on the origin).
-- `src/scenes/`: the demo `house` scene (the vertical slice), `night`, and `demo.ts` with the two-scene sequence and program ids.
+- `src/art/roles.ts` (colour by role: pencil = manual, key ink = the client's tools, accent = automation, with stroke presets), `src/art/glyphs.ts` (the office glyph kit, local units centred on the origin, including `squiggle` and `cursive` handwriting) and `src/art/moods.ts` (mood palettes for the poetic set; `inks[0]` is the feeling colour).
+- `src/scenes/`: the demo `house` scene (the vertical slice), `night`, `demo.ts` with the two-scene sequence and program ids, and `kit.ts` (design-box `fit`, `perSize` layout caches, fills, 12 fps `nf`/`loopClock` clocks) shared by the sets.
   `src/scenes/keystone/` holds the ten Keystone Systems scenes (`k01-untangle.ts` .. `k10-keystone.ts`, shared `common.ts`) and `catalog.json` (format, poster policy, alt text); the rendered delivery lives in `keystone/` and is regenerated with `npm run keystone`.
+  `src/scenes/poetic/` holds the ten poetic scenes (`p01-wishes.ts` .. `p10-small-light.ts`, shared `common.ts` with stock, light-as-print `glow`, `lit` reveal-by-light and rising wisps) and `catalog.json` (title, line, arc, loop, poster policy, alt text); delivery in `poetic/`, regenerated with `npm run poetic`.
+  Both set renderers share `scripts/lib/web-set.mjs` (render loop, sidecars, board player).
 - `src/preview/` and `src/runtime/player.ts`: the preview UI and the `window.__handSketch` hooks the renderer calls.
 
 ## Invariants

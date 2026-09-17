@@ -1,0 +1,19 @@
+{
+  "program": "loop:paper-boat",
+  "ar": "16:9",
+  "width": 1600,
+  "height": 900,
+  "fps": 12,
+  "frames": 256,
+  "loopFrom": 208,
+  "loopFromSeconds": 17.333333333333332,
+  "poster": 220,
+  "video": {
+    "mp4": "p03-paper-boat.mp4",
+    "webm": "p03-paper-boat.webm"
+  },
+  "posterImage": {
+    "png": "p03-paper-boat-poster.png",
+    "jpg": "p03-paper-boat-poster.jpg"
+  }
+}

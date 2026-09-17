@@ -1,0 +1,19 @@
+{
+  "program": "loop:doorframe",
+  "ar": "4:5",
+  "width": 1080,
+  "height": 1350,
+  "fps": 12,
+  "frames": 276,
+  "loopFrom": 228,
+  "loopFromSeconds": 19,
+  "poster": 234,
+  "video": {
+    "mp4": "p02-doorframe.mp4",
+    "webm": "p02-doorframe.webm"
+  },
+  "posterImage": {
+    "png": "p02-doorframe-poster.png",
+    "jpg": "p02-doorframe-poster.jpg"
+  }
+}
