@@ -1,0 +1,19 @@
+{
+  "program": "loop:one-trigger",
+  "ar": "16:9",
+  "width": 1600,
+  "height": 900,
+  "fps": 12,
+  "frames": 60,
+  "loopFrom": 24,
+  "loopFromSeconds": 2,
+  "poster": 45,
+  "video": {
+    "mp4": "k05-one-trigger.mp4",
+    "webm": "k05-one-trigger.webm"
+  },
+  "posterImage": {
+    "png": "k05-one-trigger-poster.png",
+    "jpg": "k05-one-trigger-poster.jpg"
+  }
+}

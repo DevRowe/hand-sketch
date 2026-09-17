@@ -52,7 +52,7 @@ interface Layout {
 }
 
 const layout = perSize((w, h): Layout => {
-  const { P, s } = fit(w, h, 1920, 1080);
+  const { P, s } = fit(w, h, 1920, 1080, 0.96, [1030, 580]);
   const trayG = TRAY_Y.map((y, k) => ({ g: tray(250, 96, 450 + k), y }));
   const trays = group(trayG.flatMap(({ g, y }) => place(g.outline, ...P(TRAY_X, y + 48), s)), S.INK, 460);
   const trayDetail = group(trayG.flatMap(({ g, y }) => place(g.detail, ...P(TRAY_X, y + 48), s)), S.FINE, 461);

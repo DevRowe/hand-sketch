@@ -1,0 +1,19 @@
+{
+  "program": "loop:swivel-chair",
+  "ar": "16:9",
+  "width": 1600,
+  "height": 900,
+  "fps": 12,
+  "frames": 84,
+  "loopFrom": 48,
+  "loopFromSeconds": 4,
+  "poster": 62,
+  "video": {
+    "mp4": "k04-swivel-chair.mp4",
+    "webm": "k04-swivel-chair.webm"
+  },
+  "posterImage": {
+    "png": "k04-swivel-chair-poster.png",
+    "jpg": "k04-swivel-chair-poster.jpg"
+  }
+}

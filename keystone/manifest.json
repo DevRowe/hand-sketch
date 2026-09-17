@@ -1,0 +1,212 @@
+[
+  {
+    "id": "K01",
+    "title": "Untangle",
+    "slot": "Hero",
+    "autoplay": true,
+    "alt": "Sketch: a tangled route of manual hand-offs between an inbox and a ledger straightens into one line with three automatic steps; a document travels along it.",
+    "placement": "Home hero, right column; autoplays intro plus two loops, then rests on the poster.",
+    "width": 1080,
+    "height": 1080,
+    "fps": 12,
+    "loopFromSeconds": 4,
+    "posterSeconds": 5.166666666666667,
+    "video": {
+      "mp4": "k01-untangle.mp4",
+      "webm": "k01-untangle.webm"
+    },
+    "poster": {
+      "png": "k01-untangle-poster.png",
+      "jpg": "k01-untangle-poster.jpg"
+    }
+  },
+  {
+    "id": "K02",
+    "title": "The line keeps going",
+    "slot": "Alternate hero",
+    "autoplay": false,
+    "alt": "Sketch: a line is drawn by hand past four workflow steps and back to the start, then keeps travelling round on its own, ticking each step.",
+    "placement": "Alternate hero for an A/B test, or the How we work header.",
+    "width": 1600,
+    "height": 900,
+    "fps": 12,
+    "loopFromSeconds": 4,
+    "posterSeconds": 4.25,
+    "video": {
+      "mp4": "k02-runs-itself.mp4",
+      "webm": "k02-runs-itself.webm"
+    },
+    "poster": {
+      "png": "k02-runs-itself-poster.png",
+      "jpg": "k02-runs-itself-poster.jpg"
+    }
+  },
+  {
+    "id": "K03",
+    "title": "Sorted on arrival",
+    "slot": "Services",
+    "autoplay": false,
+    "alt": "Sketch: a pile of mixed paperwork routes itself along one line into three labelled trays.",
+    "placement": "Services row: enquiry and intake handling.",
+    "width": 1600,
+    "height": 900,
+    "fps": 12,
+    "loopFromSeconds": 4,
+    "posterSeconds": 5.583333333333333,
+    "video": {
+      "mp4": "k03-sorted.mp4",
+      "webm": "k03-sorted.webm"
+    },
+    "poster": {
+      "png": "k03-sorted-poster.png",
+      "jpg": "k03-sorted-poster.jpg"
+    }
+  },
+  {
+    "id": "K04",
+    "title": "Swivel chair",
+    "slot": "Services",
+    "autoplay": false,
+    "alt": "Sketch: data copied by hand between two windows is replaced by one connector; new rows flow across on their own.",
+    "placement": "Services row: connecting tools and removing double entry.",
+    "width": 1600,
+    "height": 900,
+    "fps": 12,
+    "loopFromSeconds": 4,
+    "posterSeconds": 5.166666666666667,
+    "video": {
+      "mp4": "k04-swivel-chair.mp4",
+      "webm": "k04-swivel-chair.webm"
+    },
+    "poster": {
+      "png": "k04-swivel-chair-poster.png",
+      "jpg": "k04-swivel-chair-poster.jpg"
+    }
+  },
+  {
+    "id": "K05",
+    "title": "One trigger",
+    "slot": "Process",
+    "autoplay": false,
+    "alt": "Sketch: an envelope arrives and sets off four steps in a row, approve, record, notify, each triggering the next.",
+    "placement": "How it works process section.",
+    "width": 1600,
+    "height": 900,
+    "fps": 12,
+    "loopFromSeconds": 2,
+    "posterSeconds": 3.75,
+    "video": {
+      "mp4": "k05-one-trigger.mp4",
+      "webm": "k05-one-trigger.webm"
+    },
+    "poster": {
+      "png": "k05-one-trigger-poster.png",
+      "jpg": "k05-one-trigger-poster.jpg"
+    }
+  },
+  {
+    "id": "K06",
+    "title": "Built once, runs the same every time",
+    "slot": "Services",
+    "autoplay": false,
+    "alt": "Sketch: a document is designed once by hand, then identical copies run off it at a steady pace.",
+    "placement": "Services row: reports, documents and statements.",
+    "width": 1440,
+    "height": 1080,
+    "fps": 12,
+    "loopFromSeconds": 4,
+    "posterSeconds": 5,
+    "video": {
+      "mp4": "k06-print-run.mp4",
+      "webm": "k06-print-run.webm"
+    },
+    "poster": {
+      "png": "k06-print-run-poster.png",
+      "jpg": "k06-print-run-poster.jpg"
+    }
+  },
+  {
+    "id": "K07",
+    "title": "Busywork out of the week",
+    "slot": "Benefits",
+    "autoplay": false,
+    "alt": "Sketch: a week planner crowded with the same repeated task empties as those tasks move to an automated lane beneath it.",
+    "placement": "Benefits / why us section.",
+    "width": 1600,
+    "height": 900,
+    "fps": 12,
+    "loopFromSeconds": 4,
+    "posterSeconds": 5.5,
+    "video": {
+      "mp4": "k07-busywork.mp4",
+      "webm": "k07-busywork.webm"
+    },
+    "poster": {
+      "png": "k07-busywork-poster.png",
+      "jpg": "k07-busywork-poster.jpg"
+    }
+  },
+  {
+    "id": "K08",
+    "title": "Through the gate",
+    "slot": "Services",
+    "autoplay": false,
+    "alt": "Sketch: messy paperwork of different shapes passes through a gate and comes out as identical, evenly spaced records.",
+    "placement": "Services row: data entry and document processing.",
+    "width": 1600,
+    "height": 900,
+    "fps": 12,
+    "loopFromSeconds": 4,
+    "posterSeconds": 5,
+    "video": {
+      "mp4": "k08-gate.mp4",
+      "webm": "k08-gate.webm"
+    },
+    "poster": {
+      "png": "k08-gate-poster.png",
+      "jpg": "k08-gate-poster.jpg"
+    }
+  },
+  {
+    "id": "K09",
+    "title": "Ticks itself, every week",
+    "slot": "Supporting",
+    "autoplay": false,
+    "alt": "Sketch: a weekly checklist that was ticked slowly by hand now ticks itself, week after week.",
+    "placement": "Small supporting spot: FAQ, pricing aside or email footer.",
+    "width": 1080,
+    "height": 1440,
+    "fps": 12,
+    "loopFromSeconds": 4,
+    "posterSeconds": 3.8333333333333335,
+    "video": {
+      "mp4": "k09-checklist.mp4",
+      "webm": "k09-checklist.webm"
+    },
+    "poster": {
+      "png": "k09-checklist-poster.png",
+      "jpg": "k09-checklist-poster.jpg"
+    }
+  },
+  {
+    "id": "K10",
+    "title": "Keystone",
+    "slot": "Closing CTA",
+    "autoplay": false,
+    "alt": "Sketch: loose stones form an incomplete arch until a keystone cut to fit locks it, and work crosses from one side to the other.",
+    "placement": "Closing CTA band or About page header.",
+    "width": 1600,
+    "height": 900,
+    "fps": 12,
+    "loopFromSeconds": 4,
+    "posterSeconds": 5,
+    "video": {
+      "mp4": "k10-keystone.mp4",
+      "webm": "k10-keystone.webm"
+    },
+    "poster": {
+      "png": "k10-keystone-poster.png",
+      "jpg": "k10-keystone-poster.jpg"
+    }
+  }
+]
