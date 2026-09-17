@@ -1,0 +1,19 @@
+{
+  "program": "loop:sorted",
+  "ar": "16:9",
+  "width": 1600,
+  "height": 900,
+  "fps": 12,
+  "frames": 84,
+  "loopFrom": 48,
+  "loopFromSeconds": 4,
+  "poster": 67,
+  "video": {
+    "mp4": "k03-sorted.mp4",
+    "webm": "k03-sorted.webm"
+  },
+  "posterImage": {
+    "png": "k03-sorted-poster.png",
+    "jpg": "k03-sorted-poster.jpg"
+  }
+}

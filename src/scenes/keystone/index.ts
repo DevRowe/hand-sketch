@@ -1,0 +1,44 @@
+/** The Keystone Systems set: ten looped scenes and their catalogue (placement, format, alt text) for delivery. */
+import type { Scene } from '../../core/scene';
+import catalogJson from './catalog.json';
+import { untangleScene } from './k01-untangle';
+import { runsItselfScene } from './k02-runs-itself';
+import { sortedScene } from './k03-sorted';
+import { swivelChairScene } from './k04-swivel-chair';
+import { oneTriggerScene } from './k05-one-trigger';
+import { printRunScene } from './k06-print-run';
+import { busyworkScene } from './k07-busywork';
+import { gateScene } from './k08-gate';
+import { checklistScene } from './k09-checklist';
+import { keystoneScene } from './k10-keystone';
+
+export interface KeystoneEntry {
+  id: string;
+  /** Scene name; the program id is `loop:<scene>`. */
+  scene: string;
+  title: string;
+  slot: string;
+  /** Only the hero autoplays; every other animation is a poster that plays on tap. */
+  autoplay: boolean;
+  /** Primary delivery format. */
+  ar: string;
+  width: number;
+  metaphor: string;
+  placement: string;
+  alt: string;
+}
+
+export const KEYSTONE_CATALOG: readonly KeystoneEntry[] = catalogJson;
+
+export const keystoneScenes: Record<string, Scene> = Object.fromEntries([
+  untangleScene,
+  runsItselfScene,
+  sortedScene,
+  swivelChairScene,
+  oneTriggerScene,
+  printRunScene,
+  busyworkScene,
+  gateScene,
+  checklistScene,
+  keystoneScene,
+].map(s => [s.name, s]));

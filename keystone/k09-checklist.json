@@ -1,0 +1,19 @@
+{
+  "program": "loop:checklist",
+  "ar": "3:4",
+  "width": 1080,
+  "height": 1440,
+  "fps": 12,
+  "frames": 84,
+  "loopFrom": 48,
+  "loopFromSeconds": 4,
+  "poster": 46,
+  "video": {
+    "mp4": "k09-checklist.mp4",
+    "webm": "k09-checklist.webm"
+  },
+  "posterImage": {
+    "png": "k09-checklist-poster.png",
+    "jpg": "k09-checklist-poster.jpg"
+  }
+}

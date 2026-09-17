@@ -1,0 +1,19 @@
+{
+  "program": "loop:print-run",
+  "ar": "4:3",
+  "width": 1440,
+  "height": 1080,
+  "fps": 12,
+  "frames": 84,
+  "loopFrom": 48,
+  "loopFromSeconds": 4,
+  "poster": 60,
+  "video": {
+    "mp4": "k06-print-run.mp4",
+    "webm": "k06-print-run.webm"
+  },
+  "posterImage": {
+    "png": "k06-print-run-poster.png",
+    "jpg": "k06-print-run-poster.jpg"
+  }
+}

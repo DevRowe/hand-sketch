@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check": "npm run typecheck && npm run test && npm run build",
-    "render": "vite build && node scripts/render.mjs"
+    "render": "vite build && node scripts/render.mjs",
+    "keystone": "vite build && node scripts/keystone.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.20.3",

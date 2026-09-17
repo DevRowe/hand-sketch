@@ -31,3 +31,30 @@ describe('sketch (rough.js)', () => {
     expect(g.fill.length).toBeGreaterThan(5);
   });
 });
+
+describe('keystone roles', () => {
+  it('uses a near-neutral stock, not cream, and tints of one accent', async () => {
+    const { KEYSTONE_ROLES, roleStrokes, rolePalette } = await import('../src/art/roles');
+    const [r, g, b] = parseColor(PALETTES.keystone.paper);
+    expect(Math.max(r, g, b) - Math.min(r, g, b)).toBeLessThan(8);
+    const hue = (c: string) => { const [R, G, B] = parseColor(c); return Math.atan2(Math.sqrt(3) * (G - B), 2 * R - G - B); };
+    for (const c of PALETTES.keystone.accents) expect(Math.abs(hue(c) - hue(KEYSTONE_ROLES.accent))).toBeLessThan(0.12);
+    const s = roleStrokes(KEYSTONE_ROLES);
+    expect(s.FLOW.color).toBe(KEYSTONE_ROLES.accent);
+    // the automation line is the calmer hand
+    expect(s.FLOW.tremor!).toBeLessThan(s.PENCIL.tremor!);
+    expect(s.FLOW.pressureVariation!).toBeLessThan(s.PENCIL.pressureVariation!);
+    expect(rolePalette(KEYSTONE_ROLES).paper).toBe(KEYSTONE_ROLES.stock);
+  });
+});
+
+describe('glyph kit', () => {
+  it('is deterministic per seed and centred on its origin', async () => {
+    const { sheet, envelope, squiggle } = await import('../src/art/glyphs');
+    expect(sheet(80, 100, 3)).toEqual(sheet(80, 100, 3));
+    expect(squiggle(0, 100, 0, 1)).not.toEqual(squiggle(0, 100, 0, 2));
+    const pts = envelope(120, 80, 5).outline.flat();
+    const xs = pts.map(p => p[0]);
+    expect(Math.abs(Math.min(...xs) + Math.max(...xs))).toBeLessThan(12);
+  });
+});

@@ -32,11 +32,17 @@ export interface PrintOptions {
   maxCoverage?: number;
   blend?: GlobalCompositeOperation;
   alpha?: number;
+  /**
+   * Registration offset in logical units: the plate's image prints shifted by [dx, dy] while the dot screen
+   * stays locked to the page, like a drum out of register. Animate it for a registration beat.
+   */
+  offset?: readonly [number, number];
 }
 
 /** Print a plate onto `ctx` (logical transform expected) as halftone dots in `ink`. */
 export function printPlate(ctx: Ctx, stage: Stage, plateCanvas: HTMLCanvasElement, o: PrintOptions): void {
-  const { ink, cell = 7, angle = 0.26, jitter = 0.2, seed = 1, gain = 1, maxCoverage = 0.78, blend = 'multiply', alpha = 0.95 } = o;
+  const { ink, cell = 7, angle = 0.26, jitter = 0.2, seed = 1, gain = 1, maxCoverage = 0.78, blend = 'multiply', alpha = 0.95, offset = [0, 0] } = o;
+  const [dx, dy] = offset;
   const r = rng(seed), W = stage.w, H = stage.h;
   const sw = Math.ceil(W / cell), sh = Math.ceil(H / cell);
   const cov = stage.layer('plate:coverage', sw, sh), g = cov.getContext('2d', { willReadFrequently: true });
@@ -55,8 +61,9 @@ export function printPlate(ctx: Ctx, stage: Stage, plateCanvas: HTMLCanvasElemen
   for (let v = -R; v <= R; v += cell) {
     for (let u = -R; u <= R; u += cell) {
       const x = W / 2 + ca * u - sa * v + (r() - 0.5) * jitter * cell, y = H / 2 + sa * u + ca * v + (r() - 0.5) * jitter * cell;
-      if (x < 0 || y < 0 || x >= W || y >= H) continue;
-      const k = (Math.floor(y / cell) * sw + Math.floor(x / cell)) * 4;
+      const px = x - dx, py = y - dy;
+      if (x < 0 || y < 0 || x >= W || y >= H || px < 0 || py < 0 || px >= W || py >= H) continue;
+      const k = (Math.floor(py / cell) * sw + Math.floor(px / cell)) * 4;
       const c = clamp((1 - (d[k]! * 0.299 + d[k + 1]! * 0.587 + d[k + 2]! * 0.114) / 255) * gain, 0, maxCoverage);
       if (c < 0.03) continue;
       const rad = cell * 0.62 * Math.sqrt(c);

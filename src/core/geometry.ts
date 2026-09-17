@@ -41,6 +41,32 @@ export function resample(pts: readonly Vec2[], spacing: number): Vec2[] {
   return out;
 }
 
+/** Resample a polyline to exactly `n` (>= 2) points evenly spaced by arc length, keeping both endpoints. */
+export function resampleCount(pts: readonly Vec2[], n: number): Vec2[] {
+  if (pts.length === 0) return [];
+  const count = Math.max(2, Math.round(n));
+  const s = arcLengths(pts), total = s[s.length - 1]!;
+  return Array.from({ length: count }, (_, k) => pointAtLength(pts, s, (total * k) / (count - 1)));
+}
+
+/** Unit direction of travel at arc length `d` (the segment containing it); [1, 0] for a degenerate polyline. */
+export function tangentAtLength(pts: readonly Vec2[], s: readonly number[], d: number): Vec2 {
+  const n = pts.length;
+  if (n < 2) return [1, 0];
+  let lo = 0, hi = n - 1;
+  const at = Math.max(0, Math.min(s[n - 1]!, d));
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    if (s[mid]! <= at) lo = mid; else hi = mid;
+  }
+  // skip zero-length segments so a repeated vertex never yields a zero tangent
+  let a = lo, b = hi;
+  while (b < n - 1 && s[b]! - s[a]! <= 1e-9) b++;
+  while (a > 0 && s[b]! - s[a]! <= 1e-9) a--;
+  const dx = pts[b]![0] - pts[a]![0], dy = pts[b]![1] - pts[a]![1], m = Math.hypot(dx, dy);
+  return m > 0 ? [dx / m, dy / m] : [1, 0];
+}
+
 /** The prefix of a polyline up to arc length `d`, ending exactly at the cut point. */
 export function cutAtLength(pts: readonly Vec2[], s: readonly number[], d: number): Vec2[] {
   if (pts.length === 0 || d <= 0) return [];
@@ -71,9 +97,11 @@ export function catmullRom(pts: readonly Vec2[], steps = 6, closed = false): Vec
   return out;
 }
 
-/** Unit normal of the polyline at vertex k (central difference). */
-export function normalAt(pts: readonly Vec2[], k: number): Vec2 {
-  const a = pts[Math.max(0, k - 1)]!, b = pts[Math.min(pts.length - 1, k + 1)]!;
+/** Unit normal of the polyline at vertex k (central difference; `closed` wraps the neighbours, skipping the repeated end vertex). */
+export function normalAt(pts: readonly Vec2[], k: number, closed = false): Vec2 {
+  const n = pts.length;
+  const a = closed && k === 0 ? pts[n - 2]! : pts[Math.max(0, k - 1)]!;
+  const b = closed && k === n - 1 ? pts[1]! : pts[Math.min(n - 1, k + 1)]!;
   const dx = b[0] - a[0], dy = b[1] - a[1], m = Math.hypot(dx, dy) || 1;
   return [-dy / m, dx / m];
 }

@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keystone animations</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root { --paper: #f2f3ee; --ink: #1d3337; --accent: #1f7a64; --muted: #5d6865; --line: #d9ddd6; --bg: #fafbf8; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+    header, main { max-width: 1240px; margin: 0 auto; padding: 0 16px; }
+    header { padding-top: 32px; padding-bottom: 8px; }
+    h1 { font-size: 22px; margin: 0 0 4px; letter-spacing: -0.01em; }
+    header p { margin: 0; color: var(--muted); max-width: 70ch; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 28px 24px; padding: 24px 0 48px; }
+    .anim { margin: 0; }
+    .anim.hero { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 24px; align-items: center; }
+    .frame { position: relative; background: var(--paper); border-radius: 6px; overflow: hidden; box-shadow: 0 0 0 1px var(--line); }
+    video { display: block; width: 100%; height: 100%; object-fit: contain; }
+    .control { position: absolute; right: 10px; bottom: 10px; font: inherit; font-size: 13px; color: var(--ink); background: rgba(250, 251, 248, .92); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+    .control:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    figcaption { margin-top: 10px; color: var(--muted); font-size: 14px; }
+    .hero figcaption { margin-top: 0; font-size: 16px; }
+    figcaption strong { color: var(--ink); }
+    .id { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 600; }
+    .slot { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); margin-left: 6px; }
+    .where { display: block; font-size: 13px; }
+    @media (max-width: 760px) { .anim.hero { grid-template-columns: 1fr; } .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Keystone Systems: hand-sketch animations</h1>
+    <p>Custom automation that simplifies your workflow. Pencil is the manual way, key ink is your tools, the green accent is the automation. Each draws itself once, then runs by itself. Only the hero plays on its own; tap any other to play it.</p>
+  </header>
+  <main>
+    <div class="grid">
+    <figure class="anim hero" data-id="K01" data-loop-from="4" data-poster-at="5.1667" data-autoplay="true">
+      <div class="frame" style="aspect-ratio: 1080 / 1080">
+        <video muted playsinline preload="none" poster="k01-untangle-poster.jpg" aria-label="Sketch: a tangled route of manual hand-offs between an inbox and a ledger straightens into one line with three automatic steps; a document travels along it." width="1080" height="1080">
+          <source src="k01-untangle.webm" type="video/webm">
+          <source src="k01-untangle.mp4" type="video/mp4">
+        </video>
+        <button type="button" class="control" aria-label="Play Untangle">Play</button>
+      </div>
+      <figcaption><span class="id">K01</span> <strong>Untangle</strong> <span class="slot">Hero</span><br>A knot of pencilled hand-offs pulls taut into one line with three automatic steps. <span class="where">Home hero, right column; autoplays intro plus two loops, then rests on the poster.</span></figcaption>
+    </figure>
+    <figure class="anim" data-id="K02" data-loop-from="4" data-poster-at="4.2500" data-autoplay="false">
+      <div class="frame" style="aspect-ratio: 16 / 10">
+        <video muted playsinline preload="none" poster="k02-runs-itself-poster.jpg" aria-label="Sketch: a line is drawn by hand past four workflow steps and back to the start, then keeps travelling round on its own, ticking each step." width="1600" height="900">
+          <source src="k02-runs-itself.webm" type="video/webm">
+          <source src="k02-runs-itself.mp4" type="video/mp4">
+        </video>
+        <button type="button" class="control" aria-label="Play The line keeps going">Play</button>
+      </div>
+      <figcaption><span class="id">K02</span> <strong>The line keeps going</strong> <span class="slot">Alternate hero</span><br>A line drawn once by hand past four steps keeps travelling round on its own. <span class="where">Alternate hero for an A/B test, or the How we work header.</span></figcaption>
+    </figure>
+    <figure class="anim" data-id="K03" data-loop-from="4" data-poster-at="5.5833" data-autoplay="false">
+      <div class="frame" style="aspect-ratio: 16 / 10">
+        <video muted playsinline preload="none" poster="k03-sorted-poster.jpg" aria-label="Sketch: a pile of mixed paperwork routes itself along one line into three labelled trays." width="1600" height="900">
+          <source src="k03-sorted.webm" type="video/webm">
+          <source src="k03-sorted.mp4" type="video/mp4">
+        </video>
+        <button type="button" class="control" aria-label="Play Sorted on arrival">Play</button>
+      </div>
+      <figcaption><span class="id">K03</span> <strong>Sorted on arrival</strong> <span class="slot">Services</span><br>A heap of mixed paperwork routes itself along one line into three trays. <span class="where">Services row: enquiry and intake handling.</span></figcaption>
+    </figure>
+    <figure class="anim" data-id="K04" data-loop-from="4" data-poster-at="5.1667" data-autoplay="false">
+      <div class="frame" style="aspect-ratio: 16 / 10">
+        <video muted playsinline preload="none" poster="k04-swivel-chair-poster.jpg" aria-label="Sketch: data copied by hand between two windows is replaced by one connector; new rows flow across on their own." width="1600" height="900">
+          <source src="k04-swivel-chair.webm" type="video/webm">
+          <source src="k04-swivel-chair.mp4" type="video/mp4">
+        </video>
+        <button type="button" class="control" aria-label="Play Swivel chair">Play</button>
+      </div>
+      <figcaption><span class="id">K04</span> <strong>Swivel chair</strong> <span class="slot">Services</span><br>Re-keying between two windows by hand gives way to one connector; rows copy across by themselves. <span class="where">Services row: connecting tools and removing double entry.</span></figcaption>
+    </figure>
+    <figure class="anim" data-id="K05" data-loop-from="2" data-poster-at="3.7500" data-autoplay="false">
+      <div class="frame" style="aspect-ratio: 16 / 10">
+        <video muted playsinline preload="none" poster="k05-one-trigger-poster.jpg" aria-label="Sketch: an envelope arrives and sets off four steps in a row, approve, record, notify, each triggering the next." width="1600" height="900">
+          <source src="k05-one-trigger.webm" type="video/webm">
+          <source src="k05-one-trigger.mp4" type="video/mp4">
+        </video>
+        <button type="button" class="control" aria-label="Play One trigger">Play</button>
+      </div>
+      <figcaption><span class="id">K05</span> <strong>One trigger</strong> <span class="slot">Process</span><br>An envelope drops in and each station fires the next on the frame the pulse arrives. <span class="where">How it works process section.</span></figcaption>
+    </figure>
+    <figure class="anim" data-id="K06" data-loop-from="4" data-poster-at="5.0000" data-autoplay="false">
+      <div class="frame" style="aspect-ratio: 16 / 10">
+        <video muted playsinline preload="none" poster="k06-print-run-poster.jpg" aria-label="Sketch: a document is designed once by hand, then identical copies run off it at a steady pace." width="1440" height="1080">
+          <source src="k06-print-run.webm" type="video/webm">
+          <source src="k06-print-run.mp4" type="video/mp4">
+        </video>
+        <button type="button" class="control" aria-label="Play Built once, runs the same every time">Play</button>
+      </div>
+      <figcaption><span class="id">K06</span> <strong>Built once, runs the same every time</strong> <span class="slot">Services</span><br>A page is laid out and inked once by hand, its plate snaps into register, then identical copies run off. <span class="where">Services row: reports, documents and statements.</span></figcaption>
+    </figure>
+    <figure class="anim" data-id="K07" data-loop-from="4" data-poster-at="5.5000" data-autoplay="false">
+      <div class="frame" style="aspect-ratio: 16 / 10">
+        <video muted playsinline preload="none" poster="k07-busywork-poster.jpg" aria-label="Sketch: a week planner crowded with the same repeated task empties as those tasks move to an automated lane beneath it." width="1600" height="900">
+          <source src="k07-busywork.webm" type="video/webm">
+          <source src="k07-busywork.mp4" type="video/mp4">
+        </video>
+        <button type="button" class="control" aria-label="Play Busywork out of the week">Play</button>
+      </div>
+      <figcaption><span class="id">K07</span> <strong>Busywork out of the week</strong> <span class="slot">Benefits</span><br>Repeated grey tasks lift out of a week planner into one automated lane below it. <span class="where">Benefits / why us section.</span></figcaption>
+    </figure>
+    <figure class="anim" data-id="K08" data-loop-from="4" data-poster-at="5.0000" data-autoplay="false">
+      <div class="frame" style="aspect-ratio: 16 / 10">
+        <video muted playsinline preload="none" poster="k08-gate-poster.jpg" aria-label="Sketch: messy paperwork of different shapes passes through a gate and comes out as identical, evenly spaced records." width="1600" height="900">
+          <source src="k08-gate.webm" type="video/webm">
+          <source src="k08-gate.mp4" type="video/mp4">
+        </video>
+        <button type="button" class="control" aria-label="Play Through the gate">Play</button>
+      </div>
+      <figcaption><span class="id">K08</span> <strong>Through the gate</strong> <span class="slot">Services</span><br>Messy inputs jam at a gate, then pass through as identical, evenly spaced records. <span class="where">Services row: data entry and document processing.</span></figcaption>
+    </figure>
+    <figure class="anim" data-id="K09" data-loop-from="4" data-poster-at="3.8333" data-autoplay="false">
+      <div class="frame" style="aspect-ratio: 16 / 10">
+        <video muted playsinline preload="none" poster="k09-checklist-poster.jpg" aria-label="Sketch: a weekly checklist that was ticked slowly by hand now ticks itself, week after week." width="1080" height="1440">
+          <source src="k09-checklist.webm" type="video/webm">
+          <source src="k09-checklist.mp4" type="video/mp4">
+        </video>
+        <button type="button" class="control" aria-label="Play Ticks itself, every week">Play</button>
+      </div>
+      <figcaption><span class="id">K09</span> <strong>Ticks itself, every week</strong> <span class="slot">Supporting</span><br>A hesitant pencil tick gives way to an accent cascade; each week's sheet tears off and ticks itself again. <span class="where">Small supporting spot: FAQ, pricing aside or email footer.</span></figcaption>
+    </figure>
+    <figure class="anim" data-id="K10" data-loop-from="4" data-poster-at="5.0000" data-autoplay="false">
+      <div class="frame" style="aspect-ratio: 16 / 10">
+        <video muted playsinline preload="none" poster="k10-keystone-poster.jpg" aria-label="Sketch: loose stones form an incomplete arch until a keystone cut to fit locks it, and work crosses from one side to the other." width="1600" height="900">
+          <source src="k10-keystone.webm" type="video/webm">
+          <source src="k10-keystone.mp4" type="video/mp4">
+        </video>
+        <button type="button" class="control" aria-label="Play Keystone">Play</button>
+      </div>
+      <figcaption><span class="id">K10</span> <strong>Keystone</strong> <span class="slot">Closing CTA</span><br>A keystone cut to the measured gap locks a sagging arch, and work crosses it. <span class="where">Closing CTA band or About page header.</span></figcaption>
+    </figure>
+    </div>
+  </main>
+  <script>
+    // Site policy: only the hero autoplays (intro + two loops, then rest on its poster frame); everything else is a
+    // poster that plays on tap; reduced motion gets posters only unless the visitor asks. Videos seek to loopFrom on end.
+    // Each clip is loaded whole as a blob before it plays: seeking to loopFrom then works on any static server,
+    // including ones without HTTP Range support (python -m http.server), and the files are only a few hundred KB.
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const load = video => {
+      if (!video.loaded) {
+        const sources = [...video.querySelectorAll('source')];
+        const pick = sources.find(s => video.canPlayType(s.type)) ?? sources[sources.length - 1];
+        video.loaded = fetch(pick.src).then(r => { if (!r.ok) throw new Error(r.status + ' ' + pick.src); return r.blob(); })
+          .then(blob => { sources.forEach(s => s.remove()); video.src = URL.createObjectURL(blob); return new Promise(ok => video.addEventListener('loadeddata', ok, { once: true })); });
+      }
+      return video.loaded;
+    };
+    for (const fig of document.querySelectorAll('.anim')) {
+      const video = fig.querySelector('video'), button = fig.querySelector('.control');
+      const loopFrom = Number(fig.dataset.loopFrom), posterAt = Number(fig.dataset.posterAt);
+      let loops = 0, playing = false, paused = false;
+      const label = text => { button.textContent = text; button.setAttribute('aria-label', text + ' ' + fig.querySelector('strong').textContent); };
+      // a play() interrupted by pause() (scrolled off-screen, tapped) is not a failure
+      const resume = () => video.play().catch(err => { if (err.name !== 'AbortError') rest(); });
+      const rest = () => { playing = false; paused = false; video.pause(); video.currentTime = posterAt; label('Replay'); };
+      const start = () => {
+        loops = 0; playing = true; label('Pause');
+        load(video).then(() => { video.currentTime = 0; return video.play(); }).catch(err => { console.warn(err); rest(); });
+      };
+      video.addEventListener('ended', () => {
+        if (!playing) return;
+        if (++loops <= 2) { video.currentTime = loopFrom; resume(); } else rest();
+      });
+      button.addEventListener('click', () => {
+        if (playing) { playing = false; paused = true; video.pause(); label('Play'); }
+        else if (paused) { playing = true; paused = false; label('Pause'); resume(); }
+        else start();
+      });
+      video.addEventListener('click', () => button.click());
+      if (fig.dataset.autoplay === 'true' && !reduce) {
+        // pause when off-screen, resume when back
+        new IntersectionObserver(([entry]) => {
+          if (!entry.isIntersecting && playing) { video.pause(); }
+          else if (entry.isIntersecting && playing && video.paused) { resume(); }
+        }).observe(fig);
+        start();
+      }
+    }
+  </script>
+</body>
+</html>

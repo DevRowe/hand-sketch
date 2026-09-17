@@ -5,6 +5,7 @@
  */
 import type { DrawnFrameInfo } from '../core/program';
 import { ON_ONES, ON_TWOS, type RenderSettings } from '../core/scene';
+import { parseAspect } from '../core/stage';
 import { Player } from '../runtime/player';
 import { PROGRAM_IDS, programById } from '../scenes/demo';
 
@@ -16,6 +17,9 @@ declare global {
       fps: number;
       outputFps: number;
       size: { outW: number; outH: number; w: number; h: number; scale: number };
+      loopFrom: number | null;
+      poster: number;
+      seam(): { from: number; end: number; differing: number; maxDelta: number; box: [number, number, number, number] | null } | null;
       frame(i: number): string;
       info(i: number): string;
     };
@@ -41,9 +45,17 @@ const ui = {
 };
 
 for (const id of PROGRAM_IDS) ui.program.add(new Option(id, id));
-ui.program.value = q.get('program') ?? 'sequence';
+// same trap as the aspect below: an id without a matching <option> would empty the select, so resolve it first
+const programId = q.get('program') ?? 'sequence';
+programById(programId);
+ui.program.value = programId;
 ui.strokes.value = q.get('strokes') === 'legacy' ? 'legacy' : 'engine';
-ui.ar.value = q.get('ar') ?? '16:9';
+// read the aspect from the query string itself: assigning a value with no matching <option> empties the
+// select, which used to fall back to a square frame without a word (`--ar 4:3` rendered 1:1)
+const ar = q.get('ar') ?? '16:9';
+parseAspect(ar);
+if (![...ui.ar.options].some(o => o.value === ar)) ui.ar.add(new Option(ar, ar));
+ui.ar.value = ar;
 ui.twos.checked = q.get('twos') !== '0';
 const bare = q.has('bare');
 if (bare) document.body.classList.add('bare');
@@ -127,6 +139,9 @@ window.__handSketch = {
   get fps() { return player.config.timing.fps; },
   get outputFps() { return player.config.timing.outputFps; },
   get size() { const s = player.stage; return { outW: s.outW, outH: s.outH, w: s.w, h: s.h, scale: s.scale }; },
+  get loopFrom() { return player.loopFrom; },
+  get poster() { return player.poster; },
+  seam() { return player.seam(); },
   frame(i: number): string {
     player.draw(i, true);
     return canvas.toDataURL('image/png');

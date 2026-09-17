@@ -1,0 +1,19 @@
+{
+  "program": "loop:untangle",
+  "ar": "1:1",
+  "width": 1080,
+  "height": 1080,
+  "fps": 12,
+  "frames": 84,
+  "loopFrom": 48,
+  "loopFromSeconds": 4,
+  "poster": 62,
+  "video": {
+    "mp4": "k01-untangle.mp4",
+    "webm": "k01-untangle.webm"
+  },
+  "posterImage": {
+    "png": "k01-untangle-poster.png",
+    "jpg": "k01-untangle-poster.jpg"
+  }
+}

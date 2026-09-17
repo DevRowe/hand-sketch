@@ -38,6 +38,10 @@ export interface SceneFrame {
   readonly duration: number;
   /** 0..1 position inside the loop section (seamless at the wrap), or null before it / without one. */
   readonly loopPhase: number | null;
+  /** Local drawn frame where the loop section starts, or null without one. */
+  readonly loopFromFrame: number | null;
+  /** Drawn frames in one loop period (0 without a loop section). */
+  readonly loopFrames: number;
   readonly settings: RenderSettings;
 }
 
@@ -50,6 +54,11 @@ export interface Scene {
    * [loopFrom, duration). Motion inside it should be periodic in `loopPhase`. Defaults to 0.
    */
   readonly loopFrom?: number;
+  /**
+   * Seconds: the resting frame that carries the whole idea when the scene cannot move (web poster,
+   * reduced motion, no-JS). Exported by `scripts/render.mjs --web`. Defaults to the last intro frame.
+   */
+  readonly poster?: number;
   draw(f: SceneFrame): void;
 }
 
@@ -132,8 +141,9 @@ export function resolveSequence(seq: Sequence, i: number, fps: number): Resolved
 export function sceneFrame(ctx: Ctx, stage: Stage, scene: Scene, localFrame: number, timing: Timing, settings: RenderSettings): SceneFrame {
   const fps = timing.fps, dur = toFrames(scene.duration, fps);
   const from = scene.loopFrom === undefined ? null : toFrames(scene.loopFrom, fps);
-  const loopPhase = from === null || localFrame < from || dur <= from ? null : (localFrame - from) / (dur - from);
-  return { ctx, stage, t: localFrame / fps, frame: localFrame, fps, duration: scene.duration, loopPhase, settings };
+  const loops = from !== null && dur > from;
+  const loopPhase = !loops || localFrame < from ? null : (localFrame - from) / (dur - from);
+  return { ctx, stage, t: localFrame / fps, frame: localFrame, fps, duration: scene.duration, loopPhase, loopFromFrame: loops ? from : null, loopFrames: loops ? dur - from : 0, settings };
 }
 
 /** Draw one scene frame onto `ctx` with a clean logical transform before and after. */
@@ -143,4 +153,21 @@ export function drawScene(ctx: Ctx, stage: Stage, scene: Scene, localFrame: numb
   scene.draw(sceneFrame(ctx, stage, scene, localFrame, timing, settings));
   ctx.restore();
   stage.reset(ctx);
+}
+
+/**
+ * The two local frames that must look identical for a loop to be seamless: `loopFrom` (phase 0) and
+ * `duration` (phase 1, never shown in playback because it wraps). Draw both and compare pixels.
+ */
+export function seamFrames(scene: Scene, fps: number): { from: number; end: number } | null {
+  if (scene.loopFrom === undefined) return null;
+  const dur = toFrames(scene.duration, fps), from = toFrames(scene.loopFrom, fps);
+  return dur > from ? { from, end: dur } : null;
+}
+
+/** Local drawn frame of a scene's poster: its `poster` time, or the last frame before the loop section. */
+export function posterFrame(scene: Scene, fps: number): number {
+  const dur = toFrames(scene.duration, fps);
+  if (scene.poster !== undefined) return Math.min(dur - 1, toFrames(scene.poster, fps));
+  return Math.max(0, Math.min(dur, toFrames(scene.loopFrom ?? scene.duration, fps)) - 1);
 }
