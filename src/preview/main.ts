@@ -17,6 +17,9 @@ declare global {
       fps: number;
       outputFps: number;
       size: { outW: number; outH: number; w: number; h: number; scale: number };
+      loopFrom: number | null;
+      poster: number;
+      seam(): { from: number; end: number; differing: number; maxDelta: number } | null;
       frame(i: number): string;
       info(i: number): string;
     };
@@ -136,6 +139,9 @@ window.__handSketch = {
   get fps() { return player.config.timing.fps; },
   get outputFps() { return player.config.timing.outputFps; },
   get size() { const s = player.stage; return { outW: s.outW, outH: s.outH, w: s.w, h: s.h, scale: s.scale }; },
+  get loopFrom() { return player.loopFrom; },
+  get poster() { return player.poster; },
+  seam() { return player.seam(); },
   frame(i: number): string {
     player.draw(i, true);
     return canvas.toDataURL('image/png');

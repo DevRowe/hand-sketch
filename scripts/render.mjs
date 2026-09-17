@@ -14,9 +14,13 @@
 //   node scripts/render.mjs --ones                   draw every frame (24 fps) instead of on twos
 //   node scripts/render.mjs --verify                 render the selected frames twice and fail if any pixel differs
 //   node scripts/render.mjs --out renders            output directory (default out/)
+//   node scripts/render.mjs --seam                   looped programs: fail unless phase 1 draws exactly like loopFrom
+//   node scripts/render.mjs --web                    web delivery for a loop:<name> program: 12 fps H.264 (CRF 28) + VP9
+//                                                    with a keyframe at loopFrom, plus <name>-poster.png/.jpg; implies --seam
+//   node scripts/render.mjs --name hero              base name of the outputs (default derived from program and format)
 // Env: CHROME=/path/to/chrome when Chrome/Chromium is not on PATH. Needs ffmpeg on PATH for mp4 and sheets.
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -36,8 +40,10 @@ const twos = !has('--ones');
 const grid = flag('--grid') ? Number(flag('--grid')) : 0;
 const only = flag('--only')?.split(',').map(Number).filter(Number.isInteger);
 const verify = has('--verify');
+const web = has('--web');
+const seam = web || has('--seam');
 const outRoot = path.resolve(root, flag('--out') ?? 'out');
-const name = [program.replace(':', '-'), strokes === 'legacy' ? 'legacy' : null, ar.replace(':', 'x'), twos ? null : 'ones'].filter(Boolean).join('-');
+const name = flag('--name') ?? [program.replace(':', '-'), strokes === 'legacy' ? 'legacy' : null, ar.replace(':', 'x'), twos ? null : 'ones'].filter(Boolean).join('-');
 
 const fail = msg => { console.error(`render: ${msg}`); process.exit(1); };
 if (!existsSync(path.join(dist, 'index.html'))) fail('dist/index.html missing: run `npm run build` first (or use `npm run render`)');
@@ -58,6 +64,8 @@ function findChrome() {
 function hasFfmpeg() {
   try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); return true; } catch { return false; }
 }
+if (web && (grid || only)) fail('--web renders the whole program; drop --grid / --only');
+if (web && !program.startsWith('loop:')) fail('--web needs a loop:<name> program (intro + one loop period, keyframe at loopFrom)');
 const needFfmpeg = !only;
 if (needFfmpeg && !hasFfmpeg()) fail('ffmpeg not found on PATH');
 
@@ -94,17 +102,25 @@ async function openPage() {
 
 const save = (file, dataUrl) => writeFileSync(file, Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64'));
 const pad = i => String(i).padStart(5, '0');
-const frameDir = path.join(outRoot, `${name}-frames`);
+// web deliveries keep their frames out of the delivery folder
+const frameDir = web ? path.join(root, 'out', 'web-frames', name) : path.join(outRoot, `${name}-frames`);
 let code = 0;
 
 try {
   const page = await openPage();
-  const meta = await page.evaluate(() => ({ frames: window.__handSketch.frames, fps: window.__handSketch.fps, outputFps: window.__handSketch.outputFps, size: window.__handSketch.size }));
-  const { frames: N, fps, outputFps, size } = meta;
+  const meta = await page.evaluate(() => ({ frames: window.__handSketch.frames, fps: window.__handSketch.fps, outputFps: window.__handSketch.outputFps, size: window.__handSketch.size, loopFrom: window.__handSketch.loopFrom, poster: window.__handSketch.poster }));
+  const { frames: N, fps, outputFps, size, loopFrom, poster } = meta;
   // guard: the page must render the shape that was asked for (a silently square 4:3 render once slipped through)
   const [ra, rb] = ar.split(/[:x/]/).map(Number);
   if (!(ra > 0 && rb > 0) || Math.abs(size.w / size.h - ra / rb) > 0.01) throw new Error(`asked for --ar ${ar} but the page renders ${size.w}x${size.h}`);
   console.log(`${name}: ${N} drawn frames (${(N / fps).toFixed(2)} s, ${fps} fps drawn -> ${outputFps} fps out), logical ${size.w}x${size.h}, output ${size.outW}x${size.outH}`);
+
+  if (seam) {
+    const r = await page.evaluate(() => window.__handSketch.seam());
+    if (!r) throw new Error(`--seam: ${program} has no loop section to check`);
+    if (r.differing > 0) errors.push(`seam: local frame ${r.end} (phase 1) differs from loopFrom frame ${r.from} in ${r.differing} pixels (max channel delta ${r.maxDelta})`);
+    else console.log(`seam: phase 1 (frame ${r.end}) is pixel-identical to loopFrom (frame ${r.from})`);
+  }
 
   const evenly = n => [...new Set(Array.from({ length: n }, (_, k) => Math.round((k * (N - 1)) / Math.max(1, n - 1))))];
   const list = grid ? evenly(grid) : only ? only.filter(i => i >= 0 && i < N) : [...Array(N).keys()];
@@ -145,6 +161,20 @@ try {
       const sheet = path.join(outRoot, `${name}-grid.jpg`);
       tile(list, sheet);
       console.log(`grid: ${sheet}`);
+    } else if (web) {
+      // 12 fps with no duplicated frames; a forced keyframe at loopFrom so the page can seek there exactly on `ended`
+      mkdirSync(outRoot, { recursive: true });
+      const input = ['-framerate', String(fps), '-start_number', '0', '-i', path.join(frameDir, '%05d.png')];
+      const keys = ['-force_key_frames', loopFrom === null ? '0' : `0,${(loopFrom / fps).toFixed(6)}`];
+      const mp4 = path.join(outRoot, `${name}.mp4`), webm = path.join(outRoot, `${name}.webm`);
+      ff([...input, '-c:v', 'libx264', '-preset', 'slow', '-crf', '28', '-pix_fmt', 'yuv420p', ...keys, '-movflags', '+faststart', mp4]);
+      ff([...input, '-c:v', 'libvpx-vp9', '-crf', '40', '-b:v', '0', '-row-mt', '1', '-pix_fmt', 'yuv420p', ...keys, webm]);
+      const png = path.join(outRoot, `${name}-poster.png`), jpg = path.join(outRoot, `${name}-poster.jpg`);
+      save(png, await page.evaluate(i => window.__handSketch.frame(i), poster));
+      ff(['-i', png, '-q:v', '3', jpg]);
+      const kb = f => `${Math.round(statSync(f).size / 1024)} KB`;
+      console.log(`web: ${mp4} (${kb(mp4)}), ${webm} (${kb(webm)}), keyframe at frame ${loopFrom}\nposter: frame ${poster} -> ${png} (${kb(png)}), ${jpg} (${kb(jpg)})`);
+      writeFileSync(path.join(outRoot, `${name}.json`), JSON.stringify({ program, ar, width: size.outW, height: size.outH, fps, frames: N, loopFrom, loopFromSeconds: loopFrom === null ? null : loopFrom / fps, poster, video: { mp4: path.basename(mp4), webm: path.basename(webm) }, posterImage: { png: path.basename(png), jpg: path.basename(jpg) } }, null, 2) + '\n');
     } else {
       const mp4 = path.join(outRoot, `${name}.mp4`);
       ff(['-framerate', String(fps), '-start_number', '0', '-i', path.join(frameDir, '%05d.png'), '-r', String(outputFps), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '18', '-movflags', '+faststart', mp4]);
