@@ -41,6 +41,7 @@ const name = [program.replace(':', '-'), strokes === 'legacy' ? 'legacy' : null,
 
 const fail = msg => { console.error(`render: ${msg}`); process.exit(1); };
 if (!existsSync(path.join(dist, 'index.html'))) fail('dist/index.html missing: run `npm run build` first (or use `npm run render`)');
+if (!/^\d+(\.\d+)?[:x/]\d+(\.\d+)?$/.test(ar)) fail(`bad --ar ${ar}: expected W:H, e.g. 16:9, 4:3, 1:1`);
 if (!Number.isFinite(width) || width < 16) fail(`bad --width ${flag('--width')}`);
 
 function findChrome() {
@@ -79,6 +80,7 @@ async function openPage() {
   const page = await browser.newPage();
   let reject;
   const broken = new Promise((_, r) => { reject = r; });
+  broken.catch(() => {}); // an error during page load must surface through the race below, not crash the process
   const report = msg => { errors.push(msg); reject(new Error(msg)); };
   page.on('pageerror', e => report(`page error: ${e.message}`));
   page.on('console', m => { if (m.type() === 'error') report(`console error: ${m.text()}`); });
@@ -87,7 +89,6 @@ async function openPage() {
   await page.goto(url, { waitUntil: 'load' });
   // fail fast on a broken page instead of waiting out the timeout
   await Promise.race([page.waitForFunction('window.__handSketch && window.__handSketch.ready === true', { timeout: 30000 }), broken]);
-  broken.catch(() => {});
   return page;
 }
 
