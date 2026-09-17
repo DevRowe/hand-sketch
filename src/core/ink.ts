@@ -4,7 +4,7 @@
  */
 import { hashSeed } from './random';
 import type { SceneFrame } from './scene';
-import { drawStroke, prepareStroke, scheduledProgress, strokeSchedule, type PreparedStroke, type StrokeStyle } from './stroke';
+import { drawStroke, drawStrokeRange, prepareStroke, scheduledProgress, strokeSchedule, type PreparedStroke, type StrokeStyle } from './stroke';
 import { legacyStroke } from './legacy';
 import type { Vec2 } from './math';
 
@@ -49,20 +49,41 @@ export function scheduleWithin(group: StrokeGroup, start: number, end: number, g
 export const scheduleEnd = (slots: readonly Slot[]): number => slots.reduce((m, s) => Math.max(m, s.start + s.duration), 0);
 
 /**
- * Draw a group at the frame's time. `slots` gives per-stroke timing; `boilStep` re-seeds the wobble
- * (use a small cycling number so the cache stays bounded).
+ * Draw a group at the frame's time (or at `t`, e.g. a puppet's own clock). `slots` gives per-stroke timing;
+ * `boilStep` re-seeds the wobble (use a small cycling number so the cache stays bounded).
  */
-export function drawGroup(f: SceneFrame, group: StrokeGroup, slots: readonly Slot[], boilStep = 0): void {
+export function drawGroup(f: SceneFrame, group: StrokeGroup, slots: readonly Slot[], boilStep = 0, t = f.t): void {
   const strokes = prepared(group, boilStep);
   for (let k = 0; k < strokes.length; k++) {
     const slot = slots[k];
-    const progress = slot ? scheduledProgress(slot, f.t) : 1;
+    const progress = slot ? scheduledProgress(slot, t) : 1;
     if (progress <= 0) continue;
     if (f.settings.strokeMode === 'legacy') {
       const s = group.style;
       legacyStroke(f.ctx, group.paths[k]!, progress, hashSeed(group.seed, k, boilStep), { color: s.color, width: Math.max(0.8, s.size * 0.55), alpha: s.alpha ?? 1 });
     } else {
       drawStroke(f.ctx, strokes[k]!, progress);
+    }
+  }
+}
+
+/**
+ * Draw each stroke of a group between fractions `range(k)` = [from, to] of its length: un-draw a group
+ * (`to` falling), erase it from the tail (`from` rising), or run dashes along it. Legacy mode can only
+ * reveal prefixes, so it draws [0, to].
+ */
+export function drawGroupRange(f: SceneFrame, group: StrokeGroup, range: (k: number) => readonly [number, number], boilStep = 0): void {
+  const strokes = prepared(group, boilStep);
+  for (let k = 0; k < strokes.length; k++) {
+    const [from, to] = range(k);
+    if (to <= from) continue;
+    if (f.settings.strokeMode === 'legacy') {
+      const s = group.style;
+      legacyStroke(f.ctx, group.paths[k]!, to, hashSeed(group.seed, k, boilStep), { color: s.color, width: Math.max(0.8, s.size * 0.55), alpha: s.alpha ?? 1 });
+    } else if (from <= 0) {
+      drawStroke(f.ctx, strokes[k]!, to);
+    } else {
+      drawStrokeRange(f.ctx, strokes[k]!, from, to);
     }
   }
 }
