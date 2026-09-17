@@ -44,6 +44,25 @@ export function squiggle(x0: number, x1: number, y: number, seed: number, o: { h
   return catmullRom(pts, 5);
 }
 
+/**
+ * A word of looped cursive from x0 to x1 on baseline y: a prolate cycloid whose loops vary like letters (mostly small
+ * like "e", some tall like "l"), so up close it reads as a name written by hand rather than a wave. Deterministic per seed.
+ */
+export function cursive(x0: number, x1: number, y: number, seed: number, o: { height?: number; step?: number } = {}): Vec2[] {
+  const { height = 8, step = 8 } = o;
+  const r = rng(seed);
+  const pts: Vec2[] = [[x0 - step * 0.4, y + height * 0.1]];
+  for (let x = x0; x < x1;) {
+    const tall = r() < 0.22, h = height * (tall ? 1.9 : 0.55 + r() * 0.4), w = step * (0.75 + r() * 0.5), b = w * (0.3 + r() * 0.15);
+    for (let k = 1; k <= 8; k++) {
+      const th = (k / 8) * Math.PI * 2;
+      pts.push([x + (w * k) / 8 + b * Math.sin(th), y - (h * (1 - Math.cos(th))) / 2]);
+    }
+    x += w;
+  }
+  return catmullRom(pts, 3);
+}
+
 /** A few lines of squiggle writing in a box, the last line shorter. */
 export function writing(x: number, y: number, w: number, lines: number, gap: number, seed: number, height = 6): Vec2[][] {
   const r = rng(seed);

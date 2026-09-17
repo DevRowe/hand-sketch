@@ -14,7 +14,7 @@ import type { Scene } from '../../core/scene';
 import { sketch } from '../../core/sketch';
 import { drawStroke, drawStrokeRange } from '../../core/stroke';
 import { chain, clip, track } from '../../core/track';
-import { accentPlate, coverage, fillPoly, fit, group, lf, nf, paper, perSize, place, PULSE, R, S, sec, withAlpha } from './common';
+import { accentPlate, coverage, fillPoly, fit, group, lf, paper, perSize, place, PULSE, R, S, sec, withAlpha } from './common';
 
 /** The loop chain in loop frames: every step starts on the frame the previous one ends. */
 type FrameSlot = ReturnType<typeof chain>[number];
@@ -84,7 +84,7 @@ export const oneTriggerScene: Scene = {
   poster: 45 / 12,
   draw(f) {
     const { ctx, stage } = f;
-    const L = layout(stage.w, stage.h), n = nf(f), loop = lf(f), boil = boilStep(f);
+    const L = layout(stage.w, stage.h), loop = lf(f), boil = boilStep(f);
     paper(f);
     const clear = loop < 0 ? 0 : clip(loop, CLEAR[0], CLEAR[1]);
 

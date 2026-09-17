@@ -125,6 +125,18 @@ export function prepareMorph(from: readonly Vec2[], to: readonly Vec2[], style: 
   };
 }
 
+/**
+ * The same stroke with its pressure shaped by gesture: every sample's noise pressure is multiplied by
+ * `profile(u)`, u being its fraction of the length. A hand that presses at a moment of weight, lightens as it lets
+ * go, or rests (a slight pool of ink where the pen paused). Geometry, wobble and length are untouched, so reveals
+ * and ranges line up with the plain stroke. The result is capped at 1.6 so a pooled rest stays a line.
+ */
+export function withPressure(stroke: PreparedStroke, profile: (u: number) => number): PreparedStroke {
+  const L = stroke.length;
+  const pressures = stroke.pressures.map((p, k) => clamp(p * profile(L > 0 ? stroke.lengths[k]! / L : 0), 0.04, 1.6));
+  return { ...stroke, pressures };
+}
+
 /** Points and pressures of the stroke between arc lengths a < b (0 <= a, b <= length), with interpolated cut ends. */
 function slice(stroke: PreparedStroke, a: number, b: number): { pts: Vec2[]; pressures: number[] } {
   const { points, lengths, pressures } = stroke;

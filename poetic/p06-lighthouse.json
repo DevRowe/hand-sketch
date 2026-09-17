@@ -1,0 +1,19 @@
+{
+  "program": "loop:lighthouse",
+  "ar": "4:5",
+  "width": 1080,
+  "height": 1350,
+  "fps": 12,
+  "frames": 168,
+  "loopFrom": 96,
+  "loopFromSeconds": 8,
+  "poster": 120,
+  "video": {
+    "mp4": "p06-lighthouse.mp4",
+    "webm": "p06-lighthouse.webm"
+  },
+  "posterImage": {
+    "png": "p06-lighthouse-poster.png",
+    "jpg": "p06-lighthouse-poster.jpg"
+  }
+}

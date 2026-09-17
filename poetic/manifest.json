@@ -1,0 +1,212 @@
+[
+  {
+    "id": "P01",
+    "title": "Wishes",
+    "line": "Where do the wishes go?",
+    "theme": "Wonder",
+    "autoplay": true,
+    "alt": "Sketch: a dandelion's seeds blow away on a breath of wind and rise into a darkening sky, where each seed turns into a star; one seed stays on the stem.",
+    "width": 1080,
+    "height": 1350,
+    "fps": 12,
+    "loopFromSeconds": 16.5,
+    "posterSeconds": 17.333333333333332,
+    "video": {
+      "mp4": "p01-wishes.mp4",
+      "webm": "p01-wishes.webm"
+    },
+    "poster": {
+      "png": "p01-wishes-poster.png",
+      "jpg": "p01-wishes-poster.jpg"
+    }
+  },
+  {
+    "id": "P02",
+    "title": "Doorframe",
+    "line": "The marks climbed until they stopped. Then someone small stood against the door.",
+    "theme": "Memory",
+    "autoplay": false,
+    "alt": "Sketch: pencil marks with names and dates climb a sunlit door frame year by year, then stop; a new mark in red appears at the very bottom.",
+    "width": 1080,
+    "height": 1350,
+    "fps": 12,
+    "loopFromSeconds": 19,
+    "posterSeconds": 19.5,
+    "video": {
+      "mp4": "p02-doorframe.mp4",
+      "webm": "p02-doorframe.webm"
+    },
+    "poster": {
+      "png": "p02-doorframe-poster.png",
+      "jpg": "p02-doorframe-poster.jpg"
+    }
+  },
+  {
+    "id": "P03",
+    "title": "Paper Boat",
+    "line": "Go on. The water knows the way.",
+    "theme": "Journeys",
+    "autoplay": false,
+    "alt": "Sketch: a sheet of paper folds itself into a paper boat, settles on still water at dawn and drifts away towards the horizon until it is a speck.",
+    "width": 1600,
+    "height": 900,
+    "fps": 12,
+    "loopFromSeconds": 17.333333333333332,
+    "posterSeconds": 18.333333333333332,
+    "video": {
+      "mp4": "p03-paper-boat.mp4",
+      "webm": "p03-paper-boat.webm"
+    },
+    "poster": {
+      "png": "p03-paper-boat-poster.png",
+      "jpg": "p03-paper-boat-poster.jpg"
+    }
+  },
+  {
+    "id": "P04",
+    "title": "The Red Thread",
+    "line": "It may tangle. It may stretch. It does not break.",
+    "theme": "Connection",
+    "autoplay": false,
+    "alt": "Sketch: a red thread runs from the window of one house on a hill, tangles into a knot in the sky, reaches a house on a far hill, then smooths into a gentle line as both windows light.",
+    "width": 1600,
+    "height": 900,
+    "fps": 12,
+    "loopFromSeconds": 16.333333333333332,
+    "posterSeconds": 18,
+    "video": {
+      "mp4": "p04-red-thread.mp4",
+      "webm": "p04-red-thread.webm"
+    },
+    "poster": {
+      "png": "p04-red-thread-poster.png",
+      "jpg": "p04-red-thread-poster.jpg"
+    }
+  },
+  {
+    "id": "P05",
+    "title": "Every Spring",
+    "line": "It lets go of everything, every year, and begins again.",
+    "theme": "Growth and change",
+    "autoplay": false,
+    "alt": "Sketch: a tree grows branch by branch from a seed, then goes through a year: pink blossom, green leaves, orange leaves falling, snow, and blossom again.",
+    "width": 1080,
+    "height": 1080,
+    "fps": 12,
+    "loopFromSeconds": 11,
+    "posterSeconds": 19.416666666666668,
+    "video": {
+      "mp4": "p05-every-spring.mp4",
+      "webm": "p05-every-spring.webm"
+    },
+    "poster": {
+      "png": "p05-every-spring-poster.png",
+      "jpg": "p05-every-spring-poster.jpg"
+    }
+  },
+  {
+    "id": "P06",
+    "title": "The Lighthouse",
+    "line": "It cannot stop the storm. It keeps the light turning.",
+    "theme": "Endurance",
+    "autoplay": false,
+    "alt": "Sketch: a lighthouse on a rock in a rainy night storm flickers on, and its yellow beam turns steadily while waves break against the rock.",
+    "width": 1080,
+    "height": 1350,
+    "fps": 12,
+    "loopFromSeconds": 8,
+    "posterSeconds": 10,
+    "video": {
+      "mp4": "p06-lighthouse.mp4",
+      "webm": "p06-lighthouse.webm"
+    },
+    "poster": {
+      "png": "p06-lighthouse-poster.png",
+      "jpg": "p06-lighthouse-poster.jpg"
+    }
+  },
+  {
+    "id": "P07",
+    "title": "Kintsugi",
+    "line": "Where it broke is where the gold is.",
+    "theme": "Resilience",
+    "autoplay": false,
+    "alt": "Sketch: a green glazed bowl breaks into three pieces that drift apart, come back together, and are mended with lines of gold along the cracks.",
+    "width": 1080,
+    "height": 1080,
+    "fps": 12,
+    "loopFromSeconds": 17,
+    "posterSeconds": 18.166666666666668,
+    "video": {
+      "mp4": "p07-kintsugi.mp4",
+      "webm": "p07-kintsugi.webm"
+    },
+    "poster": {
+      "png": "p07-kintsugi-poster.png",
+      "jpg": "p07-kintsugi-poster.jpg"
+    }
+  },
+  {
+    "id": "P08",
+    "title": "Two Cups",
+    "line": "I still make two.",
+    "theme": "Loss",
+    "autoplay": false,
+    "alt": "Sketch: two teacups on saucers in morning window light; both steam at first, then only one does.",
+    "width": 1080,
+    "height": 1350,
+    "fps": 12,
+    "loopFromSeconds": 16,
+    "posterSeconds": 18.5,
+    "video": {
+      "mp4": "p08-two-cups.mp4",
+      "webm": "p08-two-cups.webm"
+    },
+    "poster": {
+      "png": "p08-two-cups-poster.png",
+      "jpg": "p08-two-cups-poster.jpg"
+    }
+  },
+  {
+    "id": "P09",
+    "title": "52 Hertz",
+    "line": "It sings at a pitch no other whale can hear. It sings anyway.",
+    "theme": "Solitude",
+    "autoplay": false,
+    "alt": "Sketch: a whale glides alone in deep blue water and sends out rings of song that spread across the empty ocean and fade.",
+    "width": 1600,
+    "height": 900,
+    "fps": 12,
+    "loopFromSeconds": 12,
+    "posterSeconds": 17.5,
+    "video": {
+      "mp4": "p09-52-hertz.mp4",
+      "webm": "p09-52-hertz.webm"
+    },
+    "poster": {
+      "png": "p09-52-hertz-poster.png",
+      "jpg": "p09-52-hertz-poster.jpg"
+    }
+  },
+  {
+    "id": "P10",
+    "title": "Small Light",
+    "line": "The dark is very large. The flame does not know that.",
+    "theme": "Hope",
+    "autoplay": false,
+    "alt": "Sketch: in darkness a small flame nearly goes out, then catches, and its warm light reveals a candle on a table.",
+    "width": 1080,
+    "height": 1080,
+    "fps": 12,
+    "loopFromSeconds": 11,
+    "posterSeconds": 12,
+    "video": {
+      "mp4": "p10-small-light.mp4",
+      "webm": "p10-small-light.webm"
+    },
+    "poster": {
+      "png": "p10-small-light-poster.png",
+      "jpg": "p10-small-light-poster.jpg"
+    }
+  }
+]

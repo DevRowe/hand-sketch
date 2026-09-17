@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A Life in Ten Lines</title>
+  <meta name="description" content="Ten hand-sketched animations, each one feeling and one turn.">
+  <link rel="icon" href="data:,">
+  <style>
+    :root { --bg: #161513; --card: #1f1d1a; --text: #ece6da; --muted: #a39a8d; --faint: #6f675d; --accent: #d9a25e; --line: rgba(236, 230, 218, .12); }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+    header, main, footer { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+    header { padding-top: 56px; padding-bottom: 12px; }
+    .kicker { margin: 0 0 10px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+    h1 { margin: 0 0 14px; font: 400 44px/1.1 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; letter-spacing: -.01em; text-wrap: balance; }
+    header p { margin: 0; max-width: 62ch; color: var(--muted); text-wrap: pretty; }
+    .anim { margin: 0; }
+    .frame { position: relative; border-radius: 4px; overflow: hidden; background: var(--card); box-shadow: 0 0 0 1px var(--line), 0 18px 40px rgba(0, 0, 0, .35); }
+    video { display: block; width: 100%; height: 100%; object-fit: contain; cursor: pointer; }
+    .control { position: absolute; right: 12px; bottom: 12px; font: inherit; font-size: 12px; letter-spacing: .04em; color: var(--text); background: rgba(22, 21, 19, .72); border: 1px solid rgba(236, 230, 218, .28); border-radius: 999px; padding: 4px 13px; cursor: pointer; backdrop-filter: blur(4px); }
+    .control:hover { background: rgba(22, 21, 19, .88); }
+    .control:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    figcaption { display: flex; flex-direction: column; gap: 4px; margin-top: 14px; }
+    .meta { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+    .id { color: var(--accent); font-variant-numeric: tabular-nums; margin-right: 6px; }
+    .title { font: 400 22px/1.2 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; color: var(--text); }
+    .line { font: italic 400 17px/1.4 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; color: var(--muted); text-wrap: pretty; }
+    .hero { display: grid; grid-template-columns: minmax(0, 480px) minmax(0, 1fr); gap: 48px; align-items: center; padding: 36px 0 64px; border-bottom: 1px solid var(--line); }
+    .hero figcaption { margin-top: 0; gap: 10px; }
+    .hero .title { font-size: 40px; }
+    .hero .line { font-size: 24px; color: var(--text); }
+    .hero .arc { max-width: 46ch; color: var(--muted); margin-top: 6px; text-wrap: pretty; }
+    .rows { display: flex; flex-direction: column; gap: 60px; padding: 56px 0 72px; }
+    .row { display: flex; gap: 32px; align-items: flex-start; }
+    .row .anim { min-width: 0; }
+    footer { padding-bottom: 48px; color: var(--faint); font-size: 13px; }
+    footer p { margin: 0; border-top: 1px solid var(--line); padding-top: 20px; }
+    @media (max-width: 980px) { .hero { gap: 32px; } .row { gap: 20px; } .row .title { font-size: 19px; } .row .line { font-size: 15px; } }
+    @media (max-width: 680px) {
+      header { padding-top: 36px; }
+      h1 { font-size: 34px; }
+      .hero { grid-template-columns: 1fr; gap: 20px; padding: 28px 0 44px; }
+      .hero .title { font-size: 32px; }
+      .hero .line { font-size: 20px; }
+      .rows { gap: 44px; padding-top: 44px; }
+      .row { flex-direction: column; gap: 44px; }
+      .row .anim { flex: none !important; width: 100%; }
+      .row .title { font-size: 22px; }
+      .row .line { font-size: 17px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="kicker">hand-sketch</p>
+    <h1>A Life in Ten Lines</h1>
+    <p>Ten hand-sketched animations, each one feeling with one turn. Read in order they make a life: wonder, growing up, leaving, love, the turning years, storms, mending, loss, solitude, and hope. The first plays on its own; tap any other to play it.</p>
+  </header>
+  <main>
+      <figure class="anim hero" data-id="P01" data-loop-from="16.5" data-poster-at="17.3333" data-autoplay="true">
+        <div class="frame" style="aspect-ratio: 1080 / 1350">
+          <video muted playsinline preload="none" poster="p01-wishes-poster.jpg" aria-label="Sketch: a dandelion's seeds blow away on a breath of wind and rise into a darkening sky, where each seed turns into a star; one seed stays on the stem." width="1080" height="1350">
+            <source src="p01-wishes.webm" type="video/webm">
+            <source src="p01-wishes.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Wishes">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">P01</span> Wonder</span>
+          <strong class="title">Wishes</strong>
+          <span class="line">Where do the wishes go?</span>
+          <span class="arc">A breath crosses a dandelion clock; the seeds drift up as evening turns to night, and each one unfolds into a star.</span>
+        </figcaption>
+      </figure>
+    <div class="rows">
+    <div class="row">
+      <figure class="anim" style="flex: 0.8000 1 0" data-id="P02" data-loop-from="19" data-poster-at="19.5000" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1080 / 1350">
+          <video muted playsinline preload="none" poster="p02-doorframe-poster.jpg" aria-label="Sketch: pencil marks with names and dates climb a sunlit door frame year by year, then stop; a new mark in red appears at the very bottom." width="1080" height="1350">
+            <source src="p02-doorframe.webm" type="video/webm">
+            <source src="p02-doorframe.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Doorframe">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">P02</span> Memory</span>
+          <strong class="title">Doorframe</strong>
+          <span class="line">The marks climbed until they stopped. Then someone small stood against the door.</span>
+        </figcaption>
+      </figure>
+      <figure class="anim" style="flex: 1.7778 1 0" data-id="P03" data-loop-from="17.333333333333332" data-poster-at="18.3333" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1600 / 900">
+          <video muted playsinline preload="none" poster="p03-paper-boat-poster.jpg" aria-label="Sketch: a sheet of paper folds itself into a paper boat, settles on still water at dawn and drifts away towards the horizon until it is a speck." width="1600" height="900">
+            <source src="p03-paper-boat.webm" type="video/webm">
+            <source src="p03-paper-boat.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Paper Boat">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">P03</span> Journeys</span>
+          <strong class="title">Paper Boat</strong>
+          <span class="line">Go on. The water knows the way.</span>
+        </figcaption>
+      </figure>
+      <figure class="anim" style="flex: 1.7778 1 0" data-id="P04" data-loop-from="16.333333333333332" data-poster-at="18.0000" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1600 / 900">
+          <video muted playsinline preload="none" poster="p04-red-thread-poster.jpg" aria-label="Sketch: a red thread runs from the window of one house on a hill, tangles into a knot in the sky, reaches a house on a far hill, then smooths into a gentle line as both windows light." width="1600" height="900">
+            <source src="p04-red-thread.webm" type="video/webm">
+            <source src="p04-red-thread.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play The Red Thread">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">P04</span> Connection</span>
+          <strong class="title">The Red Thread</strong>
+          <span class="line">It may tangle. It may stretch. It does not break.</span>
+        </figcaption>
+      </figure>
+    </div>
+    <div class="row">
+      <figure class="anim" style="flex: 1.0000 1 0" data-id="P05" data-loop-from="11" data-poster-at="19.4167" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1080 / 1080">
+          <video muted playsinline preload="none" poster="p05-every-spring-poster.jpg" aria-label="Sketch: a tree grows branch by branch from a seed, then goes through a year: pink blossom, green leaves, orange leaves falling, snow, and blossom again." width="1080" height="1080">
+            <source src="p05-every-spring.webm" type="video/webm">
+            <source src="p05-every-spring.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Every Spring">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">P05</span> Growth and change</span>
+          <strong class="title">Every Spring</strong>
+          <span class="line">It lets go of everything, every year, and begins again.</span>
+        </figcaption>
+      </figure>
+      <figure class="anim" style="flex: 0.8000 1 0" data-id="P06" data-loop-from="8" data-poster-at="10.0000" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1080 / 1350">
+          <video muted playsinline preload="none" poster="p06-lighthouse-poster.jpg" aria-label="Sketch: a lighthouse on a rock in a rainy night storm flickers on, and its yellow beam turns steadily while waves break against the rock." width="1080" height="1350">
+            <source src="p06-lighthouse.webm" type="video/webm">
+            <source src="p06-lighthouse.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play The Lighthouse">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">P06</span> Endurance</span>
+          <strong class="title">The Lighthouse</strong>
+          <span class="line">It cannot stop the storm. It keeps the light turning.</span>
+        </figcaption>
+      </figure>
+      <figure class="anim" style="flex: 1.0000 1 0" data-id="P07" data-loop-from="17" data-poster-at="18.1667" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1080 / 1080">
+          <video muted playsinline preload="none" poster="p07-kintsugi-poster.jpg" aria-label="Sketch: a green glazed bowl breaks into three pieces that drift apart, come back together, and are mended with lines of gold along the cracks." width="1080" height="1080">
+            <source src="p07-kintsugi.webm" type="video/webm">
+            <source src="p07-kintsugi.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Kintsugi">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">P07</span> Resilience</span>
+          <strong class="title">Kintsugi</strong>
+          <span class="line">Where it broke is where the gold is.</span>
+        </figcaption>
+      </figure>
+    </div>
+    <div class="row">
+      <figure class="anim" style="flex: 0.8000 1 0" data-id="P08" data-loop-from="16" data-poster-at="18.5000" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1080 / 1350">
+          <video muted playsinline preload="none" poster="p08-two-cups-poster.jpg" aria-label="Sketch: two teacups on saucers in morning window light; both steam at first, then only one does." width="1080" height="1350">
+            <source src="p08-two-cups.webm" type="video/webm">
+            <source src="p08-two-cups.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Two Cups">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">P08</span> Loss</span>
+          <strong class="title">Two Cups</strong>
+          <span class="line">I still make two.</span>
+        </figcaption>
+      </figure>
+      <figure class="anim" style="flex: 1.7778 1 0" data-id="P09" data-loop-from="12" data-poster-at="17.5000" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1600 / 900">
+          <video muted playsinline preload="none" poster="p09-52-hertz-poster.jpg" aria-label="Sketch: a whale glides alone in deep blue water and sends out rings of song that spread across the empty ocean and fade." width="1600" height="900">
+            <source src="p09-52-hertz.webm" type="video/webm">
+            <source src="p09-52-hertz.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play 52 Hertz">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">P09</span> Solitude</span>
+          <strong class="title">52 Hertz</strong>
+          <span class="line">It sings at a pitch no other whale can hear. It sings anyway.</span>
+        </figcaption>
+      </figure>
+      <figure class="anim" style="flex: 1.0000 1 0" data-id="P10" data-loop-from="11" data-poster-at="12.0000" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1080 / 1080">
+          <video muted playsinline preload="none" poster="p10-small-light-poster.jpg" aria-label="Sketch: in darkness a small flame nearly goes out, then catches, and its warm light reveals a candle on a table." width="1080" height="1080">
+            <source src="p10-small-light.webm" type="video/webm">
+            <source src="p10-small-light.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Small Light">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">P10</span> Hope</span>
+          <strong class="title">Small Light</strong>
+          <span class="line">The dark is very large. The flame does not know that.</span>
+        </figcaption>
+      </figure>
+    </div>
+    </div>
+  </main>
+  <footer>
+    <p>Drawn in code: deterministic Canvas 2D strokes on twos, each loop seamless.</p>
+  </footer>
+  <script>
+    // Site policy: only the hero autoplays (intro + two loops, then rest on its poster frame); everything else is a
+    // poster that plays on tap; reduced motion gets posters only unless the visitor asks. Videos seek to loopFrom on end.
+    // Each clip is loaded whole as a blob before it plays: seeking to loopFrom then works on any static server,
+    // including ones without HTTP Range support (python -m http.server), and the files are only a few hundred KB.
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const load = video => {
+      if (!video.loaded) {
+        const sources = [...video.querySelectorAll('source')];
+        const pick = sources.find(s => video.canPlayType(s.type)) ?? sources[sources.length - 1];
+        video.loaded = fetch(pick.src).then(r => { if (!r.ok) throw new Error(r.status + ' ' + pick.src); return r.blob(); })
+          .then(blob => { sources.forEach(s => s.remove()); video.src = URL.createObjectURL(blob); return new Promise(ok => video.addEventListener('loadeddata', ok, { once: true })); });
+      }
+      return video.loaded;
+    };
+    for (const fig of document.querySelectorAll('.anim')) {
+      const video = fig.querySelector('video'), button = fig.querySelector('.control');
+      const loopFrom = Number(fig.dataset.loopFrom), posterAt = Number(fig.dataset.posterAt);
+      let loops = 0, playing = false, paused = false;
+      const label = text => { button.textContent = text; button.setAttribute('aria-label', text + ' ' + fig.querySelector('strong').textContent); };
+      // a play() interrupted by pause() (scrolled off-screen, tapped) is not a failure
+      const resume = () => video.play().catch(err => { if (err.name !== 'AbortError') rest(); });
+      const rest = () => { playing = false; paused = false; video.pause(); video.currentTime = posterAt; label('Replay'); };
+      const start = () => {
+        loops = 0; playing = true; label('Pause');
+        load(video).then(() => { video.currentTime = 0; return video.play(); }).catch(err => { console.warn(err); rest(); });
+      };
+      video.addEventListener('ended', () => {
+        if (!playing) return;
+        if (++loops <= 2) { video.currentTime = loopFrom; resume(); } else rest();
+      });
+      button.addEventListener('click', () => {
+        if (playing) { playing = false; paused = true; video.pause(); label('Play'); }
+        else if (paused) { playing = true; paused = false; label('Pause'); resume(); }
+        else start();
+      });
+      video.addEventListener('click', () => button.click());
+      if (fig.dataset.autoplay === 'true' && !reduce) {
+        // pause when off-screen, resume when back
+        new IntersectionObserver(([entry]) => {
+          if (!entry.isIntersecting && playing) { video.pause(); }
+          else if (entry.isIntersecting && playing && video.paused) { resume(); }
+        }).observe(fig);
+        start();
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "program": "loop:red-thread",
+  "ar": "16:9",
+  "width": 1600,
+  "height": 900,
+  "fps": 12,
+  "frames": 268,
+  "loopFrom": 196,
+  "loopFromSeconds": 16.333333333333332,
+  "poster": 216,
+  "video": {
+    "mp4": "p04-red-thread.mp4",
+    "webm": "p04-red-thread.webm"
+  },
+  "posterImage": {
+    "png": "p04-red-thread-poster.png",
+    "jpg": "p04-red-thread-poster.jpg"
+  }
+}
