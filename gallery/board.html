@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Many Hands</title>
+  <meta name="description" content="Twenty hand-drawn animations in twelve visual languages, drawn in code on one engine.">
+  <link rel="icon" href="data:,">
+  <style>
+    :root { --wall: #efebe3; --card: #e4dfd4; --text: #1f1d1a; --muted: #625c53; --faint: #8b8479; --accent: #b3402a; --line: rgba(31, 29, 26, .14); }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--wall); color: var(--text); font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased; }
+    header, main, footer { max-width: 1240px; margin: 0 auto; padding: 0 16px; }
+    header { padding-top: 60px; padding-bottom: 8px; }
+    .kicker { margin: 0 0 10px; font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+    h1 { margin: 0 0 14px; font: 400 52px/1.05 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; letter-spacing: -.015em; }
+    header p { margin: 0; max-width: 64ch; color: var(--muted); text-wrap: pretty; }
+    nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 0; padding: 0; list-style: none; }
+    nav a { display: inline-flex; gap: 6px; align-items: baseline; font-size: 13px; color: var(--text); text-decoration: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; background: rgba(255, 255, 255, .35); }
+    nav a:hover { border-color: rgba(31, 29, 26, .4); }
+    nav a span { color: var(--faint); font-variant-numeric: tabular-nums; font-size: 12px; }
+    .anim { margin: 0; }
+    .frame { position: relative; overflow: hidden; background: var(--card); box-shadow: 0 0 0 1px rgba(31, 29, 26, .08), 0 2px 3px rgba(31, 29, 26, .08), 0 18px 36px -12px rgba(31, 29, 26, .35); }
+    video { display: block; width: 100%; height: 100%; object-fit: contain; cursor: pointer; }
+    .control { position: absolute; right: 12px; bottom: 12px; font: inherit; font-size: 12px; letter-spacing: .04em; color: #f4f1ea; background: rgba(24, 22, 20, .66); border: 1px solid rgba(244, 241, 234, .3); border-radius: 999px; padding: 4px 13px; cursor: pointer; backdrop-filter: blur(4px); }
+    .control:hover { background: rgba(24, 22, 20, .85); }
+    .control:focus-visible, nav a:focus-visible, .tag:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    figcaption { display: flex; flex-direction: column; gap: 3px; margin-top: 14px; }
+    .meta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); }
+    .id { color: var(--accent); font-variant-numeric: tabular-nums; }
+    .tag { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); }
+    .title { font: 400 22px/1.2 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; color: var(--text); }
+    .line { font: italic 400 17px/1.4 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; color: var(--muted); text-wrap: pretty; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr); gap: 44px; align-items: center; padding: 40px 0 64px; border-bottom: 1px solid var(--line); }
+    .hero figcaption { margin-top: 0; gap: 10px; }
+    .hero .title { font-size: 40px; }
+    .hero .line { font-size: 23px; color: var(--text); }
+    .hero .idea { max-width: 46ch; color: var(--muted); margin-top: 6px; text-wrap: pretty; }
+    section { padding: 52px 0 12px; border-bottom: 1px solid var(--line); scroll-margin-top: 12px; }
+    section:last-of-type { border-bottom: 0; }
+    .style-head { display: grid; grid-template-columns: minmax(0, 260px) minmax(0, 1fr); gap: 8px 40px; align-items: baseline; margin-bottom: 26px; }
+    h2 { margin: 0; font: 400 28px/1.15 "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif; }
+    .style-head p { margin: 0; color: var(--muted); max-width: 70ch; text-wrap: pretty; }
+    .row { display: flex; gap: 32px; align-items: flex-start; padding-bottom: 40px; }
+    .row .anim { min-width: 0; }
+    .row.single .anim { max-width: 62%; }
+    footer { padding-top: 28px; padding-bottom: 52px; color: var(--faint); font-size: 13px; }
+    footer p { margin: 0; border-top: 1px solid var(--line); padding-top: 20px; }
+    @media (max-width: 980px) { .hero { gap: 28px; } .row { gap: 20px; } .row .title { font-size: 19px; } .row .line { font-size: 15px; } }
+    @media (max-width: 760px) {
+      header { padding-top: 36px; }
+      h1 { font-size: 38px; }
+      .hero { grid-template-columns: 1fr; gap: 18px; padding: 28px 0 44px; }
+      .hero .title { font-size: 32px; }
+      .hero .line { font-size: 20px; }
+      .style-head { grid-template-columns: 1fr; }
+      .row, .row.single { flex-direction: column; gap: 40px; }
+      .row .anim, .row.single .anim { flex: none !important; width: 100%; max-width: none; }
+      .row .title { font-size: 22px; }
+      .row .line { font-size: 17px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <p class="kicker">hand-sketch &middot; gallery</p>
+    <h1>Many Hands</h1>
+    <p>Twenty small animations, each in its own visual language: woodblock and sumi, blueprint and sun print, riso inks, stipple and etching, watercolour, pastel on black, cut paper, Bauhaus, deco gold and a single line. All of them are drawn in code on the same engine, deterministic to the pixel. Most begin already whole and live by motion; a few draw themselves on because the drawing is the idea. The first plays on its own; tap any other to play it.</p>
+    <nav aria-label="Styles">
+      <a href="#woodblock">Woodblock <span>2</span></a>
+      <a href="#sumi-brush">Sumi brush <span>2</span></a>
+      <a href="#blueprint-and-cyanotype">Blueprint and cyanotype <span>2</span></a>
+      <a href="#riso-poster">Riso poster <span>2</span></a>
+      <a href="#stipple">Stipple <span>1</span></a>
+      <a href="#etching">Etching <span>2</span></a>
+      <a href="#watercolour">Watercolour <span>1</span></a>
+      <a href="#pastel-on-black">Pastel on black <span>2</span></a>
+      <a href="#cut-paper">Cut paper <span>2</span></a>
+      <a href="#bauhaus">Bauhaus <span>2</span></a>
+      <a href="#art-deco">Art deco <span>1</span></a>
+      <a href="#continuous-line">Continuous line <span>1</span></a>
+    </nav>
+  </header>
+  <main>
+      <figure class="anim hero" data-id="G01" data-loop-from="0" data-poster-at="2.5000" data-autoplay="true">
+        <div class="frame" style="aspect-ratio: 1600 / 900">
+          <video muted playsinline preload="none" poster="g01-rolling-sea-poster.jpg" aria-label="Sketch in woodblock-print style: bands of curling indigo waves with foam beads roll to the right under a red sun and a snow-capped peak, and a boat of rowers rides the swell." width="1600" height="900">
+            <source src="g01-rolling-sea.webm" type="video/webm">
+            <source src="g01-rolling-sea.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Rolling Sea">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G01</span><span class="theme">The sea</span><a class="tag" href="#woodblock">Woodblock</a></span>
+          <strong class="title">Rolling Sea</strong>
+          <span class="line">Every wave is the same wave, arriving.</span>
+          <span class="idea">Starts whole: a two-block ukiyo-e print of five wave bands rolling in parallax under a vermilion sun and a far snow peak, a boat of rowers riding the middle swell.</span>
+        </figcaption>
+      </figure>
+    <section id="woodblock" aria-labelledby="woodblock-title">
+      <div class="style-head">
+        <h2 id="woodblock-title">Woodblock</h2>
+        <p>Flat carved colour blocks, a key block printed a hair out of register, woodgrain showing through the ink.</p>
+      </div>
+      <div class="row">
+      <figure class="anim" style="flex: 1.7778 1 0" data-id="G01" data-loop-from="0" data-poster-at="2.5000" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1600 / 900">
+          <video muted playsinline preload="none" poster="g01-rolling-sea-poster.jpg" aria-label="Sketch in woodblock-print style: bands of curling indigo waves with foam beads roll to the right under a red sun and a snow-capped peak, and a boat of rowers rides the swell." width="1600" height="900">
+            <source src="g01-rolling-sea.webm" type="video/webm">
+            <source src="g01-rolling-sea.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Rolling Sea">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G01</span><span class="theme">The sea</span></span>
+          <strong class="title">Rolling Sea</strong>
+          <span class="line">Every wave is the same wave, arriving.</span>
+        </figcaption>
+      </figure>
+      <figure class="anim" style="flex: 1.0000 1 0" data-id="G10" data-loop-from="0" data-poster-at="1.6667" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1080 / 1080">
+          <video muted playsinline preload="none" poster="g10-snow-fox-poster.jpg" aria-label="Sketch as a black, red and cream linocut: a red fox curled asleep in snow below carved pine trees and a full moon with halo rings, with snow falling." width="1080" height="1080">
+            <source src="g10-snow-fox.webm" type="video/webm">
+            <source src="g10-snow-fox.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Snow Fox">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G10</span><span class="theme">Winter</span></span>
+          <strong class="title">Snow Fox</strong>
+          <span class="line">Curled up small enough, the winter goes around you.</span>
+        </figcaption>
+      </figure>
+      </div>
+    </section>
+    <section id="sumi-brush" aria-labelledby="sumi-brush-title">
+      <div class="style-head">
+        <h2 id="sumi-brush-title">Sumi brush</h2>
+        <p>Soot ink on rice paper: loaded strokes that swell and taper, dry-brush breakup, one vermilion seal.</p>
+      </div>
+      <div class="row">
+      <figure class="anim" style="flex: 0.8000 1 0" data-id="G02" data-loop-from="0" data-poster-at="3.3333" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1080 / 1350">
+          <video muted playsinline preload="none" poster="g02-bamboo-wind-poster.jpg" aria-label="Sketch in sumi ink: black and grey bamboo stalks with clusters of brush-stroke leaves bend and sway in gusts of wind on cream rice paper, with a red seal in the corner." width="1080" height="1350">
+            <source src="g02-bamboo-wind.webm" type="video/webm">
+            <source src="g02-bamboo-wind.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Bamboo Wind">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G02</span><span class="theme">Wind</span></span>
+          <strong class="title">Bamboo Wind</strong>
+          <span class="line">You only see the wind by what it bends.</span>
+        </figcaption>
+      </figure>
+      <figure class="anim" style="flex: 1.0000 1 0" data-id="G20" data-loop-from="0" data-poster-at="3.3333" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1080 / 1080">
+          <video muted playsinline preload="none" poster="g20-koi-poster.jpg" aria-label="Sketch in sumi ink: seen from above, a red and white koi and a black koi swim in a slow circle around each other among grey lily pads, with ripples on the water and a red seal." width="1080" height="1080">
+            <source src="g20-koi.webm" type="video/webm">
+            <source src="g20-koi.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Koi">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G20</span><span class="theme">Water</span></span>
+          <strong class="title">Koi</strong>
+          <span class="line">Two fish, one circle, no beginning.</span>
+        </figcaption>
+      </figure>
+      </div>
+    </section>
+    <section id="blueprint-and-cyanotype" aria-labelledby="blueprint-and-cyanotype-title">
+      <div class="style-head">
+        <h2 id="blueprint-and-cyanotype-title">Blueprint and cyanotype</h2>
+        <p>White on Prussian blue: a draughtsman's drawing with its construction lines, and a sun print's soft shadows.</p>
+      </div>
+      <div class="row">
+      <figure class="anim" style="flex: 1.0000 1 0" data-id="G03" data-loop-from="6.5" data-poster-at="8.1667" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1080 / 1080">
+          <video muted playsinline preload="none" poster="g03-orrery-poster.jpg" aria-label="Sketch of a blueprint: a planetary orrery drawn in white lines on blue grid paper, with orbit ellipses, a yellow sun, planets on arms, a gear train and dimension lines; the planets and gears turn." width="1080" height="1080">
+            <source src="g03-orrery.webm" type="video/webm">
+            <source src="g03-orrery.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Orrery">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G03</span><span class="theme">The cosmos</span></span>
+          <strong class="title">Orrery</strong>
+          <span class="line">Draw the heavens carefully enough and they start to turn.</span>
+        </figcaption>
+      </figure>
+      <figure class="anim" style="flex: 0.8000 1 0" data-id="G05" data-loop-from="8" data-poster-at="10.5000" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1080 / 1350">
+          <video muted playsinline preload="none" poster="g05-fiddlehead-poster.jpg" aria-label="Sketch of a cyanotype sun print: on a brushed field of Prussian blue, a pale fern fiddlehead unrolls into a tall frond beside grass stems and a small curled crozier." width="1080" height="1350">
+            <source src="g05-fiddlehead.webm" type="video/webm">
+            <source src="g05-fiddlehead.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Fiddlehead">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G05</span><span class="theme">Plants growing</span></span>
+          <strong class="title">Fiddlehead</strong>
+          <span class="line">It was holding all of this, rolled up small.</span>
+        </figcaption>
+      </figure>
+      </div>
+    </section>
+    <section id="riso-poster" aria-labelledby="riso-poster-title">
+      <div class="style-head">
+        <h2 id="riso-poster-title">Riso poster</h2>
+        <p>Fluorescent drum inks overprinting on stock: halftone tones at their own screen angles, misregistration, uneven ink.</p>
+      </div>
+      <div class="row">
+      <figure class="anim" style="flex: 0.8000 1 0" data-id="G04" data-loop-from="0" data-poster-at="5.3333" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1080 / 1350">
+          <video muted playsinline preload="none" poster="g04-night-city-poster.jpg" aria-label="Sketch in risograph style: a blue and pink city skyline with yellow lit windows under a big yellow moon, a pink train crossing on an elevated line, and the city reflected in the river below." width="1080" height="1350">
+            <source src="g04-night-city.webm" type="video/webm">
+            <source src="g04-night-city.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Night City">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G04</span><span class="theme">Cities</span></span>
+          <strong class="title">Night City</strong>
+          <span class="line">Every lit window is somebody still awake.</span>
+        </figcaption>
+      </figure>
+      <figure class="anim" style="flex: 0.8000 1 0" data-id="G18" data-loop-from="0" data-poster-at="5.0000" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1080 / 1350">
+          <video muted playsinline preload="none" poster="g18-fire-mountain-poster.jpg" aria-label="Sketch in risograph style: a teal volcano with orange lava streams smokes under a purple and orange sunset sky with a striped yellow sun, palm silhouettes in the foreground and a sea below." width="1080" height="1350">
+            <source src="g18-fire-mountain.webm" type="video/webm">
+            <source src="g18-fire-mountain.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Fire Mountain">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G18</span><span class="theme">Fire and earth</span></span>
+          <strong class="title">Fire Mountain</strong>
+          <span class="line">The island is still being made.</span>
+        </figcaption>
+      </figure>
+      </div>
+    </section>
+    <section id="stipple" aria-labelledby="stipple-title">
+      <div class="style-head">
+        <h2 id="stipple-title">Stipple</h2>
+        <p>Everything, sky and flock alike, built from single dots of ink.</p>
+      </div>
+      <div class="row single">
+      <figure class="anim" style="flex: 1.7778 1 0" data-id="G06" data-loop-from="0" data-poster-at="10.1667" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1600 / 900">
+          <video muted playsinline preload="none" poster="g06-murmuration-poster.jpg" aria-label="Sketch in stipple: a dusk sky over reeds made of ink dots, with a rose-coloured low sun, and a vast flock of starlings shown as dots that flows into changing shapes." width="1600" height="900">
+            <source src="g06-murmuration.webm" type="video/webm">
+            <source src="g06-murmuration.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Murmuration">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G06</span><span class="theme">Creatures</span></span>
+          <strong class="title">Murmuration</strong>
+          <span class="line">Thousands of birds, and not one of them is in charge.</span>
+        </figcaption>
+      </figure>
+      </div>
+    </section>
+    <section id="etching" aria-labelledby="etching-title">
+      <div class="style-head">
+        <h2 id="etching-title">Etching</h2>
+        <p>Fine sepia line and page-locked cross-hatching; tone is the density of the lines.</p>
+      </div>
+      <div class="row">
+      <figure class="anim" style="flex: 1.0000 1 0" data-id="G07" data-loop-from="0" data-poster-at="1.8333" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1080 / 1080">
+          <video muted playsinline preload="none" poster="g07-lamplight-poster.jpg" aria-label="Sketch in etching style: a jug, two pears and a bowl on a table under a hanging lamp; the lamp swings and the cross-hatched shadows and pool of warm light move with it." width="1080" height="1080">
+            <source src="g07-lamplight.webm" type="video/webm">
+            <source src="g07-lamplight.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Lamplight">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G07</span><span class="theme">Light and shadow</span></span>
+          <strong class="title">Lamplight</strong>
+          <span class="line">Everything on the table leans away from the light.</span>
+        </figcaption>
+      </figure>
+      <figure class="anim" style="flex: 1.7778 1 0" data-id="G08" data-loop-from="5" data-poster-at="8.6667" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1600 / 900">
+          <video muted playsinline preload="none" poster="g08-sea-chart-poster.jpg" aria-label="Sketch of an antique sea chart in sepia ink on stained vellum: islands with ripple lines, a compass rose, a sea serpent, and a small ship sailing a dotted red route around the islands." width="1600" height="900">
+            <source src="g08-sea-chart.webm" type="video/webm">
+            <source src="g08-sea-chart.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Sea Chart">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G08</span><span class="theme">Maps and journeys</span></span>
+          <strong class="title">Sea Chart</strong>
+          <span class="line">The route is only ever the wake behind you.</span>
+        </figcaption>
+      </figure>
+      </div>
+    </section>
+    <section id="watercolour" aria-labelledby="watercolour-title">
+      <div class="style-head">
+        <h2 id="watercolour-title">Watercolour</h2>
+        <p>Translucent glazes on cold-press paper, pigment gathering at each edge, colour bleeding wet into wet.</p>
+      </div>
+      <div class="row single">
+      <figure class="anim" style="flex: 0.8000 1 0" data-id="G09" data-loop-from="0" data-poster-at="4.1667" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1080 / 1350">
+          <video muted playsinline preload="none" poster="g09-rain-window-poster.jpg" aria-label="Sketch in watercolour: a window at night between rose curtains, rain drops on the glass and blurred city lights beyond, with a potted plant and a steaming cup on the sill." width="1080" height="1350">
+            <source src="g09-rain-window.webm" type="video/webm">
+            <source src="g09-rain-window.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Rain Window">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G09</span><span class="theme">Weather</span></span>
+          <strong class="title">Rain Window</strong>
+          <span class="line">The city dissolves, and the room gets warmer.</span>
+        </figcaption>
+      </figure>
+      </div>
+    </section>
+    <section id="pastel-on-black" aria-labelledby="pastel-on-black-title">
+      <div class="style-head">
+        <h2 id="pastel-on-black-title">Pastel on black</h2>
+        <p>Soft chalk on dark toothy paper; light is drawn, and the paper's grain breaks it.</p>
+      </div>
+      <div class="row">
+      <figure class="anim" style="flex: 1.7778 1 0" data-id="G11" data-loop-from="0" data-poster-at="3.3333" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1600 / 900">
+          <video muted playsinline preload="none" poster="g11-aurora-poster.jpg" aria-label="Sketch in pastel on black paper: green and magenta curtains of aurora ripple above dark mountains and pines, reflected in a lake below a starry sky." width="1600" height="900">
+            <source src="g11-aurora.webm" type="video/webm">
+            <source src="g11-aurora.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Aurora">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G11</span><span class="theme">The night sky</span></span>
+          <strong class="title">Aurora</strong>
+          <span class="line">The sky was drawing, and it would not hold still.</span>
+        </figcaption>
+      </figure>
+      <figure class="anim" style="flex: 0.5625 1 0" data-id="G12" data-loop-from="0" data-poster-at="3.6667" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1080 / 1920">
+          <video muted playsinline preload="none" poster="g12-jellyfish-poster.jpg" aria-label="Sketch in glowing pastel on black: three jellyfish in cyan, violet and pink pulse and drift in deep water, with long trailing tentacles and drifting particles." width="1080" height="1920">
+            <source src="g12-jellyfish.webm" type="video/webm">
+            <source src="g12-jellyfish.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Jellyfish">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G12</span><span class="theme">The deep</span></span>
+          <strong class="title">Jellyfish</strong>
+          <span class="line">It swims by closing its hand around the dark.</span>
+        </figcaption>
+      </figure>
+      </div>
+    </section>
+    <section id="cut-paper" aria-labelledby="cut-paper-title">
+      <div class="style-head">
+        <h2 id="cut-paper-title">Cut paper</h2>
+        <p>Shapes cut with scissors from coloured sheets, layered with a little shadow under each.</p>
+      </div>
+      <div class="row">
+      <figure class="anim" style="flex: 1.7778 1 0" data-id="G13" data-loop-from="0" data-poster-at="2.5000" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1600 / 900">
+          <video muted playsinline preload="none" poster="g13-ring-dance-poster.jpg" aria-label="Sketch in cut paper after Matisse: five red figures holding hands dance in a turning ring on a green hill against a deep blue sky with yellow and cream paper shapes." width="1600" height="900">
+            <source src="g13-ring-dance.webm" type="video/webm">
+            <source src="g13-ring-dance.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Ring Dance">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G13</span><span class="theme">Dance</span></span>
+          <strong class="title">Ring Dance</strong>
+          <span class="line">Nobody leads. Everybody holds on.</span>
+        </figcaption>
+      </figure>
+      <figure class="anim" style="flex: 1.3333 1 0" data-id="G14" data-loop-from="0" data-poster-at="2.5000" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1440 / 1080">
+          <video muted playsinline preload="none" poster="g14-paper-theatre-poster.jpg" aria-label="Sketch of a toy paper theatre: red curtains frame a night sea of layered teal paper waves with a paper sailing boat, a gold crescent moon and stars hanging on threads." width="1440" height="1080">
+            <source src="g14-paper-theatre.webm" type="video/webm">
+            <source src="g14-paper-theatre.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Paper Theatre">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G14</span><span class="theme">Dreams</span></span>
+          <strong class="title">Paper Theatre</strong>
+          <span class="line">The sea was cardboard. We went anyway.</span>
+        </figcaption>
+      </figure>
+      </div>
+    </section>
+    <section id="bauhaus" aria-labelledby="bauhaus-title">
+      <div class="style-head">
+        <h2 id="bauhaus-title">Bauhaus</h2>
+        <p>Primary colours and pure geometry, in rhythm.</p>
+      </div>
+      <div class="row">
+      <figure class="anim" style="flex: 1.0000 1 0" data-id="G15" data-loop-from="0" data-poster-at="2.5000" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1080 / 1080">
+          <video muted playsinline preload="none" poster="g15-truchet-poster.jpg" aria-label="Sketch in Bauhaus screen-print style: a grid of square tiles with black curved bands and red, yellow and blue quarter circles that rotate in waves, re-forming winding paths." width="1080" height="1080">
+            <source src="g15-truchet.webm" type="video/webm">
+            <source src="g15-truchet.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Truchet">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G15</span><span class="theme">Geometric rhythm</span></span>
+          <strong class="title">Truchet</strong>
+          <span class="line">Turn one tile and the whole path changes.</span>
+        </figcaption>
+      </figure>
+      <figure class="anim" style="flex: 1.7778 1 0" data-id="G16" data-loop-from="0" data-poster-at="5.8333" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1600 / 900">
+          <video muted playsinline preload="none" poster="g16-four-beats-poster.jpg" aria-label="Sketch of a Kandinsky-style score: a yellow and blue ringed circle, a red triangle, a black zigzag, coloured dots, a blue arc, a chequerboard and violet rings on staff lines, each moving as a red playhead passes." width="1600" height="900">
+            <source src="g16-four-beats.webm" type="video/webm">
+            <source src="g16-four-beats.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Four Beats">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G16</span><span class="theme">Music</span></span>
+          <strong class="title">Four Beats</strong>
+          <span class="line">Every shape has its own way of hearing the same note.</span>
+        </figcaption>
+      </figure>
+      </div>
+    </section>
+    <section id="art-deco" aria-labelledby="art-deco-title">
+      <div class="style-head">
+        <h2 id="art-deco-title">Art deco</h2>
+        <p>Gold line on black lacquer, symmetry and a travelling sheen.</p>
+      </div>
+      <div class="row single">
+      <figure class="anim" style="flex: 0.8000 1 0" data-id="G17" data-loop-from="0" data-poster-at="8.0000" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1080 / 1350">
+          <video muted playsinline preload="none" poster="g17-moon-tides-poster.jpg" aria-label="Sketch in art deco gold on black: a moon engraved with fine lines passes through its phases above rows of teal and gold scalloped waves, inside a stepped gold frame with rays and star sparkles." width="1080" height="1350">
+            <source src="g17-moon-tides.webm" type="video/webm">
+            <source src="g17-moon-tides.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Moon Tides">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G17</span><span class="theme">The moon and the sea</span></span>
+          <strong class="title">Moon Tides</strong>
+          <span class="line">A whole month in one breath of the sea.</span>
+        </figcaption>
+      </figure>
+      </div>
+    </section>
+    <section id="continuous-line" aria-labelledby="continuous-line-title">
+      <div class="style-head">
+        <h2 id="continuous-line-title">Continuous line</h2>
+        <p>One black line of one weight on white, and one red sun.</p>
+      </div>
+      <div class="row single">
+      <figure class="anim" style="flex: 1.7778 1 0" data-id="G19" data-loop-from="6" data-poster-at="7.6667" data-autoplay="false">
+        <div class="frame" style="aspect-ratio: 1600 / 900">
+          <video muted playsinline preload="none" poster="g19-cyclist-poster.jpg" aria-label="Sketch in a single black line on white: a cyclist rides past rolling hills, bushes, telegraph poles and clouds under a red sun, drawn as one continuous pen line." width="1600" height="900">
+            <source src="g19-cyclist.webm" type="video/webm">
+            <source src="g19-cyclist.mp4" type="video/mp4">
+          </video>
+          <button type="button" class="control" aria-label="Play Cyclist">Play</button>
+        </div>
+        <figcaption>
+          <span class="meta"><span class="id">G19</span><span class="theme">Motion</span></span>
+          <strong class="title">Cyclist</strong>
+          <span class="line">Keep the line going and it takes you somewhere.</span>
+        </figcaption>
+      </figure>
+      </div>
+    </section>
+  </main>
+  <footer>
+    <p>Drawn in code: deterministic Canvas 2D on twos, every loop seamless.</p>
+  </footer>
+  <script>
+    // Site policy: only the hero autoplays (intro + two loops, then rest on its poster frame); everything else is a
+    // poster that plays on tap; reduced motion gets posters only unless the visitor asks. Videos seek to loopFrom on end.
+    // Each clip is loaded whole as a blob before it plays: seeking to loopFrom then works on any static server,
+    // including ones without HTTP Range support (python -m http.server), and the files are only a few hundred KB.
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const load = video => {
+      if (!video.loaded) {
+        const sources = [...video.querySelectorAll('source')];
+        const pick = sources.find(s => video.canPlayType(s.type)) ?? sources[sources.length - 1];
+        video.loaded = fetch(pick.src).then(r => { if (!r.ok) throw new Error(r.status + ' ' + pick.src); return r.blob(); })
+          .then(blob => { sources.forEach(s => s.remove()); video.src = URL.createObjectURL(blob); return new Promise(ok => video.addEventListener('loadeddata', ok, { once: true })); });
+      }
+      return video.loaded;
+    };
+    for (const fig of document.querySelectorAll('.anim')) {
+      const video = fig.querySelector('video'), button = fig.querySelector('.control');
+      const loopFrom = Number(fig.dataset.loopFrom), posterAt = Number(fig.dataset.posterAt);
+      let loops = 0, playing = false, paused = false;
+      const label = text => { button.textContent = text; button.setAttribute('aria-label', text + ' ' + fig.querySelector('strong').textContent); };
+      // a play() interrupted by pause() (scrolled off-screen, tapped) is not a failure
+      const resume = () => video.play().catch(err => { if (err.name !== 'AbortError') rest(); });
+      const rest = () => { playing = false; paused = false; video.pause(); video.currentTime = posterAt; label('Replay'); };
+      const start = () => {
+        loops = 0; playing = true; label('Pause');
+        load(video).then(() => { video.currentTime = 0; return video.play(); }).catch(err => { console.warn(err); rest(); });
+      };
+      video.addEventListener('ended', () => {
+        if (!playing) return;
+        if (++loops <= 2) { video.currentTime = loopFrom; resume(); } else rest();
+      });
+      button.addEventListener('click', () => {
+        if (playing) { playing = false; paused = true; video.pause(); label('Play'); }
+        else if (paused) { playing = true; paused = false; label('Pause'); resume(); }
+        else start();
+      });
+      video.addEventListener('click', () => button.click());
+      if (fig.dataset.autoplay === 'true' && !reduce) {
+        // pause when off-screen, resume when back
+        new IntersectionObserver(([entry]) => {
+          if (!entry.isIntersecting && playing) { video.pause(); }
+          else if (entry.isIntersecting && playing && video.paused) { resume(); }
+        }).observe(fig);
+        start();
+      }
+    }
+  </script>
+</body>
+</html>

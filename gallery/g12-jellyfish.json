@@ -1,0 +1,19 @@
+{
+  "program": "loop:jellyfish",
+  "ar": "9:16",
+  "width": 1080,
+  "height": 1920,
+  "fps": 12,
+  "frames": 180,
+  "loopFrom": 0,
+  "loopFromSeconds": 0,
+  "poster": 44,
+  "video": {
+    "mp4": "g12-jellyfish.mp4",
+    "webm": "g12-jellyfish.webm"
+  },
+  "posterImage": {
+    "png": "g12-jellyfish-poster.png",
+    "jpg": "g12-jellyfish-poster.jpg"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "program": "loop:rain-window",
+  "ar": "4:5",
+  "width": 1080,
+  "height": 1350,
+  "fps": 12,
+  "frames": 144,
+  "loopFrom": 0,
+  "loopFromSeconds": 0,
+  "poster": 50,
+  "video": {
+    "mp4": "g09-rain-window.mp4",
+    "webm": "g09-rain-window.webm"
+  },
+  "posterImage": {
+    "png": "g09-rain-window-poster.png",
+    "jpg": "g09-rain-window-poster.jpg"
+  }
+}

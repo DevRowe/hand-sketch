@@ -1,0 +1,19 @@
+{
+  "program": "loop:aurora",
+  "ar": "16:9",
+  "width": 1600,
+  "height": 900,
+  "fps": 12,
+  "frames": 192,
+  "loopFrom": 0,
+  "loopFromSeconds": 0,
+  "poster": 40,
+  "video": {
+    "mp4": "g11-aurora.mp4",
+    "webm": "g11-aurora.webm"
+  },
+  "posterImage": {
+    "png": "g11-aurora-poster.png",
+    "jpg": "g11-aurora-poster.jpg"
+  }
+}

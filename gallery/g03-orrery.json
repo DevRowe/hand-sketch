@@ -1,0 +1,19 @@
+{
+  "program": "loop:orrery",
+  "ar": "1:1",
+  "width": 1080,
+  "height": 1080,
+  "fps": 12,
+  "frames": 198,
+  "loopFrom": 78,
+  "loopFromSeconds": 6.5,
+  "poster": 98,
+  "video": {
+    "mp4": "g03-orrery.mp4",
+    "webm": "g03-orrery.webm"
+  },
+  "posterImage": {
+    "png": "g03-orrery-poster.png",
+    "jpg": "g03-orrery-poster.jpg"
+  }
+}

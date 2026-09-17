@@ -1,0 +1,19 @@
+{
+  "program": "loop:fire-mountain",
+  "ar": "4:5",
+  "width": 1080,
+  "height": 1350,
+  "fps": 12,
+  "frames": 144,
+  "loopFrom": 0,
+  "loopFromSeconds": 0,
+  "poster": 60,
+  "video": {
+    "mp4": "g18-fire-mountain.mp4",
+    "webm": "g18-fire-mountain.webm"
+  },
+  "posterImage": {
+    "png": "g18-fire-mountain-poster.png",
+    "jpg": "g18-fire-mountain-poster.jpg"
+  }
+}

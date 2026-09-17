@@ -1,0 +1,19 @@
+{
+  "program": "loop:cyclist",
+  "ar": "16:9",
+  "width": 1600,
+  "height": 900,
+  "fps": 12,
+  "frames": 192,
+  "loopFrom": 72,
+  "loopFromSeconds": 6,
+  "poster": 92,
+  "video": {
+    "mp4": "g19-cyclist.mp4",
+    "webm": "g19-cyclist.webm"
+  },
+  "posterImage": {
+    "png": "g19-cyclist-poster.png",
+    "jpg": "g19-cyclist-poster.jpg"
+  }
+}
