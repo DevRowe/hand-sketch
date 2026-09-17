@@ -5,6 +5,7 @@ import { untangleScene } from './k01-untangle';
 import { runsItselfScene } from './k02-runs-itself';
 import { sortedScene } from './k03-sorted';
 import { swivelChairScene } from './k04-swivel-chair';
+import { oneTriggerScene } from './k05-one-trigger';
 
 export interface KeystoneEntry {
   id: string;
@@ -29,4 +30,5 @@ export const keystoneScenes: Record<string, Scene> = Object.fromEntries([
   runsItselfScene,
   sortedScene,
   swivelChairScene,
+  oneTriggerScene,
 ].map(s => [s.name, s]));

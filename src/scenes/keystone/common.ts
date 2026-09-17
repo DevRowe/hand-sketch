@@ -14,6 +14,8 @@ import type { StrokeStyle } from '../../core/stroke';
 
 export const R = KEYSTONE_ROLES;
 export const S = roleStrokes(R);
+/** A pulse or dash travelling on an accent line: a bold slug of the same line (same wobble, heavier pen). */
+export const PULSE = { ...S.FLOW, size: 17, dryBrush: 0 };
 
 /** Default Keystone timing: 7 s scene (84 drawn frames), loop section from 4 s (frame 48), 36-frame loop. */
 export const DURATION = 7;
@@ -27,9 +29,10 @@ export interface Fit {
   s: number;
 }
 
-export function fit(w: number, h: number, dw: number, dh: number): Fit {
-  const s = Math.min(w / dw, h / dh);
-  const ox = w / 2 - (dw / 2) * s, oy = h / 2 - (dh / 2) * s;
+/** `zoom` > 1 crops into the design box around `focus` (design units, default its centre). */
+export function fit(w: number, h: number, dw: number, dh: number, zoom = 1, focus: Vec2 = [dw / 2, dh / 2]): Fit {
+  const s = Math.min(w / dw, h / dh) * zoom;
+  const ox = w / 2 - focus[0] * s, oy = h / 2 - focus[1] * s;
   return { P: (x, y) => [ox + x * s, oy + y * s], s };
 }
 
