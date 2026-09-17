@@ -10,7 +10,7 @@ import { drawGroup, drawGroupRange, prepared, scheduleWithin, type Slot, type St
 import { boilStep } from '../../core/loop';
 import { clamp, easeInOut, easeOut, lerp, type Vec2 } from '../../core/math';
 import { drawPuppet, type Pose, type Puppet } from '../../core/puppet';
-import type { Scene, SceneFrame } from '../../core/scene';
+import type { Scene } from '../../core/scene';
 import { sketch } from '../../core/sketch';
 import { drawStroke, sampleStroke } from '../../core/stroke';
 import { clip, track } from '../../core/track';
@@ -78,7 +78,7 @@ const layout = perSize((w, h): Layout => {
 });
 
 /** Where an item is on its way to tray `kind` at progress u, starting from `start`: join, trunk, branch, drop in. */
-function riderPose(f: SceneFrame, L: Layout, kind: Kind, u: number, start: Pose, boil: number): Pose {
+function riderPose(L: Layout, kind: Kind, u: number, start: Pose, boil: number): Pose {
   const trunk = prepared(L.trunk, boil)[0]!, branch = prepared(L.branches, boil)[kind]!;
   const join = 0.15, onTrunk = 0.5, onBranch = 0.88;
   if (u < join) {
@@ -91,7 +91,6 @@ function riderPose(f: SceneFrame, L: Layout, kind: Kind, u: number, start: Pose,
     return { x: at.point[0], y: at.point[1] - lift, rotation: at.angle * 0.25, scale: L.k };
   }
   const end = sampleStroke(branch, 1).point, k = (u - onBranch) / (1 - onBranch);
-  void f;
   return { x: lerp(end[0], end[0] + 60 * L.s, k), y: lerp(end[1] - lift, end[1] + 70 * L.s, k * k), rotation: 0, scale: L.k };
 }
 
@@ -131,14 +130,14 @@ export const sortedScene: Scene = {
       PILE.forEach((_, i) => {
         const b = BEAT.find(x => x.pile === i);
         if (i === PILE.length - 1 || !b || n < b.start) onHeap.push(i);
-        else if (n < b.start + b.frames) riders.push({ kind: PILE[i]!.kind, pose: riderPose(f, L, PILE[i]!.kind, (n - b.start) / b.frames, heapPose(i), boil) });
+        else if (n < b.start + b.frames) riders.push({ kind: PILE[i]!.kind, pose: riderPose(L, PILE[i]!.kind, (n - b.start) / b.frames, heapPose(i), boil) });
       });
     } else {
       for (const e of emissions(loop, LOOP, EMIT)) {
         const kind = (e.index % 3) as Kind, spot = L.P(HEAP[0], HEAP[1] + 20);
         const rest: Pose = { x: spot[0], y: spot[1], rotation: 0.18 * (kind - 1), scale: L.k };
         if (e.age < 2) riders.push({ kind, pose: { ...rest, y: rest.y - (e.age === 0 ? 30 * L.s : 0) } });
-        else riders.push({ kind, pose: riderPose(f, L, kind, (e.age - 1) / 10, rest, boil) });
+        else riders.push({ kind, pose: riderPose(L, kind, (e.age - 1) / 10, rest, boil) });
       }
     }
 
