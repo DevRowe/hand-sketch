@@ -1,9 +1,10 @@
-/** The programs: the vertical-slice scene, a two-scene storyboard joined by a drawn transition, and the Keystone set. */
+/** The programs: the vertical-slice scene, a two-scene storyboard joined by a drawn transition, the Keystone set and the poetic set. */
 import { PALETTES } from '../art/palette';
 import type { Program, Scene, Sequence } from '../core/scene';
 import { houseScene } from './house';
 import { keystoneScenes } from './keystone';
 import { nightScene } from './night';
+import { poeticScenes } from './poetic';
 
 export const demoSequence: Sequence = {
   name: 'day-to-night',
@@ -13,7 +14,7 @@ export const demoSequence: Sequence = {
   ],
 };
 
-export const scenes: Readonly<Record<string, Scene>> = { house: houseScene, night: nightScene, ...keystoneScenes };
+export const scenes: Readonly<Record<string, Scene>> = { house: houseScene, night: nightScene, ...keystoneScenes, ...poeticScenes };
 
 /** Program ids accepted by the preview and the renderer: `sequence`, `scene:<name>` (one pass), `loop:<name>`. */
 export function programById(id: string): Program {
@@ -29,4 +30,5 @@ export function programById(id: string): Program {
 export const PROGRAM_IDS: readonly string[] = [
   'sequence', 'scene:house', 'scene:night', 'loop:house', 'loop:night',
   ...Object.keys(keystoneScenes).map(name => `loop:${name}`),
+  ...Object.keys(poeticScenes).map(name => `loop:${name}`),
 ];
