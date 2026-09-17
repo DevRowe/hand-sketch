@@ -100,6 +100,9 @@ try {
   const page = await openPage();
   const meta = await page.evaluate(() => ({ frames: window.__handSketch.frames, fps: window.__handSketch.fps, outputFps: window.__handSketch.outputFps, size: window.__handSketch.size }));
   const { frames: N, fps, outputFps, size } = meta;
+  // guard: the page must render the shape that was asked for (a silently square 4:3 render once slipped through)
+  const [ra, rb] = ar.split(/[:x/]/).map(Number);
+  if (!(ra > 0 && rb > 0) || Math.abs(size.w / size.h - ra / rb) > 0.01) throw new Error(`asked for --ar ${ar} but the page renders ${size.w}x${size.h}`);
   console.log(`${name}: ${N} drawn frames (${(N / fps).toFixed(2)} s, ${fps} fps drawn -> ${outputFps} fps out), logical ${size.w}x${size.h}, output ${size.outW}x${size.outH}`);
 
   const evenly = n => [...new Set(Array.from({ length: n }, (_, k) => Math.round((k * (N - 1)) / Math.max(1, n - 1))))];

@@ -26,9 +26,16 @@ export interface FrameSize {
   outH: number;
 }
 
+/** Width / height of an aspect ratio string ("16:9", "4x3", "4/5"). Throws on anything unparsable, never guesses. */
+export function parseAspect(ar: string): number {
+  const m = /^\s*(\d+(?:\.\d+)?)\s*[:x/]\s*(\d+(?:\.\d+)?)\s*$/.exec(String(ar));
+  const a = m ? Number(m[1]) : NaN, b = m ? Number(m[2]) : NaN;
+  if (!(a > 0 && b > 0)) throw new Error(`bad aspect ratio "${ar}": expected W:H, e.g. 16:9, 4:3, 1:1`);
+  return a / b;
+}
+
 export function frameSize({ ar, width }: Format): FrameSize {
-  const [a, b] = String(ar).split(/[:x/]/).map(Number);
-  const r = a && b && a > 0 && b > 0 ? a / b : 1;
+  const r = parseAspect(ar);
   const w = r >= 1 ? Math.round(SHORT_SIDE * r) : SHORT_SIDE;
   const h = r >= 1 ? SHORT_SIDE : Math.round(SHORT_SIDE / r);
   // libx264 needs even dimensions: round the output height to even, then derive the scale from it.

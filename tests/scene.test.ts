@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loopLocalFrame, ON_TWOS, programFrames, resolveSequence, sceneFrame, type Scene, type Sequence } from '../src/core/scene';
-import { frameSize, type Stage } from '../src/core/stage';
+import { frameSize, parseAspect, type Stage } from '../src/core/stage';
 
 const scene = (name: string, duration: number, loopFrom?: number): Scene => ({ name, duration, ...(loopFrom === undefined ? {} : { loopFrom }), draw: () => {} });
 const a = scene('a', 2), b = scene('b', 1.5, 0.5);
@@ -55,5 +55,18 @@ describe('frameSize', () => {
     const s = frameSize({ ar: '4:3', width: 1001 });
     expect(s.outW % 2).toBe(0);
     expect(s.outH % 2).toBe(0);
+  });
+
+  it('renders every aspect at the requested shape', () => {
+    for (const [ar, w, h] of [['16:9', 1920, 1080], ['4:3', 1440, 1080], ['1:1', 1080, 1080], ['4:5', 1080, 1350], ['3:4', 1080, 1440], ['9:16', 1080, 1920]] as const) {
+      expect(frameSize({ ar }), ar).toMatchObject({ w, h });
+      const out = frameSize({ ar, width: 1440 });
+      expect(out.outW / out.outH).toBeCloseTo(w / h, 2);
+    }
+  });
+
+  it('fails loudly on an unparsable aspect instead of rendering square', () => {
+    expect(parseAspect('4x5')).toBeCloseTo(0.8);
+    for (const bad of ['', 'wide', '4:', '0:1', '16:9:1']) expect(() => frameSize({ ar: bad })).toThrow(/bad aspect ratio/);
   });
 });

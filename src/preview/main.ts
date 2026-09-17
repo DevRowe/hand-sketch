@@ -5,6 +5,7 @@
  */
 import type { DrawnFrameInfo } from '../core/program';
 import { ON_ONES, ON_TWOS, type RenderSettings } from '../core/scene';
+import { parseAspect } from '../core/stage';
 import { Player } from '../runtime/player';
 import { PROGRAM_IDS, programById } from '../scenes/demo';
 
@@ -43,7 +44,12 @@ const ui = {
 for (const id of PROGRAM_IDS) ui.program.add(new Option(id, id));
 ui.program.value = q.get('program') ?? 'sequence';
 ui.strokes.value = q.get('strokes') === 'legacy' ? 'legacy' : 'engine';
-ui.ar.value = q.get('ar') ?? '16:9';
+// read the aspect from the query string itself: assigning a value with no matching <option> empties the
+// select, which used to fall back to a square frame without a word (`--ar 4:3` rendered 1:1)
+const ar = q.get('ar') ?? '16:9';
+parseAspect(ar);
+if (![...ui.ar.options].some(o => o.value === ar)) ui.ar.add(new Option(ar, ar));
+ui.ar.value = ar;
 ui.twos.checked = q.get('twos') !== '0';
 const bare = q.has('bare');
 if (bare) document.body.classList.add('bare');
