@@ -12,6 +12,8 @@ export interface StrokeGroup {
   readonly paths: readonly (readonly Vec2[])[];
   readonly style: StrokeStyle;
   readonly seed: number;
+  /** Every path is a closed loop (periodic wobble, ranges wrap across the join). */
+  readonly closed?: boolean;
 }
 
 export interface Slot { start: number; duration: number }
@@ -24,7 +26,7 @@ export function prepared(group: StrokeGroup, boilStep = 0): PreparedStroke[] {
   if (!byStep) cache.set(group, (byStep = new Map()));
   let list = byStep.get(boilStep);
   if (!list) {
-    list = group.paths.map((p, k) => prepareStroke(p, group.style, hashSeed(group.seed, k, boilStep)));
+    list = group.paths.map((p, k) => prepareStroke(p, group.style, hashSeed(group.seed, k, boilStep), { closed: !!group.closed }));
     byStep.set(boilStep, list);
   }
   return list;
