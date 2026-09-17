@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>hand-sketch preview</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/src/preview/preview.css">
+</head>
+<body>
+  <main class="stage">
+    <canvas id="canvas" aria-label="animation"></canvas>
+  </main>
+  <form class="bar" id="controls" autocomplete="off">
+    <button type="button" id="play" class="primary">Pause</button>
+    <input type="range" id="scrub" min="0" max="0" value="0" aria-label="frame">
+    <span id="readout" class="readout"></span>
+    <label>Program
+      <select id="program"></select>
+    </label>
+    <label>Strokes
+      <select id="strokes">
+        <option value="engine">engine</option>
+        <option value="legacy">legacy (reviewed skill)</option>
+      </select>
+    </label>
+    <label>Aspect
+      <select id="ar">
+        <option>16:9</option>
+        <option>1:1</option>
+        <option>9:16</option>
+      </select>
+    </label>
+    <label class="check"><input type="checkbox" id="twos" checked> on twos</label>
+  </form>
+  <script type="module" src="/src/preview/main.ts"></script>
+</body>
+</html>

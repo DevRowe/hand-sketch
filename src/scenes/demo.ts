@@ -1,0 +1,28 @@
+/** The demo programs: the vertical-slice scene, and a two-scene storyboard joined by a drawn transition. */
+import { PALETTES } from '../art/palette';
+import type { Program, Sequence } from '../core/scene';
+import { houseScene } from './house';
+import { nightScene } from './night';
+
+export const demoSequence: Sequence = {
+  name: 'day-to-night',
+  entries: [
+    { scene: houseScene },
+    { scene: nightScene, transition: { kind: 'blot', duration: 1, seed: 4242, center: [0.42, 0.52], fringe: PALETTES.risoPop.night } },
+  ],
+};
+
+export const scenes = { house: houseScene, night: nightScene } as const;
+
+/** Program ids accepted by the preview and the renderer: `sequence`, `scene:<name>` (one pass), `loop:<name>`. */
+export function programById(id: string): Program {
+  if (id === 'sequence') return { kind: 'sequence', sequence: demoSequence };
+  const [kind, name] = id.split(':');
+  const scene = scenes[name as keyof typeof scenes];
+  if (!scene) throw new Error(`unknown program "${id}"`);
+  if (kind === 'loop') return { kind: 'loop', scene };
+  if (kind === 'scene') return { kind: 'sequence', sequence: { name: id, entries: [{ scene }] } };
+  throw new Error(`unknown program "${id}"`);
+}
+
+export const PROGRAM_IDS = ['sequence', 'scene:house', 'scene:night', 'loop:house', 'loop:night'] as const;
