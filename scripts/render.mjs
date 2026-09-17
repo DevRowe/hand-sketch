@@ -118,7 +118,7 @@ try {
   if (seam) {
     const r = await page.evaluate(() => window.__handSketch.seam());
     if (!r) throw new Error(`--seam: ${program} has no loop section to check`);
-    if (r.differing > 0) errors.push(`seam: local frame ${r.end} (phase 1) differs from loopFrom frame ${r.from} in ${r.differing} pixels (max channel delta ${r.maxDelta})`);
+    if (r.differing > 0) errors.push(`seam: local frame ${r.end} (phase 1) differs from loopFrom frame ${r.from} in ${r.differing} pixels (max channel delta ${r.maxDelta}) within x,y,w,h ${r.box.join(',')} of the ${size.outW}x${size.outH} output`);
     else console.log(`seam: phase 1 (frame ${r.end}) is pixel-identical to loopFrom (frame ${r.from})`);
   }
 

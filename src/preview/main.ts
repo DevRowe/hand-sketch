@@ -19,7 +19,7 @@ declare global {
       size: { outW: number; outH: number; w: number; h: number; scale: number };
       loopFrom: number | null;
       poster: number;
-      seam(): { from: number; end: number; differing: number; maxDelta: number } | null;
+      seam(): { from: number; end: number; differing: number; maxDelta: number; box: [number, number, number, number] | null } | null;
       frame(i: number): string;
       info(i: number): string;
     };
