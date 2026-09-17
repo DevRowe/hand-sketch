@@ -1,0 +1,27 @@
+{
+  "name": "hand-sketch",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hand-sketch-style animation in code: deterministic Canvas 2D scenes and sequences with a variable-width stroke engine, rendered live or offline to mp4.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm run test && npm run build",
+    "render": "vite build && node scripts/render.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.3",
+    "puppeteer-core": "^24.43.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
+  },
+  "dependencies": {
+    "perfect-freehand": "^1.2.3",
+    "roughjs": "^4.6.6"
+  }
+}

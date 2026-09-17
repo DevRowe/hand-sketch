@@ -1,0 +1,23 @@
+hand-sketch
+Copyright (c) 2026 John Rowe
+
+This project includes code ported and adapted from third-party software:
+
+alesha-pro/tools - skills/hand-drawn-canvas-animation
+  Source:  https://github.com/alesha-pro/tools/tree/main/skills/hand-drawn-canvas-animation
+  Commit:  ce556d4f325ae6d672b51f526ed9c71730916222
+  Licence: MIT, Copyright (c) 2026 Alexey Fateev (full text in LICENSES/alesha-pro-tools-MIT.txt)
+  Ported or adapted in:
+    src/core/random.ts      seeded rng (mulberry32 variant)
+    src/core/stage.ts       logical-units format scheme (setFormat)
+    src/core/legacy.ts      reproduction of wob + selfDraw, used only for side-by-side comparison
+    src/core/transitions.ts ink-blot wipe (reworked with a coherent-noise contour)
+    src/art/color.ts        colour maths
+    src/art/palette.ts      palette schema, presets, makePalette / derivePalette / duotone
+    src/art/finishes.ts     hatch, grain, dotScreen, surface
+    src/art/print.ts        riso plate / printPlate colour separations
+    scripts/render.mjs      offline renderer design (canvas toDataURL frames -> ffmpeg on twos)
+
+Runtime dependencies (not vendored, installed from npm):
+  roughjs           MIT  https://github.com/pshihn/rough
+  perfect-freehand  MIT  https://github.com/steveruizok/perfect-freehand
