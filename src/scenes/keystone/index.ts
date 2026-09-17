@@ -7,6 +7,7 @@ import { sortedScene } from './k03-sorted';
 import { swivelChairScene } from './k04-swivel-chair';
 import { oneTriggerScene } from './k05-one-trigger';
 import { printRunScene } from './k06-print-run';
+import { busyworkScene } from './k07-busywork';
 
 export interface KeystoneEntry {
   id: string;
@@ -33,4 +34,5 @@ export const keystoneScenes: Record<string, Scene> = Object.fromEntries([
   swivelChairScene,
   oneTriggerScene,
   printRunScene,
+  busyworkScene,
 ].map(s => [s.name, s]));
