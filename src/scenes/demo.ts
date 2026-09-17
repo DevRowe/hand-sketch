@@ -1,7 +1,8 @@
-/** The demo programs: the vertical-slice scene, and a two-scene storyboard joined by a drawn transition. */
+/** The programs: the vertical-slice scene, a two-scene storyboard joined by a drawn transition, and the Keystone set. */
 import { PALETTES } from '../art/palette';
-import type { Program, Sequence } from '../core/scene';
+import type { Program, Scene, Sequence } from '../core/scene';
 import { houseScene } from './house';
+import { keystoneScenes } from './keystone';
 import { nightScene } from './night';
 
 export const demoSequence: Sequence = {
@@ -12,17 +13,20 @@ export const demoSequence: Sequence = {
   ],
 };
 
-export const scenes = { house: houseScene, night: nightScene } as const;
+export const scenes: Readonly<Record<string, Scene>> = { house: houseScene, night: nightScene, ...keystoneScenes };
 
 /** Program ids accepted by the preview and the renderer: `sequence`, `scene:<name>` (one pass), `loop:<name>`. */
 export function programById(id: string): Program {
   if (id === 'sequence') return { kind: 'sequence', sequence: demoSequence };
   const [kind, name] = id.split(':');
-  const scene = scenes[name as keyof typeof scenes];
+  const scene = name !== undefined && Object.hasOwn(scenes, name) ? scenes[name] : undefined;
   if (!scene) throw new Error(`unknown program "${id}"`);
   if (kind === 'loop') return { kind: 'loop', scene };
   if (kind === 'scene') return { kind: 'sequence', sequence: { name: id, entries: [{ scene }] } };
   throw new Error(`unknown program "${id}"`);
 }
 
-export const PROGRAM_IDS = ['sequence', 'scene:house', 'scene:night', 'loop:house', 'loop:night'] as const;
+export const PROGRAM_IDS: readonly string[] = [
+  'sequence', 'scene:house', 'scene:night', 'loop:house', 'loop:night',
+  ...Object.keys(keystoneScenes).map(name => `loop:${name}`),
+];
