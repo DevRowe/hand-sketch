@@ -62,6 +62,16 @@ export const PALETTES = {
     fills: ['#1a2040', '#22306a', '#2c3a80', '#141a33'], shade: '#8d97c9', light: '#ffffff', blush: '#7fe7ff',
     accents: ['#7fe7ff', '#ff6fd8', '#ffe22b', '#5fe08a'], inks: ['#e8ecff', '#7fe7ff'], finish: 'ink',
   },
+  /**
+   * Keystone duotone: key ink + one accent ink on a cool off-white stock (not cream). Colour means role, see
+   * `src/art/roles.ts`: the accent is only ever the automation, so `accents` are tints of that one ink.
+   * Placeholder hexes tied to the Keystone site tokens until a brand pack lands; riso hexes need proofing.
+   */
+  keystone: {
+    paper: '#f2f3ee', paperBand: null, ink: '#1d3337', night: '#0c1416', chalk: '#f2f3ee', chalkDim: '#889392', guide: 'rgba(111,118,115,.5)',
+    fills: ['#1f7a64', '#7eb0a2', '#c8dbd2', '#1d3337', '#889392'], shade: '#1d3337', light: '#f2f3ee', blush: '#7eb0a2',
+    accents: ['#1f7a64', '#549886', '#7eb0a2', '#a8c9be'], inks: ['#1f7a64', '#1d3337'], finish: 'riso',
+  },
 } satisfies Record<string, Palette>;
 
 export type PaletteName = keyof typeof PALETTES;
