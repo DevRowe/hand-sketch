@@ -9,7 +9,7 @@
 import { alpha, mix, shade, tint } from '../../art/color';
 import type { Finish, Palette } from '../../art/palette';
 
-interface Spec {
+export interface PaletteSpec {
   paper: string;
   ink: string;
   fills: string[];
@@ -22,7 +22,8 @@ interface Spec {
   blush?: string;
 }
 
-function palette(o: Spec): Palette {
+/** A full `Palette` from the few colours a treatment names; the rest derived. */
+export function palette(o: PaletteSpec): Palette {
   const dark = o.night ?? shade(o.ink, 0.3);
   return {
     paper: o.paper, paperBand: null, ink: o.ink, night: dark, chalk: o.paper, chalkDim: mix(o.ink, o.paper, 0.55), guide: alpha(o.ink, 0.35),
