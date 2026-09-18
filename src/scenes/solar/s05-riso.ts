@@ -194,22 +194,28 @@ export const risoScene: Scene = {
     }, plateOpts(1502, [0, 0]));
 
     // pink: the Sun's heart and its screened corona, the wakes, the planets' pink
-    ink(f, 's05-pink', g => {
-      const c = g.ctx;
-      enter(c, fr);
-      screen(c, [C[0] - 220, C[1] - 220, 440, 440], {
+    // the corona never moves: screened once, as a still, and laid first
+    const corona = cached(f, 's05-corona', g => {
+      enter(g.ctx, fr);
+      screen(g.ctx, [C[0] - 220, C[1] - 220, 440, 440], {
         cell: CELL, angle: ANGLE.pink, color: PINK,
         density: (x, y) => {
           const d = Math.hypot(x - C[0], y - C[1]);
           return d < SUN_R ? 1 : Math.max(0, 0.95 - (d - SUN_R) / 150);
         },
       });
+    });
+    ink(f, 's05-pink', g => {
+      const c = g.ctx;
+      g.stage.blit(c, corona);
+      enter(c, fr);
       for (const p of PLANETS) wake(c, p, sky);
       for (const p of PLANETS) planetOn(c, 'pink', p, sky);
     }, plateOpts(1503, [2.6, -1.8]));
 
     // yellow: the Sun, the stars, the planets' yellow
-    ink(f, 's05-yellow', g => {
+    // the Sun, its screen and the stars never move either
+    const sun = cached(f, 's05-sun', g => {
       const c = g.ctx;
       enter(c, fr);
       c.fillStyle = YELLOW;
@@ -221,6 +227,11 @@ export const risoScene: Scene = {
       c.beginPath();
       for (const [x, y, s] of STARS) { c.moveTo(x + s, y); c.arc(x, y, s, 0, TAU); }
       c.fill();
+    });
+    ink(f, 's05-yellow', g => {
+      const c = g.ctx;
+      g.stage.blit(c, sun);
+      enter(c, fr);
       for (const p of PLANETS) planetOn(c, 'yellow', p, sky);
     }, plateOpts(1504, [-2, 2.2]));
   },

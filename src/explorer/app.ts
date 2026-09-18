@@ -3,8 +3,9 @@
  * makes (view, style, selection, names, trail lengths) and the animation loop that draws.
  *
  * Drawing follows the hand-drawn cadence: twelve drawings a second ("on twos") at gentle paces, rising to thirty as
- * the pace quickens so a fast planet still moves in readable steps. While paused it draws only when
- * something changes (a control, the camera, the trails easing), so an idle page costs nothing.
+ * the pace quickens so a fast planet still moves in readable steps. Camera moves and controls draw at no more than
+ * `HAND_FPS`, and while paused it draws only when something changes (a control, the camera, the trails easing), so an
+ * idle page costs nothing. Animation frames that draw nothing sharpen the zoomed paper textures a slice at a time.
  */
 import { toFrames } from '../core/scene';
 import type { View } from '../core/stage';
@@ -33,6 +34,15 @@ const MERCURY_DAYS = 87.97;
 const STEP_DEG = 8;
 /** The cadence tops out at film rate: past it a faster planet only blurs, and resolution and battery matter more. */
 const MAX_FPS = 30;
+/** Most drawings a second for camera moves, drags and controls (the eye wants them quicker than twelve). */
+const HAND_FPS = 30;
+/** Milliseconds an animation frame that draws nothing may spend sharpening zoomed textures. */
+const REFINE_MS = 6;
+/** Screens this narrow (CSS pixels) frame the system into the room the controls leave. */
+const PHONE = 720;
+/** Design units from the Sun to the far side of Neptune; and CSS pixels kept clear round it. */
+const HOME_REACH = 502;
+const HOME_MARGIN = 10;
 
 /** Something drawn over the scene in design units (a transfer orbit, sight lines). */
 export type Overlay = (ctx: CanvasRenderingContext2D, app: App) => void;
@@ -74,7 +84,11 @@ export class App {
   /** Drawn frames into the scene's draw-on; `DONE` once it has played (on load or Reset), so a new style starts whole. */
   private intro: number;
   private dirty = true;
+  /** The camera rests on (or glides to) the home view. */
+  private homed = true;
   private lastDraw = -1e9;
+  /** The interval the last drawing was meant to keep (for the resolution governor). */
+  private drawInterval = 1000 / 12;
   private last = 0;
   private marks: Marks | null = null;
   private readonly labelEls = new Map<BodyId, HTMLElement>();
@@ -86,6 +100,7 @@ export class App {
     this.view = o.view;
     this.style = o.style;
     this.renderer = new Renderer(o.canvas);
+    this.renderer.setHeavy(o.style.heavy);
     const { w, h } = this.renderer.logical;
     this.camera = new Camera(w, h);
     this.intro = o.skipIntro ? DONE : 0;
@@ -132,6 +147,7 @@ export class App {
   setStyle(style: Style): void {
     if (style === this.style) return;
     this.style = style;
+    this.renderer.setHeavy(style.heavy);
     this.changed();
   }
 
@@ -215,6 +231,7 @@ export class App {
   zoomBy(factor: number, x?: number, y?: number): void {
     const [lx, ly] = x === undefined || y === undefined ? [this.camera.x, this.camera.y] : this.renderer.toLogical(x, y);
     this.camera.zoomAt(factor, lx, ly);
+    this.homed = false;
     if (this.camera.zoom <= ZOOM_MIN) this.following = false;
     this.changed();
   }
@@ -225,12 +242,38 @@ export class App {
     const k = this.renderer.logicalScale * this.camera.zoom;
     this.camera.panBy(dx / k, dy / k);
     this.following = false;
+    this.homed = false;
     this.changed();
   }
 
   resetView(): void {
     this.following = false;
-    this.camera.reset(this.glide);
+    this.homed = true;
+    this.camera.glideTo(this.homeView(), this.glide);
+    this.changed();
+  }
+
+  /**
+   * The view to rest on: the whole frame, or on a phone, where the controls leave a narrower band free, the system out
+   * to Neptune fitted into that band (a little zoomed out, the page lying on the desk).
+   */
+  homeView(): View {
+    const { w, h } = this.renderer.logical, whole = { zoom: 1, x: w / 2, y: h / 2 };
+    if (innerWidth > PHONE) return whole;
+    const r = this.freeRect(), perDesign = this.renderer.designScale / this.camera.zoom;
+    const zoom = clamp((Math.min(r.w, r.h) / 2 - HOME_MARGIN) / (HOME_REACH * perDesign), ZOOM_MIN, 1);
+    const [lx, ly] = this.renderer.designToLogical(540, 540), [cx, cy] = this.centreFor(lx, ly, zoom);
+    return { zoom, x: cx, y: cy };
+  }
+
+  /** Whether the camera rests on (or is gliding to) the home view: set by going home, cleared by any other move. */
+  get atHome(): boolean { return this.homed; }
+
+  /** Rest on the home view at once. */
+  goHome(): void {
+    this.following = false;
+    this.homed = true;
+    this.camera.glideTo(this.homeView(), 0);
     this.changed();
   }
 
@@ -249,6 +292,7 @@ export class App {
     const zoom = clamp(Math.min(r.w, r.h) / (2 * radius * perDesign), ZOOM_MIN, ZOOM_MAX);
     const [lx, ly] = this.renderer.designToLogical(x, y), [cx, cy] = this.centreFor(lx, ly, zoom);
     this.following = false;
+    this.homed = false;
     this.camera.glideTo({ zoom, x: cx, y: cy }, this.glide);
     this.changed();
   }
@@ -259,6 +303,7 @@ export class App {
     if (!m) return;
     const z = clamp(Math.max(zoom, this.camera.zoom), ZOOM_MIN, ZOOM_MAX), [lx, ly] = this.renderer.designToLogical(m.x, m.y), [cx, cy] = this.centreFor(lx, ly, z);
     this.following = true;
+    this.homed = false;
     this.camera.glideTo({ zoom: z, x: cx, y: cy }, this.glide);
     this.changed();
   }
@@ -281,15 +326,18 @@ export class App {
   /* ---------- the loop ---------- */
 
   resize(size: Size): void {
+    const home = this.homed;
     this.renderer.resize(size);
     const { w, h } = this.renderer.logical;
     this.camera.resize(w, h);
+    // resting at home, stay at home for the new shape of screen
+    if (home) this.camera.glideTo(this.homeView(), 0);
     this.dirty = true;
   }
 
-  /** Milliseconds between drawings at the current pace. */
+  /** Milliseconds between drawings at the current pace (paused, between drawings for a control or the camera). */
   get interval(): number {
-    if (!this.sim.playing) return 1000 / 60;
+    if (!this.sim.playing) return 1000 / HAND_FPS;
     const degPerSecond = (this.sim.pace * 360) / MERCURY_DAYS;
     return 1000 / clamp(degPerSecond / STEP_DEG, 12, MAX_FPS);
   }
@@ -299,9 +347,11 @@ export class App {
   }
 
   private readonly frame = (now: number): void => {
+    // ask for the next frame first: nothing thrown below can stop the loop
+    requestAnimationFrame(this.frame);
     const dt = this.last ? Math.min(0.25, (now - this.last) / 1000) : 0;
     this.last = now;
-    if (this.renderer.settle(now, this.interval, dt)) this.dirty = true;
+    if (this.renderer.settle(now, this.drawInterval, dt)) this.dirty = true;
     if (this.sim.advance(dt)) this.onChange();
     if (this.stopAt !== null && this.sim.playing && this.sim.direction === 1 && this.sim.day >= this.stopAt) {
       this.sim.day = this.stopAt;
@@ -314,13 +364,16 @@ export class App {
     const rest = toFrames(this.scene.loopFrom ?? 0, 12), drawingOn = this.intro < rest;
     if (drawingOn) this.intro = Math.min(rest, this.intro + 12 * dt);
     else this.intro = DONE;
-    const due = this.sim.playing && now - this.lastDraw >= this.interval - 3;
-    if (this.dirty || due || settling || moving || drawingOn) {
+    // the sky keeps the pace's cadence; a control or the camera may draw sooner, but never above HAND_FPS
+    const interval = this.dirty || moving ? Math.min(this.interval, 1000 / HAND_FPS) : this.interval;
+    if ((this.dirty || this.sim.playing || settling || moving || drawingOn) && now - this.lastDraw >= interval - 3) {
+      // the governor judges frames by the sky's own cadence (on twos while paused): a camera move or a control drawing
+      // quicker than that is a bonus, and missing it is no reason to lower the resolution
+      this.drawInterval = this.sim.playing ? this.interval : 1000 / 12;
       this.draw();
       this.lastDraw = now;
       this.dirty = false;
-    }
-    requestAnimationFrame(this.frame);
+    } else if (!moving && this.renderer.refine(REFINE_MS)) this.dirty = true;
   };
 
   private draw(): void {
@@ -385,7 +438,10 @@ export class App {
         w = el.offsetWidth || 60;
         this.labelWidth.set(m.id, w);
       }
-      const left = Math.round(x + r + 6), top = Math.round(y - 9), h = 18;
+      // a name that would run off the right of the screen goes on the body's other side
+      let left = Math.round(x + r + 6);
+      if (left + w > innerWidth - 4) left = Math.round(x - r - 6 - w);
+      const top = Math.round(y - 9), h = 18;
       const clash = placed.some(([a, b, c, d]) => left < c && left + w > a && top < d && top + h > b);
       el.style.transform = `translate(${left}px, ${top}px)`;
       el.style.visibility = clash ? 'hidden' : 'visible';

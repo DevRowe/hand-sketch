@@ -14,7 +14,7 @@
  * - clocks: most pieces start whole and are all loop (`loopFrom` 0), so `phase` is their clock; periodic helpers
  *   (`wave`, `swell`, `wrap`) keep every motion a whole number of cycles per loop.
  */
-import { drawPaper } from '../../art/paper';
+import { paperSteps } from '../../art/paper';
 import { parseColor } from '../../art/color';
 import { arcLengths, pointAtLength, resample } from '../../core/geometry';
 import { clamp, TAU, type Vec2 } from '../../core/math';
@@ -49,17 +49,17 @@ export const smooth = (a: number, b: number, x: number): number => {
 
 /* ---------- layers ---------- */
 
-/** A static layer built once per frame size and key by `build` (which must not depend on the frame). */
+/**
+ * A static layer built once per frame size and key by `build` (which must not depend on the frame). It is page-locked
+ * content, so it is a page layer: a moving view camera maps it, and the live explorer sharpens it once the view holds.
+ */
 export function cached(f: SceneFrame, key: string, build: (g: SceneFrame) => void): HTMLCanvasElement {
-  const { stage } = f, id = `gallery-still:${key}`;
-  const fresh = !stage.hasLayer(id), layer = stage.layer(id);
-  if (fresh) {
-    const g = stage.context(layer);
+  const { stage } = f;
+  return stage.pageLayer(`gallery-still:${key}`, g => {
     stage.reset(g);
     build({ ...f, ctx: g });
     stage.reset(g);
-  }
-  return layer;
+  });
 }
 
 /** A static layer (see `cached`), laid onto the frame. */
@@ -92,15 +92,14 @@ export interface CompositeOptions {
   offset?: Vec2;
 }
 
-/** Lay an output-resolution layer onto the frame. */
+/** Lay an output-resolution layer (a view layer, or a page layer through the view) onto the frame. */
 export function composite(f: SceneFrame, layer: HTMLCanvasElement, o: CompositeOptions = {}): void {
   const { ctx, stage } = f, { blend = 'source-over', alpha = 1, offset = [0, 0] } = o;
   if (alpha <= 0) return;
   ctx.save();
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalCompositeOperation = blend;
   ctx.globalAlpha = alpha;
-  ctx.drawImage(layer, Math.round(offset[0] * stage.scale), Math.round(offset[1] * stage.scale), stage.outW, stage.outH);
+  stage.lay(ctx, layer, Math.round(offset[0] * stage.scale), Math.round(offset[1] * stage.scale));
   ctx.restore();
 }
 
@@ -116,11 +115,12 @@ export interface GroundOptions {
 
 /** Paper stock with an optional vignette, cached as one layer. */
 export function ground(f: SceneFrame, color: string, o: GroundOptions = {}): void {
-  const { seed = 17, texture = 1, vignette = 0, vignetteColor = '#000000' } = o;
-  still(f, `ground:${color}:${seed}:${texture}:${vignette}:${vignetteColor}`, g => {
-    drawPaper(g.ctx, g.stage, { color, seed, texture });
+  const { seed = 17, texture = 1, vignette = 0, vignetteColor = '#000000' } = o, { stage } = f;
+  // page-locked, like the paper it is made of: a moving view camera only maps it
+  const layer = stage.pageLayer(`gallery-ground:${color}:${seed}:${texture}:${vignette}:${vignetteColor}`, function* (ctx, region) {
+    yield* paperSteps(stage, ctx, region, { color, seed, texture });
     if (vignette > 0) {
-      const { stage, ctx } = g, [r, gr, b] = parseColor(vignetteColor), R = Math.hypot(stage.w, stage.h) / 2;
+      const [r, gr, b] = parseColor(vignetteColor), R = Math.hypot(stage.w, stage.h) / 2;
       const grad = ctx.createRadialGradient(stage.cx, stage.cy, R * 0.3, stage.cx, stage.cy, R);
       grad.addColorStop(0, `rgba(${r},${gr},${b},0)`);
       grad.addColorStop(1, `rgba(${r},${gr},${b},${vignette})`);
@@ -128,6 +128,7 @@ export function ground(f: SceneFrame, color: string, o: GroundOptions = {}): voi
       ctx.fillRect(0, 0, stage.w, stage.h);
     }
   });
+  composite(f, layer);
 }
 
 /* ---------- textures ---------- */
@@ -146,61 +147,79 @@ export interface ToothOptions {
   color?: string;
 }
 
-/** A cached texture mask (opaque marks on transparent), full frame, page-locked. */
+/** Marks drawn between yields while a sharp copy of a texture is built a slice at a time. */
+const SLICE = 600;
+
+/** A cached texture mask (opaque marks on transparent), full frame, page-locked: a page layer, kept whatever the view. */
 export function toothMask(f: SceneFrame, o: ToothOptions): HTMLCanvasElement {
   const { seed, density = 30, size = 2, kind = 'speck', angle = 0, length = 20, color = '#000' } = o;
   const { stage } = f, id = `gallery-tooth:${seed}:${density}:${size}:${kind}:${angle}:${length}:${color}`;
-  const fresh = !stage.hasLayer(id), layer = stage.layer(id);
-  if (!fresh) return layer;
-  const g = stage.context(layer), r = rng(seed), W = stage.w, H = stage.h;
-  stage.reset(g);
-  g.fillStyle = color;
-  g.strokeStyle = color;
-  g.lineCap = 'round';
-  const n = Math.round((W * H * density) / 10000);
-  if (kind === 'speck') {
-    g.beginPath();
-    for (let i = 0; i < n; i++) {
-      const x = r() * W, y = r() * H, s = size * (0.3 + r()), ry = s * (0.5 + r() * 0.5), a = r() * TAU;
-      g.moveTo(x + s * Math.cos(a), y + s * Math.sin(a));
-      g.ellipse(x, y, s, ry, a, 0, TAU);
-    }
-    g.fill();
-  } else if (kind === 'streak') {
-    const ca = Math.cos(angle), sa = Math.sin(angle);
-    g.lineWidth = size;
-    g.beginPath();
-    for (let i = 0; i < n; i++) {
-      const x = r() * W, y = r() * H, L = length * (0.3 + r()), j = (r() - 0.5) * 0.3;
-      g.moveTo(x, y);
-      g.lineTo(x + (ca - sa * j) * L, y + (sa + ca * j) * L);
-    }
-    g.stroke();
-  } else {
-    // woodgrain: long faint lines that meander together, with knots of tighter curvature
-    g.lineWidth = size;
-    for (let i = 0; i < n; i++) {
-      const y0 = r() * H, x0 = r() * W - 200, L = length * (0.5 + r()), a = 0.2 + r() * 0.8;
-      g.globalAlpha = a;
+  return stage.pageLayer(id, function* (g, region) {
+    const r = rng(seed), W = stage.w, H = stage.h;
+    // a mark reaching no further than `e` from (x, y) is skipped when it misses the region (every mark still draws
+    // its random numbers, so the rest land where they always do)
+    const out = (x: number, y: number, e: number): boolean => region !== null && (x + e < region[0] || x - e > region[2] || y + e < region[1] || y - e > region[3]);
+    let drawn = 0;
+    g.fillStyle = color;
+    g.strokeStyle = color;
+    g.lineCap = 'round';
+    const n = Math.round((W * H * density) / 10000);
+    if (kind === 'speck') {
       g.beginPath();
-      for (let s = 0; s <= L; s += 12) {
-        const x = x0 + s, y = y0 + noise2(x / 260, y0 / 90, seed) * 22 + noise1(x / 40, seed + i) * 2;
-        if (s === 0) g.moveTo(x, y); else g.lineTo(x, y);
+      for (let i = 0; i < n; i++) {
+        const x = r() * W, y = r() * H, s = size * (0.3 + r()), ry = s * (0.5 + r() * 0.5), a = r() * TAU;
+        if (out(x, y, s)) continue;
+        g.moveTo(x + s * Math.cos(a), y + s * Math.sin(a));
+        g.ellipse(x, y, s, ry, a, 0, TAU);
+        if (region && ++drawn % SLICE === 0) {
+          g.fill();
+          yield;
+          g.beginPath();
+        }
+      }
+      g.fill();
+    } else if (kind === 'streak') {
+      const ca = Math.cos(angle), sa = Math.sin(angle);
+      g.lineWidth = size;
+      g.beginPath();
+      for (let i = 0; i < n; i++) {
+        const x = r() * W, y = r() * H, L = length * (0.3 + r()), j = (r() - 0.5) * 0.3;
+        if (out(x, y, L * 1.1 + size)) continue;
+        g.moveTo(x, y);
+        g.lineTo(x + (ca - sa * j) * L, y + (sa + ca * j) * L);
+        if (region && ++drawn % SLICE === 0) {
+          g.stroke();
+          yield;
+          g.beginPath();
+        }
       }
       g.stroke();
+    } else {
+      // woodgrain: long faint lines that meander together, with knots of tighter curvature
+      g.lineWidth = size;
+      for (let i = 0; i < n; i++) {
+        const y0 = r() * H, x0 = r() * W - 200, L = length * (0.5 + r()), a = 0.2 + r() * 0.8;
+        if (region && (x0 > region[2] || x0 + L < region[0] || y0 + 30 < region[1] || y0 - 30 > region[3])) continue;
+        g.globalAlpha = a;
+        g.beginPath();
+        for (let s = 0; s <= L; s += 12) {
+          const x = x0 + s, y = y0 + noise2(x / 260, y0 / 90, seed) * 22 + noise1(x / 40, seed + i) * 2;
+          if (s === 0) g.moveTo(x, y); else g.lineTo(x, y);
+        }
+        g.stroke();
+        if (region && ++drawn % 40 === 0) yield;
+      }
+      g.globalAlpha = 1;
     }
-    g.globalAlpha = 1;
-  }
-  return layer;
+  });
 }
 
 /** Knock a texture mask out of layer context `g` (ink skipping on paper tooth, grain in a block). */
 export function knockOut(f: SceneFrame, g: Ctx, mask: HTMLCanvasElement, alpha: number): void {
   g.save();
-  g.setTransform(1, 0, 0, 1, 0, 0);
   g.globalCompositeOperation = 'destination-out';
   g.globalAlpha = alpha;
-  g.drawImage(mask, 0, 0, f.stage.outW, f.stage.outH);
+  f.stage.lay(g, mask);
   g.restore();
 }
 

@@ -8,6 +8,7 @@ import type { ViewId } from './bodies';
 import { wireControls } from './controls';
 import { isoDate, today } from './format';
 import { Panel } from './panel';
+import { wireMoments } from './moments';
 import { MONTH, Sim } from './sim';
 import { styleByKey, STYLES } from './styles';
 import { readUrl, writeUrl } from './url';
@@ -15,7 +16,8 @@ import { readUrl, writeUrl } from './url';
 const DEFAULT_STYLE = 'pastel';
 const DEFAULT_PACE = MONTH;
 
-const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
+let reduceMotion = motionQuery.matches;
 const url = readUrl();
 const canvas = document.getElementById('sky') as HTMLCanvasElement;
 
@@ -65,6 +67,8 @@ function reset(): void {
   if (!reduceMotion) app.redrawIntro();
 }
 
+const moments = wireMoments({ open: id => panel.openPreset(id), openAll: () => panel.openJump() });
+
 const controls = wireControls(app, {
   openJump: () => panel.openJump(),
   openGuide: () => panel.openGuide(),
@@ -94,9 +98,17 @@ function syncUrl(): void {
   }, 350);
 }
 
+/** Light papers get more solid controls, so hatching and grain never show through them. */
+const LIGHT_PAPER = new Set(STYLES.filter(st => {
+  const hex = st.swatch[0].replace('#', ''), n = parseInt(hex.length === 3 ? [...hex].map(c => c + c).join('') : hex, 16);
+  return ((n >> 16) & 255) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114 > 140;
+}));
+
 app.onChange = () => {
   controls.refresh();
   panel.refresh();
+  moments.refresh(panel.preset);
+  document.body.classList.toggle('light-paper', LIGHT_PAPER.has(app.style));
   syncUrl();
 };
 app.onDraw = () => {
@@ -115,10 +127,12 @@ app.freeRect = () => {
     return el.getBoundingClientRect();
   };
   if (!hidden) {
-    const t = box('top'), d = box('dock'), r = box('rail');
+    const t = box('top'), d = box('dock'), m = box('moments');
     if (t) top = t.bottom + gap;
     if (d) bottom = Math.min(bottom, d.top - gap);
-    if (r && r.width < W / 3) left = r.right + gap;
+    // the key moments: a rail down the left, or a strip under the top bar
+    if (m && m.width < W / 3) left = m.right + gap;
+    else if (m) top = Math.max(top, m.bottom + gap);
   }
   const p = box('panel');
   if (p) {
@@ -144,6 +158,9 @@ try {
   new ResizeObserver(() => measure()).observe(canvas);
 }
 
+// rest on the home view for this screen (on a phone, fitted into the room the controls leave)
+app.goHome();
+
 if (url.body && url.body in BODY_NAMES) {
   const id = url.body as keyof typeof BODY_NAMES;
   app.select(id);
@@ -151,9 +168,27 @@ if (url.body && url.body in BODY_NAMES) {
 }
 if (url.preset) panel.openPreset(url.preset);
 if (reduceMotion) toast('Paused, as your device asks for reduced motion. Press play to set the planets moving.', 6500);
+// the device's wish can change while the page is open: follow it
+motionQuery.addEventListener('change', () => {
+  reduceMotion = motionQuery.matches;
+  sim.instant = reduceMotion;
+  app.reducedMotion = reduceMotion;
+  if (reduceMotion && app.sim.playing) {
+    app.play(false);
+    toast('Paused, as your device now asks for reduced motion. Press play to set the planets moving.', 6500);
+  }
+});
+
+// the top bar's and the dock's heights, for what sits between them
+for (const [id, name] of [['top', '--top-h'], ['dock', '--dock-h']] as const) {
+  const el = document.getElementById(id)!;
+  new ResizeObserver(() => document.documentElement.style.setProperty(name, `${Math.round(el.getBoundingClientRect().height)}px`)).observe(el);
+}
 
 app.start();
 controls.refresh();
+moments.refresh(panel.preset);
+document.body.classList.toggle('light-paper', LIGHT_PAPER.has(app.style));
 
 declare global {
   interface Window {

@@ -52,7 +52,11 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     pace: $<HTMLInputElement>('pace'),
     paceOut: $<HTMLOutputElement>('pace-out'),
     chips: $<HTMLDivElement>('pace-chips'),
-    styles: $<HTMLDivElement>('styles'),
+    stylePick: $<HTMLDivElement>('style-pick'),
+    styleBtn: $<HTMLButtonElement>('style-btn'),
+    styleMenu: $<HTMLDivElement>('style-menu'),
+    styleName: $<HTMLElement>('style-name'),
+    styleSw: $<HTMLElement>('style-sw'),
     trails: $<HTMLButtonElement>('trails-btn'),
     span: $<HTMLInputElement>('span'),
     spanOut: $<HTMLOutputElement>('span-out'),
@@ -79,20 +83,76 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
   const viewButtons = [...document.querySelectorAll<HTMLButtonElement>('.views button')];
   for (const b of viewButtons) b.addEventListener('click', () => app.setView(b.dataset.view === 'wake' ? 'wake' : 'sky'));
 
+  // the visual styles: a compact menu under one button that shows the style in use
+  const swatch = (el: HTMLElement, [paper, ink, accent]: readonly [string, string, string]): void => {
+    el.style.background = paper;
+    const [ring, dot] = el.querySelectorAll('i');
+    ring!.style.borderColor = ink;
+    dot!.style.background = accent;
+  };
   const styleButtons = STYLES.map((s, i) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'style';
-    b.setAttribute('role', 'radio');
+    b.setAttribute('role', 'menuitemradio');
     b.dataset.style = s.key;
-    b.title = `${s.title}: ${s.theme} (${(i + 1) % 10})`;
-    const [paper, ink, accent] = s.swatch;
-    b.innerHTML = `<span class="sw" style="background:${paper}"><i style="border-color:${ink}"></i><i style="background:${accent}"></i></span><b></b>`;
+    b.tabIndex = -1;
+    b.innerHTML = `<span class="sw" aria-hidden="true"><i></i><i></i></span><span class="style-text"><b></b><small></small></span><kbd aria-hidden="true">${(i + 1) % 10}</kbd>`;
+    swatch(b.querySelector('.sw')!, s.swatch);
     b.querySelector('b')!.textContent = s.title;
-    b.addEventListener('click', () => app.setStyle(s));
-    ui.styles.append(b);
+    b.querySelector('small')!.textContent = s.theme;
+    b.addEventListener('click', () => {
+      app.setStyle(s);
+      closeStyles(true);
+    });
+    ui.styleMenu.append(b);
     return b;
   });
+  const stylesOpen = (): boolean => !ui.styleMenu.hidden;
+  const openStyles = (): void => {
+    ui.styleMenu.hidden = false;
+    ui.styleBtn.setAttribute('aria-expanded', 'true');
+    (styleButtons[STYLES.indexOf(app.style)] ?? styleButtons[0]!).focus();
+  };
+  function closeStyles(refocus: boolean): void {
+    if (!stylesOpen()) return;
+    ui.styleMenu.hidden = true;
+    ui.styleBtn.setAttribute('aria-expanded', 'false');
+    if (refocus) ui.styleBtn.focus();
+  }
+  ui.styleBtn.addEventListener('click', () => (stylesOpen() ? closeStyles(false) : openStyles()));
+  ui.styleBtn.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      openStyles();
+    }
+  });
+  ui.styleMenu.addEventListener('keydown', e => {
+    const i = styleButtons.indexOf(document.activeElement as HTMLButtonElement);
+    let next = -1;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') next = (i + 1) % styleButtons.length;
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') next = (i - 1 + styleButtons.length) % styleButtons.length;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = styleButtons.length - 1;
+    else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeStyles(true);
+      return;
+    } else if (e.key === 'Tab') {
+      closeStyles(false);
+      return;
+    }
+    if (next < 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    styleButtons[next]!.focus();
+  });
+  // a click or a tap anywhere else closes the menu
+  addEventListener('pointerdown', e => {
+    if (stylesOpen() && !ui.stylePick.contains(e.target as Node)) closeStyles(false);
+  }, { capture: true });
+
   // arrow keys move between radios, as in a radio group
   const radioKeys = (buttons: HTMLButtonElement[], choose: (i: number) => void) => (e: KeyboardEvent): void => {
     const i = buttons.indexOf(document.activeElement as HTMLButtonElement);
@@ -103,7 +163,6 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     choose(next);
     buttons[next]!.focus();
   };
-  ui.styles.addEventListener('keydown', radioKeys(styleButtons, i => app.setStyle(STYLES[i]!)));
   document.querySelector('.views')!.addEventListener('keydown', radioKeys(viewButtons, i => app.setView(i ? 'wake' : 'sky')) as EventListener);
 
   /* ---------- time and pace ---------- */
@@ -167,9 +226,13 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
   ui.hide.addEventListener('click', () => setHidden(true));
   $<HTMLButtonElement>('show-btn').addEventListener('click', () => setHidden(false));
 
-  // styles: a rail down the left of a wide screen, a strip in the dock on a phone
+  // the style menu: in the top bar on a wide screen, a row of the dock on a phone
   const phone = matchMedia('(max-width: 720px)');
-  const placeStyles = (): void => (phone.matches ? $('style-slot') : $('rail')).append(ui.styles);
+  const placeStyles = (): void => {
+    closeStyles(false);
+    if (phone.matches) $('style-slot').append(ui.stylePick);
+    else document.querySelector('.views')!.after(ui.stylePick);
+  };
   placeStyles();
   phone.addEventListener('change', placeStyles);
 
@@ -323,7 +386,7 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
       ui.zoom.textContent = `${z < 10 ? (Math.round(z * 10) / 10).toString() : Math.round(z)}×`;
       ui.zoomIn.disabled = z >= ZOOM_MAX - 1e-6;
       ui.zoomOut.disabled = z <= ZOOM_MIN + 1e-6;
-      ui.viewReset.disabled = app.camera.home;
+      ui.viewReset.disabled = app.atHome;
     }
     const y = yearOf(app.sim.day);
     if (!scrubbing && Math.abs(Number(ui.year.value) - y) > 0.004) {
@@ -339,6 +402,8 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     if (label !== shown.date) {
       shown.date = label;
       ui.dateOut.textContent = label;
+      // the date field keeps up with the running date (unless it is being typed into), so it never reads stale
+      if (document.activeElement !== ui.dateIn) ui.dateIn.value = isoDate(app.sim.day);
       ui.canvas.setAttribute('aria-label', `The solar system on ${dateLong(app.sim.day)}, drawn live in the ${app.style.title} style, ${app.view === 'sky' ? 'seen from above' : 'seen at an angle as the Sun travels'}.`);
     }
   };
@@ -347,11 +412,12 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     document.body.classList.toggle('paused', !s.playing);
     ui.play.setAttribute('aria-label', s.playing ? 'Pause' : 'Play');
     for (const b of viewButtons) b.setAttribute('aria-checked', String(b.dataset.view === app.view));
-    styleButtons.forEach((b, i) => {
-      const on = STYLES[i] === app.style;
-      b.setAttribute('aria-checked', String(on));
-      b.tabIndex = on ? 0 : -1;
-    });
+    styleButtons.forEach((b, i) => b.setAttribute('aria-checked', String(STYLES[i] === app.style)));
+    if (ui.styleName.textContent !== app.style.title) {
+      ui.styleName.textContent = app.style.title;
+      swatch(ui.styleSw, app.style.swatch);
+      ui.styleBtn.setAttribute('aria-label', `Visual style: ${app.style.title}`);
+    }
     viewButtons.forEach(b => (b.tabIndex = b.dataset.view === app.view ? 0 : -1));
     ui.reverse.setAttribute('aria-pressed', String(s.direction === -1));
     if (s.pace !== shown.pace) {
@@ -362,7 +428,7 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
       fill(ui.pace);
       for (const c of chips) c.b.setAttribute('aria-pressed', String(Math.abs(c.pace / s.pace - 1) < 0.005));
     }
-    ui.dateIn.value = isoDate(s.day);
+    if (document.activeElement !== ui.dateIn) ui.dateIn.value = isoDate(s.day);
     ui.trails.setAttribute('aria-pressed', String(s.trails.on));
     ui.trails.parentElement!.classList.toggle('off', !s.trails.on);
     if (s.trails.span !== shown.span) {
@@ -374,8 +440,9 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     }
     ui.opacity.value = String(Math.round(s.trails.opacity * 100));
     ui.opacityOut.textContent = `${Math.round(s.trails.opacity * 100)}%`;
+    ui.opacity.setAttribute('aria-valuetext', `${Math.round(s.trails.opacity * 100)}%`);
     fill(ui.opacity);
-    ui.viewReset.disabled = app.camera.home;
+    ui.viewReset.disabled = app.atHome;
     ui.names.setAttribute('aria-pressed', String(app.names));
     onDraw();
   };

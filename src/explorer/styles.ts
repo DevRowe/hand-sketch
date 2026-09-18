@@ -17,7 +17,12 @@ export interface Style {
   /** Paper, ink and an accent, for the style's chip. */
   swatch: readonly [string, string, string];
   scenes: Readonly<Record<ViewId, Scene>>;
+  /** Among the costliest to draw live (layered ink plates): drawn to a smaller pixel budget on dense screens. */
+  heavy: boolean;
 }
+
+/** The styles whose ink plates cost the most per frame. */
+const HEAVY = new Set(['riso', 'sumi', 'pastel']);
 
 const paletteKey = (key: string): keyof typeof SOLAR => key.replace(/-(\w)/g, (_, c: string) => c.toUpperCase()) as keyof typeof SOLAR;
 
@@ -25,7 +30,7 @@ export const STYLES: readonly Style[] = SOLAR_CATALOG.map(e => {
   const key = e.scene.replace(/^solar-/, ''), pal = SOLAR[paletteKey(key)];
   const sky = solarScenes[e.scene], wake = spiralScenes[`spiral-${key}`];
   if (!sky || !wake) throw new Error(`style ${key} lacks a scene`);
-  return { key, title: e.title, theme: e.theme, line: e.line, swatch: [pal.paper, pal.ink, pal.accents[0] ?? pal.ink], scenes: { sky, wake } };
+  return { key, title: e.title, theme: e.theme, line: e.line, swatch: [pal.paper, pal.ink, pal.accents[0] ?? pal.ink], scenes: { sky, wake }, heavy: HEAVY.has(key) };
 });
 
 export const styleByKey = (key: string): Style | undefined => STYLES.find(s => s.key === key);

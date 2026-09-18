@@ -10,7 +10,7 @@ import { clamp, TAU, type Vec2 } from '../../core/math';
 import { noise1 } from '../../core/random';
 import type { Scene } from '../../core/scene';
 import { drawStroke, prepareStroke, withPressure, type PreparedStroke, type StrokeStyle } from '../../core/stroke';
-import { ground, ink, polyPath, still, wash } from '../gallery/common';
+import { cached, ground, ink, polyPath, still, wash } from '../gallery/common';
 import { brushChar, C, drawnFrame, enter, frameFit, LOOP, MOON, moonOffset, once, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Planet } from './common';
 import { skyOf, type Sky } from './sky';
 import { orbitTrail } from './trails';
@@ -129,14 +129,25 @@ export const sumiScene: Scene = {
         wash(g.ctx, ellipsePoints(C[0], C[1], SUN_R - 2, SUN_R - 4, { start: 0, n: 40 }).slice(0, -1), SUN_WASH, { seed: 1302, alpha: 1.5, bleed: 6, layers: 5, edge: 0.9 });
       }, { alpha: clamp(sunIn * 2 - 0.6, 0, 1), blend: 'multiply' });
     }
+    const swung = (k: number): number => clamp((n - F.orbits - k * F.every) / F.swing, 0, 1);
     ink(f, 's03-ink', g => {
       const c = g.ctx;
-      enter(c, fr);
-      if (sunIn > 0) drawStroke(c, L.sun, sunIn);
-      PLANETS.forEach((_, k) => {
-        const prog = clamp((n - F.orbits - k * F.every) / F.swing, 0, 1);
-        if (prog > 0) drawStroke(c, L.orbits[k]!, prog);
-      });
+      if (sunIn >= 1 && swung(PLANETS.length - 1) >= 1) {
+        // the ensō and the orbits, once whole, never change: brushed once, as a still, and laid first
+        g.stage.blit(c, cached(f, 's03-strokes', gg => {
+          enter(gg.ctx, fr);
+          drawStroke(gg.ctx, L.sun, 1);
+          PLANETS.forEach((_, k) => drawStroke(gg.ctx, L.orbits[k]!, 1));
+        }));
+        enter(c, fr);
+      } else {
+        enter(c, fr);
+        if (sunIn > 0) drawStroke(c, L.sun, sunIn);
+        PLANETS.forEach((_, k) => {
+          const prog = swung(k);
+          if (prog > 0) drawStroke(c, L.orbits[k]!, prog);
+        });
+      }
       // the belt: ink flicked from the brush, each drop keeping its own orbit
       const beltIn = clamp((n - F.belt[0]) / (F.belt[1] - F.belt[0]), 0, 1);
       if (beltIn > 0) {
