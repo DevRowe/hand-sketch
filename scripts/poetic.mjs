@@ -7,16 +7,16 @@
 // poster with its title and line, playing on tap; prefers-reduced-motion gets posters only.
 //
 // Usage (after `npm run build`, or via `npm run poetic`):
-//   node scripts/poetic.mjs                 render all ten into poetic/ and write the board
+//   node scripts/poetic.mjs                 render all ten into output/poetic/ and write the board
 //   node scripts/poetic.mjs --only P01,P08  re-render some, rewrite the board from every sidecar present
 //   node scripts/poetic.mjs --verify        also render each twice in independent page loads and fail on any difference
-//   node scripts/poetic.mjs --out dir       output directory (default poetic/)
+//   node scripts/poetic.mjs --out dir       output directory (default output/poetic/)
 //   node scripts/poetic.mjs --board-only    just rewrite board.html and manifest.json from existing sidecars
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { BOARD_SCRIPT, esc, loadEntries, readCatalog, renderSet, setOptions } from './lib/web-set.mjs';
 
-const opts = setOptions(process.argv.slice(2), 'poetic');
+const opts = setOptions(process.argv.slice(2), 'output/poetic');
 const { outDir } = opts;
 const catalog = readCatalog('src/scenes/poetic/catalog.json');
 
