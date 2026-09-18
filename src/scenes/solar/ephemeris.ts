@@ -58,9 +58,6 @@ const ELEMENTS: Readonly<Record<PlanetName, Elements>> = {
   neptune: { a: [30.06952752, 0.00006447], e: [0.00895439, 0.00000818], I: [1.77005520, 0.00022400], L: [304.22289287, 218.46515314], peri: [46.68158724, 0.01009938], node: [131.78635853, -0.00606302], extra: [-0.00041348, 0.68346318, -0.10162547, 7.67025000] },
 };
 
-/** The first and last days (from J2000.0) the elements were fitted over: 3000 BC and AD 3000. */
-export const VALID_DAYS: readonly [number, number] = [dayOf(Date.UTC(-2999, 0, 1)), dayOf(Date.UTC(3000, 0, 1))];
-
 /**
  * Pluto, which the JPL page has since dropped: the elements of the earlier Table 1 (1800 .. 2050, no published
  * accuracy), for placing it on a date near New Horizons' visit.

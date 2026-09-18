@@ -43,12 +43,6 @@ export function planPoint(p: Polar): Vec2 {
   return [C[0] + Math.cos(-p.lon) * R, C[1] + Math.sin(-p.lon) * R];
 }
 
-/** A planet's real place on a date. */
-export function planetPolar(name: PlanetName, day: number): Polar {
-  const h = heliocentric(name, day);
-  return { r: h.r * Math.cos(h.lat), lon: h.lon };
-}
-
 /** Where a planet is drawn on a date: on its own plan orbit, at its real longitude. */
 export function planetOnPlan(name: PlanetName, day: number): Vec2 {
   const a = PLANETS.find(p => p.name === name)!.a, lon = heliocentric(name, day).lon;

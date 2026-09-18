@@ -26,7 +26,7 @@
 import { clamp, TAU, type Vec2 } from '../../core/math';
 import { loopNoise, rng } from '../../core/random';
 import type { SceneFrame } from '../../core/scene';
-import { BELT as PLAN_BELT, LOOP, MOON as PLAN_MOON, MOON_K, once, PLANETS as PLAN_PLANETS, ROCKS as PLAN_ROCKS, orbitClock, type PlanetName } from '../solar/common';
+import { BELT as PLAN_BELT, LOOP, MOON as PLAN_MOON, MOON_K, once, PLANETS as PLAN_PLANETS, ROCKS as PLAN_ROCKS, type PlanetName } from '../solar/common';
 import { loopSky, skyOf, type Sky, type TrailSpec } from '../solar/sky';
 
 export { BOX, cyclePhase, disc, drawnFrame, enter, frameFit, LOOP, once, POSTER_M, type Frame, type PlanetName } from '../solar/common';
@@ -145,9 +145,6 @@ export const isNear = (offset: Vec3): boolean => offset[2] < 0;
 
 /** Drawn frames of intro before the loop: the wakes unspool from the planets back into the distance. */
 export const INTRO = 48;
-
-/** Whole drawn frames since the loop started, unwrapped: negative in the intro, `LOOP` on the seam frame. */
-export const spiralClock = (f: SceneFrame): number => orbitClock(f, INTRO);
 
 /** The sky a spiral frame is drawn under: the one it carries (the explorer's), else the loop sky at the spiral clock. */
 export const spiralSky = (f: SceneFrame): Sky => skyOf(f, INTRO);

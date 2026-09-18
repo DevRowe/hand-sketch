@@ -77,6 +77,3 @@ export const paceFromSlider = (u: number): number => fromLog(u, PACE_MIN, PACE_M
 export const paceToSlider = (pace: number): number => toLog(pace, PACE_MIN, PACE_MAX);
 export const spanFromSlider = (u: number): number => fromLog(u, SPAN_MIN, SPAN_MAX);
 export const spanToSlider = (span: number): number => toLog(span, SPAN_MIN, SPAN_MAX);
-
-/** "1.52 au", "384,400 km": numbers with thin rounding for cards. */
-export const grouped = (n: number): string => n.toLocaleString('en-GB');

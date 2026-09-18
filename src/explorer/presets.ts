@@ -16,7 +16,7 @@ import { dateLong } from './format';
 import { fromEarthKm, km, lightTime } from './live';
 import { Flight, hohmannDays, nextWindow, planetOnPlan, planPoint, type Polar, type Waypoint } from './orbits';
 import { drawCraft, drawMark, drawPath, drawSight, GOLD, text } from './overlays';
-import { DAY, MONTH, WEEK, YEAR } from './sim';
+import { DAY, WEEK, YEAR } from './sim';
 
 /** Days from J2000.0 of a UTC date and time. */
 export const utc = (y: number, m: number, d: number, h = 0, min = 0): number => dayOf(Date.UTC(y, m - 1, d, h, min));
@@ -647,5 +647,3 @@ export const PRESETS: readonly Preset[] = [
 
 export const presetById = (id: string): Preset | undefined => PRESETS.find(p => p.id === id);
 
-/** Pace readouts for journeys ("3 weeks / s"). */
-export const JOURNEY_PACES = { DAY, WEEK, MONTH, YEAR };
