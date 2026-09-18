@@ -150,7 +150,7 @@ export class Panel {
     app.select(target, false);
     if (p.focus) app.focusSelected(p.focus.zoom);
     else if (p.frame) app.frameDesign(p.frame.fit, p.frame.at ?? [540, 540]);
-    else if (!app.camera.home) app.resetView();
+    else if (!app.atHome) app.resetView();
     this.pillText.textContent = p.title;
     this.pill.hidden = false;
   }

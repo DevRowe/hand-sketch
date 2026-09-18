@@ -34,7 +34,8 @@ export function lightTime(km: number): string {
 /** "225 million km", "1.43 billion km", "384,400 km". */
 export function km(n: number): string {
   if (n >= 1e9) return `${(n / 1e9).toFixed(2)} billion km`;
-  if (n >= 1e6) return `${n >= 1e8 ? Math.round(n / 1e6) : (n / 1e6).toFixed(1)} million km`;
+  // three significant figures, as the cards quote them
+  if (n >= 1e6) return `${Number((n / 1e6).toPrecision(3))} million km`;
   return `${Math.round(n).toLocaleString('en-GB')} km`;
 }
 

@@ -14,8 +14,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,300&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="./assets/index-D7UD6Uht.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-DrCGEg-e.css">
+  <script type="module" crossorigin src="./assets/index-NZwVwaFk.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DMUcPnBl.css">
 </head>
 <body>
   <canvas id="sky" role="img" aria-label="The solar system, drawn live"></canvas>
@@ -30,6 +30,14 @@
       <button type="button" role="radio" data-view="sky" aria-checked="true"><span>From above</span><small>One Sky</small></button>
       <button type="button" role="radio" data-view="wake" aria-checked="false"><span>In motion</span><small>One Wake</small></button>
     </div>
+    <div class="style-pick" id="style-pick">
+      <button type="button" class="btn style-btn" id="style-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="style-menu" title="Visual style ([ ] or 1 … 0)">
+        <span class="sw" id="style-sw" aria-hidden="true"><i></i><i></i></span>
+        <span class="style-btn-text"><small>Visual style</small><b id="style-name">…</b></span>
+        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      <div class="style-menu" id="style-menu" role="menu" aria-label="Visual styles" hidden></div>
+    </div>
     <nav class="actions" aria-label="Explore">
       <button type="button" class="btn" id="jump-btn" aria-haspopup="dialog" aria-controls="panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12M13 6l6 6-6 6"/></svg><span>Jump to</span></button>
       <button type="button" class="btn" id="guide-btn" aria-haspopup="dialog" aria-controls="panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5C6.5 4 9.5 4 12 5.5 14.5 4 17.5 4 20 5.5V19c-2.5-1.5-5.5-1.5-8 0-2.5-1.5-5.5-1.5-8 0z"/><path d="M12 5.5V19"/></svg><span>Guide</span></button>
@@ -38,8 +46,12 @@
     </nav>
   </header>
 
-  <nav class="rail chrome" id="rail" aria-label="Styles">
-    <div class="styles" id="styles" role="radiogroup" aria-label="Style"></div>
+  <nav class="moments chrome" id="moments" aria-labelledby="moments-title">
+    <div class="moments-head">
+      <h2 id="moments-title">Key moments</h2>
+      <button type="button" class="link" id="moments-all" aria-haspopup="dialog" aria-controls="panel">All moments</button>
+    </div>
+    <ol class="moments-list" id="moments-list"></ol>
   </nav>
 
   <section class="dock chrome" id="dock" aria-label="Time, speed and trails">

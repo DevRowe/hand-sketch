@@ -38,6 +38,11 @@ const MAX_FPS = 30;
 const HAND_FPS = 30;
 /** Milliseconds an animation frame that draws nothing may spend sharpening zoomed textures. */
 const REFINE_MS = 6;
+/** Screens this narrow (CSS pixels) frame the system into the room the controls leave. */
+const PHONE = 720;
+/** Design units from the Sun to the far side of Neptune; and CSS pixels kept clear round it. */
+const HOME_REACH = 502;
+const HOME_MARGIN = 10;
 
 /** Something drawn over the scene in design units (a transfer orbit, sight lines). */
 export type Overlay = (ctx: CanvasRenderingContext2D, app: App) => void;
@@ -79,6 +84,8 @@ export class App {
   /** Drawn frames into the scene's draw-on; `DONE` once it has played (on load or Reset), so a new style starts whole. */
   private intro: number;
   private dirty = true;
+  /** The camera rests on (or glides to) the home view. */
+  private homed = true;
   private lastDraw = -1e9;
   /** The interval the last drawing was meant to keep (for the resolution governor). */
   private drawInterval = 1000 / 12;
@@ -224,6 +231,7 @@ export class App {
   zoomBy(factor: number, x?: number, y?: number): void {
     const [lx, ly] = x === undefined || y === undefined ? [this.camera.x, this.camera.y] : this.renderer.toLogical(x, y);
     this.camera.zoomAt(factor, lx, ly);
+    this.homed = false;
     if (this.camera.zoom <= ZOOM_MIN) this.following = false;
     this.changed();
   }
@@ -234,12 +242,38 @@ export class App {
     const k = this.renderer.logicalScale * this.camera.zoom;
     this.camera.panBy(dx / k, dy / k);
     this.following = false;
+    this.homed = false;
     this.changed();
   }
 
   resetView(): void {
     this.following = false;
-    this.camera.reset(this.glide);
+    this.homed = true;
+    this.camera.glideTo(this.homeView(), this.glide);
+    this.changed();
+  }
+
+  /**
+   * The view to rest on: the whole frame, or on a phone, where the controls leave a narrower band free, the system out
+   * to Neptune fitted into that band (a little zoomed out, the page lying on the desk).
+   */
+  homeView(): View {
+    const { w, h } = this.renderer.logical, whole = { zoom: 1, x: w / 2, y: h / 2 };
+    if (innerWidth > PHONE) return whole;
+    const r = this.freeRect(), perDesign = this.renderer.designScale / this.camera.zoom;
+    const zoom = clamp((Math.min(r.w, r.h) / 2 - HOME_MARGIN) / (HOME_REACH * perDesign), ZOOM_MIN, 1);
+    const [lx, ly] = this.renderer.designToLogical(540, 540), [cx, cy] = this.centreFor(lx, ly, zoom);
+    return { zoom, x: cx, y: cy };
+  }
+
+  /** Whether the camera rests on (or is gliding to) the home view: set by going home, cleared by any other move. */
+  get atHome(): boolean { return this.homed; }
+
+  /** Rest on the home view at once. */
+  goHome(): void {
+    this.following = false;
+    this.homed = true;
+    this.camera.glideTo(this.homeView(), 0);
     this.changed();
   }
 
@@ -258,6 +292,7 @@ export class App {
     const zoom = clamp(Math.min(r.w, r.h) / (2 * radius * perDesign), ZOOM_MIN, ZOOM_MAX);
     const [lx, ly] = this.renderer.designToLogical(x, y), [cx, cy] = this.centreFor(lx, ly, zoom);
     this.following = false;
+    this.homed = false;
     this.camera.glideTo({ zoom, x: cx, y: cy }, this.glide);
     this.changed();
   }
@@ -268,6 +303,7 @@ export class App {
     if (!m) return;
     const z = clamp(Math.max(zoom, this.camera.zoom), ZOOM_MIN, ZOOM_MAX), [lx, ly] = this.renderer.designToLogical(m.x, m.y), [cx, cy] = this.centreFor(lx, ly, z);
     this.following = true;
+    this.homed = false;
     this.camera.glideTo({ zoom: z, x: cx, y: cy }, this.glide);
     this.changed();
   }
@@ -290,9 +326,12 @@ export class App {
   /* ---------- the loop ---------- */
 
   resize(size: Size): void {
+    const home = this.homed;
     this.renderer.resize(size);
     const { w, h } = this.renderer.logical;
     this.camera.resize(w, h);
+    // resting at home, stay at home for the new shape of screen
+    if (home) this.camera.glideTo(this.homeView(), 0);
     this.dirty = true;
   }
 
@@ -397,7 +436,10 @@ export class App {
         w = el.offsetWidth || 60;
         this.labelWidth.set(m.id, w);
       }
-      const left = Math.round(x + r + 6), top = Math.round(y - 9), h = 18;
+      // a name that would run off the right of the screen goes on the body's other side
+      let left = Math.round(x + r + 6);
+      if (left + w > innerWidth - 4) left = Math.round(x - r - 6 - w);
+      const top = Math.round(y - 9), h = 18;
       const clash = placed.some(([a, b, c, d]) => left < c && left + w > a && top < d && top + h > b);
       el.style.transform = `translate(${left}px, ${top}px)`;
       el.style.visibility = clash ? 'hidden' : 'visible';
