@@ -7,7 +7,7 @@ import { dateLong } from './format';
 import { presetById, PRESETS, type Preset } from './presets';
 
 /** The featured moments, with the short name each goes by on the timeline. */
-const FEATURED: readonly [id: string, short: string][] = [
+export const FEATURED: readonly [id: string, short: string][] = [
   ['apollo-11', 'Apollo 11'],
   ['voyager', 'Voyager’s Grand Tour'],
   ['mars-2003', 'Mars at its closest'],

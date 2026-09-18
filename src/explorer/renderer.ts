@@ -87,6 +87,8 @@ class Governor {
 export class Renderer {
   readonly ctx: CanvasRenderingContext2D;
   private stage: Stage | null = null;
+  /** The stage drawn with last (it survives `stage` being cleared for a new size). */
+  private last: Stage | null = null;
   /** Stages by backing size, most recent last. */
   private readonly stages = new Map<string, Stage>();
   /** Backing pixels the current style may use at most. */
@@ -110,7 +112,7 @@ export class Renderer {
     const s = this.size;
     if (s.cssW === size.cssW && s.cssH === size.cssH && s.devW === size.devW && s.devH === size.devH) return;
     this.size = { ...size };
-    this.stage = null;
+    this.stage = this.last = null;
     // a new shape of screen: the old stages will not come back
     this.stages.clear();
   }
@@ -126,15 +128,20 @@ export class Renderer {
   /** The stage for the current size, budget and resolution level. */
   get current(): Stage {
     if (!this.stage) {
+      const donor = this.last;
       const { devW, devH, cssW } = this.size;
       const full = Math.min(1, (MAX_DPR * cssW) / devW, Math.sqrt(this.budget / (devW * devH))), k = full * LEVELS[this.governor.level]!;
       const width = Math.max(2, Math.round(devW * k)), height = Math.max(2, Math.round(devH * k)), id = `${width}x${height}`;
       let stage = this.stages.get(id);
       if (stage) this.stages.delete(id);
-      else stage = new Stage({ ar: `${devW}:${devH}`, width, height });
+      else {
+        stage = new Stage({ ar: `${devW}:${devH}`, width, height });
+        // a new resolution for the same screen: start from the old one's paper and textures, scaled
+        if (donor) stage.adopt(donor);
+      }
       this.stages.set(id, stage);
       for (const old of this.stages.keys()) if (this.stages.size > KEEP_STAGES) this.stages.delete(old);
-      this.stage = stage;
+      this.stage = this.last = stage;
       this.canvas.width = width;
       this.canvas.height = height;
     }

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { BODIES } from '../src/explorer/content/bodies';
 import { GUIDE } from '../src/explorer/content/guide';
 import { Flight, hohmannDays, hohmannLead, nextWindow, planetOnPlan, planPoint, planRadius } from '../src/explorer/orbits';
-import { PRESETS, utc } from '../src/explorer/presets';
+import { km } from '../src/explorer/live';
+import { FEATURED } from '../src/explorer/moments';
+import { PRESETS, presetById, utc } from '../src/explorer/presets';
 import { PLANETS, planetAt } from '../src/scenes/solar/common';
 import { heliocentric } from '../src/scenes/solar/ephemeris';
 import { datedSky } from '../src/scenes/solar/sky';
@@ -81,5 +83,23 @@ describe('presets and cards', () => {
       ...GUIDE.flatMap(s => [s.title, s.intro ?? '', ...s.items.flatMap(i => [i.title, i.text])]),
     ];
     for (const w of words) expect(w).not.toMatch(/—/);
+  });
+});
+
+describe('key moments', () => {
+  it('features real presets, each once, under a name no longer than the preset’s own', () => {
+    expect(new Set(FEATURED.map(([id]) => id)).size).toBe(FEATURED.length);
+    for (const [id, short] of FEATURED) {
+      const p = presetById(id);
+      expect(p, id).toBeDefined();
+      expect(short.length).toBeLessThanOrEqual(p!.title.length);
+    }
+  });
+
+  it('reads distances to three significant figures, as the cards quote them', () => {
+    expect(km(55_760_000)).toBe('55.8 million km');
+    expect(km(101_400_000)).toBe('101 million km');
+    expect(km(5_503_000)).toBe('5.5 million km');
+    expect(km(1_234_000_000)).toBe('1.23 billion km');
   });
 });

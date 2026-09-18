@@ -95,6 +95,8 @@ interface Page {
   /** The finished sharp copy, and the next one under way (built before the view leaves the finished one's margin). */
   sharp: Sharp | null;
   next: Sharp | null;
+  /** Scaled from another stage's copy for now: `refine` draws it properly, a slice at a time. */
+  scaled: { canvas: HTMLCanvasElement; steps: Iterator<void> | null } | null;
   /** When it was last laid through a magnified view (performance.now()). */
   laidAt: number;
 }
@@ -128,6 +130,8 @@ export class Stage implements FrameSize {
   private readonly layers = new Map<string, { canvas: HTMLCanvasElement; generation: number }>();
   private readonly pages = new Map<string, Page>();
   private readonly pageOf = new WeakMap<HTMLCanvasElement, Page>();
+  /** A stage at another size whose page layers seed this one's (see `adopt`); held weakly, so chains never pile up. */
+  private donor: WeakRef<Stage> | null = null;
   /** Output pixels everything is shifted by while a sharp copy (drawn with a margin) is built. */
   private shift = 0;
   /** When the zoom last changed (performance.now()): sharp copies wait for it to hold. */
@@ -215,14 +219,61 @@ export class Stage implements FrameSize {
     const canvas = document.createElement('canvas');
     canvas.width = this.outW;
     canvas.height = this.outH;
-    const page: Page = { canvas, build, sharp: null, next: null, laidAt: -1e9 };
+    const page: Page = { canvas, build, sharp: null, next: null, scaled: null, laidAt: -1e9 };
     this.pages.set(id, page);
     this.pageOf.set(canvas, page);
     this.builds++;
-    const g = this.context(canvas), k = this.base;
+    const donor = this.donor?.deref(), g = this.context(canvas), seed = donor?.pages.get(`${key}@${donor.outW}x${donor.outH}`);
+    if (seed) {
+      // the same page at another size: scale it for now, and let `refine` draw it properly
+      g.imageSmoothingQuality = 'high';
+      g.drawImage(seed.canvas, 0, 0, this.outW, this.outH);
+      page.scaled = { canvas: document.createElement('canvas'), steps: null };
+      return canvas;
+    }
+    const k = this.base;
     g.setTransform(k, 0, 0, k, 0, 0);
     this.as({ zoom: 1, x: this.w / 2, y: this.h / 2 }, 0, () => runBuild(build, g, null));
     return canvas;
+  }
+
+  /**
+   * Seed this stage's page layers from `donor`'s (the same frame at another resolution): a page layer `donor` has is
+   * scaled from it at once, then drawn properly by `refine` a slice at a time, so a change of resolution costs no
+   * rebuild up front. Only the live explorer adopts; renders build every page layer in full.
+   */
+  adopt(donor: Stage): void {
+    if (donor !== this && donor.w === this.w && donor.h === this.h) this.donor = new WeakRef(donor);
+  }
+
+  /** Step the proper drawing of scaled page layers; true when one was finished. */
+  private redraw(end: number): boolean {
+    let finished = false;
+    for (const page of this.pages.values()) {
+      const sc = page.scaled;
+      if (!sc) continue;
+      if (!sc.steps) {
+        const g = this.context(sc.canvas), k = this.base;
+        sc.canvas.width = this.outW;
+        sc.canvas.height = this.outH;
+        g.setTransform(k, 0, 0, k, 0, 0);
+        // a region round the whole page: nothing is culled, but the build may yield between slices
+        const all: Region = [-this.w, -this.h, 2 * this.w, 2 * this.h];
+        sc.steps = this.as({ zoom: 1, x: this.w / 2, y: this.h / 2 }, 0, () => page.build(g, all)) ?? { next: () => ({ done: true, value: undefined }) };
+      }
+      const steps = sc.steps;
+      let done = false;
+      while (!done && performance.now() < end) done = !!this.as({ zoom: 1, x: this.w / 2, y: this.h / 2 }, 0, () => steps.next().done);
+      if (done) {
+        this.pageOf.delete(page.canvas);
+        page.canvas = sc.canvas;
+        this.pageOf.set(page.canvas, page);
+        page.scaled = null;
+        finished = true;
+      }
+      if (performance.now() >= end) break;
+    }
+    return finished;
   }
 
   /** Run `fn` with the camera at `view` and everything shifted by `shift` output pixels (building a page layer). */
@@ -250,20 +301,20 @@ export class Stage implements FrameSize {
   }
 
   /**
-   * Work towards sharp copies of the page layers laid through the view lately, for `ms` milliseconds at most, once the
-   * zoom has held for a moment. A new copy is started once the view has used half the margin of the finished one, so
+   * Finish drawing page layers scaled from another stage (see `adopt`), then work towards sharp copies of the page
+   * layers laid through the view lately, for `ms` milliseconds in all, once the zoom has held for a moment. A new copy is started once the view has used half the margin of the finished one, so
    * a follow or a slow pan stays sharp. Returns true when a copy was finished (the frame is worth drawing again). At
    * home it frees the copies.
    */
   refine(ms: number): boolean {
-    const now = performance.now();
+    const now = performance.now(), end = now + ms;
+    let finished = this.redraw(end);
     if (this.home) {
       for (const p of this.pages.values()) p.sharp = p.next = null;
-      return false;
+      return finished;
     }
-    if (now - this.zoomedAt < 250) return false;
-    const end = now + ms, v = this.camera;
-    let finished = false;
+    if (now - this.zoomedAt < 250 || performance.now() >= end) return finished;
+    const v = this.camera;
     for (const page of this.pages.values()) {
       if (now - page.laidAt > 1000) continue;
       if (page.sharp && this.covers(page.sharp, 0.5)) continue;

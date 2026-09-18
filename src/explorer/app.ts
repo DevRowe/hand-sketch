@@ -367,7 +367,9 @@ export class App {
     // the sky keeps the pace's cadence; a control or the camera may draw sooner, but never above HAND_FPS
     const interval = this.dirty || moving ? Math.min(this.interval, 1000 / HAND_FPS) : this.interval;
     if ((this.dirty || this.sim.playing || settling || moving || drawingOn) && now - this.lastDraw >= interval - 3) {
-      this.drawInterval = interval;
+      // the governor judges frames by the sky's own cadence (on twos while paused): a camera move or a control drawing
+      // quicker than that is a bonus, and missing it is no reason to lower the resolution
+      this.drawInterval = this.sim.playing ? this.interval : 1000 / 12;
       this.draw();
       this.lastDraw = now;
       this.dirty = false;
