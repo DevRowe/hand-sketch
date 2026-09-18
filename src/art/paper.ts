@@ -26,9 +26,8 @@ function isDark(c: string): boolean {
 export function drawPaper(ctx: Ctx, stage: Stage, o: PaperOptions): void {
   const { color, band = null, seed = 5, texture = 1 } = o;
   const key = `paper:${color}:${band}:${seed}:${texture}:${o.speckle ?? ''}`;
-  const fresh = !stage.hasLayer(key);
-  const layer = stage.layer(key);
-  if (fresh) buildPaper(stage, stage.context(layer), { ...o, band, seed, texture });
+  // page-locked: built once per stage size, and a moving view camera only maps it
+  const layer = stage.pageLayer(key, g => buildPaper(stage, g, { ...o, band, seed, texture }));
   stage.blit(ctx, layer);
 }
 

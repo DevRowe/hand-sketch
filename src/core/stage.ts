@@ -8,6 +8,11 @@
  *
  * The view camera magnifies and pans the whole frame (the live explorer's zoom); renders never set it, so their
  * transform is the plain output scale.
+ *
+ * Layers come in two kinds. A view layer (`layer`) holds pixels drawn through the view, so a view change wipes it. A
+ * page layer (`pageLayer`) holds a page-locked texture (paper, tooth) drawn once over the whole page at the base scale,
+ * whatever the view, and `lay` maps it through the view: moving the camera never re-rasterises it. With the view at
+ * home (always, in renders) laying either kind is the same plain full-frame draw.
  */
 
 export const SHORT_SIDE = 1080;
@@ -82,6 +87,10 @@ export class Stage implements FrameSize {
   /** Bumped by every view change: a layer drawn under an older view is wiped before it is handed out again. */
   private generation = 0;
   private readonly layers = new Map<string, { canvas: HTMLCanvasElement; generation: number }>();
+  private readonly pages = new Map<string, HTMLCanvasElement>();
+  private readonly pageSet = new WeakSet<HTMLCanvasElement>();
+  /** Counts canvases created and page layers drawn: a frame that moved it paid for building caches. */
+  builds = 0;
 
   constructor(readonly format: Format) {
     ({ w: this.w, h: this.h, scale: this.base, outW: this.outW, outH: this.outH } = frameSize(format));
@@ -96,9 +105,15 @@ export class Stage implements FrameSize {
 
   get view(): View { return this.camera; }
 
+  /** The view shows the whole frame, exactly as a render does. */
+  get home(): boolean {
+    const { zoom, x, y } = this.camera;
+    return zoom === 1 && x === this.w / 2 && y === this.h / 2;
+  }
+
   /**
-   * Point the view camera. A change wipes every layer on its next use, so layers built once (paper, stills, tooth
-   * masks) are rebuilt for the new view while per-frame layers keep their canvases.
+   * Point the view camera. A change wipes every view layer on its next use, so stills built once are rebuilt for the
+   * new view while per-frame layers keep their canvases; page layers (paper, tooth masks) are kept as they are.
    */
   setView(v: View): void {
     if (!(v.zoom > 0 && Number.isFinite(v.zoom) && Number.isFinite(v.x) && Number.isFinite(v.y))) throw new Error(`bad view ${JSON.stringify(v)}`);
@@ -129,6 +144,7 @@ export class Stage implements FrameSize {
       canvas.width = pixelW;
       canvas.height = pixelH;
       this.layers.set(id, (entry = { canvas, generation: this.generation }));
+      this.builds++;
     } else if (entry.generation !== this.generation) {
       // drawn under an older view: resetting the size clears the bitmap and every piece of context state
       entry.canvas.width = pixelW;
@@ -140,6 +156,33 @@ export class Stage implements FrameSize {
   /** True when the layer already exists for the current view (lets callers build static layers once). */
   hasLayer(key: string, pixelW = this.outW, pixelH = this.outH): boolean {
     return this.layers.get(`${key}@${pixelW}x${pixelH}`)?.generation === this.generation;
+  }
+
+  /**
+   * A page layer: `build` draws it once, in logical units over the whole page as the home view shows it, and it is
+   * kept whatever the view does. Lay it with `lay` (or `blit`), which maps it through the view. `build` must only
+   * draw page-locked marks and use page layers, never view layers, since it runs under the home view.
+   */
+  pageLayer(key: string, build: (g: Ctx) => void): HTMLCanvasElement {
+    const id = `${key}@${this.outW}x${this.outH}`;
+    let canvas = this.pages.get(id);
+    if (canvas) return canvas;
+    canvas = document.createElement('canvas');
+    canvas.width = this.outW;
+    canvas.height = this.outH;
+    this.pages.set(id, canvas);
+    this.pageSet.add(canvas);
+    this.builds++;
+    const camera = this.camera;
+    this.camera = { zoom: 1, x: this.w / 2, y: this.h / 2 };
+    try {
+      const g = this.context(canvas);
+      this.reset(g);
+      build(g);
+    } finally {
+      this.camera = camera;
+    }
+    return canvas;
   }
 
   context(canvas: HTMLCanvasElement): Ctx {
@@ -158,9 +201,23 @@ export class Stage implements FrameSize {
 
   /** Draw an output-resolution layer full frame, whatever the current transform. */
   blit(ctx: Ctx, layer: HTMLCanvasElement): void {
+    this.lay(ctx, layer);
+  }
+
+  /**
+   * Draw an output-resolution layer full frame, shifted by (`dx`, `dy`) output pixels, whatever the current transform
+   * (compositing and alpha are the caller's). A page layer goes through the view; a view layer is already in it.
+   */
+  lay(ctx: Ctx, layer: HTMLCanvasElement, dx = 0, dy = 0): void {
     ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.drawImage(layer, 0, 0, this.outW, this.outH);
+    if (this.pageSet.has(layer) && !this.home) {
+      const { zoom, x, y } = this.camera;
+      ctx.setTransform(zoom, 0, 0, zoom, this.base * (this.w / 2 - zoom * x) + dx, this.base * (this.h / 2 - zoom * y) + dy);
+      ctx.drawImage(layer, 0, 0, this.outW, this.outH);
+    } else {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(layer, dx, dy, this.outW, this.outH);
+    }
     ctx.restore();
   }
 }
