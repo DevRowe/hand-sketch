@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>One Sun, Ten Hands</title>
-  <meta name="description" content="The solar system seen from above, drawn in code in ten visual styles, from blueprint to art deco. Watch each one in the browser or download it.">
+  <meta name="description" content="The solar system drawn in code in ten visual styles, from blueprint to art deco: seen from above, then at an angle as the Sun travels and each orbit trails into a spiral. Watch all twenty in the browser or download them.">
   <meta property="og:title" content="One Sun, Ten Hands">
-  <meta property="og:description" content="The solar system seen from above, hand-sketched in ten visual styles.">
+  <meta property="og:description" content="The solar system hand-sketched in ten visual styles, from above and in motion.">
   <meta property="og:type" content="website">
   <meta property="og:image" content="solar/media/s07-solar-pastel-poster.jpg">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='6' fill='%23e8a33d'/%3E%3Ccircle cx='16' cy='16' r='12.5' fill='none' stroke='%23efe6d4' stroke-width='1.5'/%3E%3Ccircle cx='28.5' cy='16' r='2.5' fill='%23efe6d4'/%3E%3C/svg%3E">
@@ -34,9 +34,20 @@
     }
     a { color: inherit; }
     .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
-    header { padding: 72px 0 40px; }
+    .set-head { padding: 72px 0 40px; }
+    .set + .set .set-head { padding-top: 88px; border-top: 1px solid var(--rule); }
     .eyebrow { margin: 0 0 14px; color: var(--gold); font: 500 12px/1.4 var(--sans); letter-spacing: .18em; text-transform: uppercase; }
-    h1 { margin: 0; font: 300 clamp(40px, 7vw, 76px)/1.02 var(--serif); letter-spacing: -.02em; }
+    h1, h2.set-title { margin: 0; font: 300 clamp(40px, 7vw, 76px)/1.02 var(--serif); letter-spacing: -.02em; }
+    .sets { display: flex; flex-wrap: wrap; gap: 12px; margin: 28px 0 0; }
+    .sets a {
+      display: flex; align-items: center; gap: 12px; padding: 8px 16px 8px 8px; border: 1px solid var(--rule); border-radius: 8px;
+      background: rgb(21 24 34 / .6); text-decoration: none; transition: border-color .15s, background .15s;
+    }
+    .sets a:hover { border-color: var(--gold); background: rgb(232 163 61 / .07); }
+    .sets a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+    .sets img { width: 48px; height: 48px; border-radius: 4px; }
+    .sets span { display: flex; flex-direction: column; gap: 2px; color: var(--faint); font-size: 12.5px; line-height: 1.3; }
+    .sets b { color: var(--ink); font: 500 16px/1.2 var(--serif); }
     .lede { max-width: 640px; margin: 20px 0 0; color: var(--muted); font-size: 18px; }
     .piece { display: grid; gap: 20px; }
     .hero { grid-template-columns: minmax(0, min(620px, 72vh)) minmax(0, 1fr); align-items: center; gap: 40px; padding-bottom: 64px; border-bottom: 1px solid var(--rule); }
@@ -81,7 +92,9 @@
     }
     @media (max-width: 600px) {
       .wrap { padding: 0 16px; }
-      header { padding: 44px 0 28px; }
+      .set-head { padding: 44px 0 28px; }
+      .set + .set .set-head { padding-top: 56px; }
+      .sets a { flex: 1 1 100%; }
       .eyebrow { font-size: 11px; letter-spacing: .12em; }
       .lede { font-size: 16px; }
       .grid { grid-template-columns: 1fr; gap: 44px; }
@@ -91,12 +104,17 @@
 </head>
 <body>
   <div class="wrap">
-    <header>
-      <p class="eyebrow">hand-sketch · the solar system from above</p>
-      <h1>One Sun, Ten Hands</h1>
-      <p class="lede">The same plan of the solar system drawn ten times, each in its own visual language. Every planet runs a whole number of orbits per loop, so each piece draws itself on and then circles forever without a seam. All ten are drawn in code, frame by frame.</p>
-    </header>
     <main>
+      <section class="set" id="solar" aria-labelledby="solar-title">
+        <header class="set-head first">
+          <p class="eyebrow">hand-sketch · the solar system from above</p>
+          <h1 class="set-title" id="solar-title">One Sun, Ten Hands</h1>
+          <p class="lede">The same plan of the solar system drawn ten times, each in its own visual language. Every planet runs a whole number of orbits per loop, so each piece draws itself on and then circles forever without a seam. All ten are drawn in code, frame by frame.</p>
+          <nav class="sets" aria-label="Collections">
+            <a href="#solar"><img src="solar/media/s07-solar-pastel-poster-web.jpg" alt="" width="720" height="720"><span><b>One Sun, Ten Hands</b>the solar system from above</span></a>
+            <a href="#spiral"><img src="solar-spiral/media/sp07-spiral-pastel-poster-web.jpg" alt="" width="720" height="720"><span><b>One Wake, Ten Hands</b>the solar system at an angle, in motion</span></a>
+          </nav>
+        </header>
       <section class="piece hero" id="s07">
         <figure class="anim" data-loop-from="0.000000" data-poster-at="3.000000" data-autoplay="true">
           <video src="solar/media/s07-solar-pastel-web.mp4" poster="solar/media/s07-solar-pastel-poster-web.jpg" width="720" height="720" muted playsinline preload="auto" controls aria-label="Sketch in pastel on black paper: a glowing orange and yellow sun of chalk strokes at the centre of soft grey orbit rings, colourful planets lit on the sunward side with smudged colour trails behind them, among twinkling stars."></video>
@@ -114,11 +132,11 @@
           <p class="still"><a href="solar/media/s07-solar-pastel-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 140 KB</p>
         </div>
       </section>
-      <div class="grid-head">
-        <h2>Ten styles</h2>
-        <p>Tap any piece to play it. Every clip is silent, square and free to download.</p>
-      </div>
-      <div class="grid">
+        <div class="grid-head">
+          <h2>Ten styles</h2>
+          <p>Tap any piece to play it. Every clip is silent, square and free to download.</p>
+        </div>
+        <div class="grid">
         <article class="piece" id="s01">
           <figure class="anim" data-loop-from="5.000000" data-poster-at="8.000000" data-autoplay="false">
             <video src="solar/media/s01-solar-blueprint-web.mp4" poster="solar/media/s01-solar-blueprint-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in blueprint style: white compass-drawn orbit circles on a blue drafting grid around a yellow-rayed sun, eight planets with hatched night sides, Saturn ringed and the Earth with its moon, each trailing a yellow arc as it circles."></video>
@@ -272,7 +290,191 @@
             <p class="still"><a href="solar/media/s10-solar-deco-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 293 KB</p>
           </div>
         </article>
-      </div>
+        </div>
+      </section>
+      <section class="set" id="spiral" aria-labelledby="spiral-title">
+        <header class="set-head">
+          <p class="eyebrow">hand-sketch · the solar system at an angle, in motion</p>
+          <h2 class="set-title" id="spiral-title">One Wake, Ten Hands</h2>
+          <p class="lede">The same solar system seen at an angle while the Sun travels through space, so each orbit trails behind its planet as a spiral: Mercury a tight, fast corkscrew, Neptune one long, lazy turn. Tilted and exaggerated for the eye rather than to scale, in the same ten visual languages on the same seamless clock.</p>
+        </header>
+      <section class="piece hero" id="sp07">
+        <figure class="anim" data-loop-from="4.000000" data-poster-at="7.000000" data-autoplay="true">
+          <video src="solar-spiral/media/sp07-spiral-pastel-web.mp4" poster="solar-spiral/media/sp07-spiral-pastel-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in pastel on black paper: glowing coloured spirals in blue, violet, gold and orange coiling back from a bright chalk sun, planets lit on their sunward side, among twinkling stars."></video>
+          <button class="control" type="button" hidden>Play</button>
+        </figure>
+        <div class="text">
+          <p class="num">SP07</p>
+          <h2>Pastel on Black</h2>
+          <p class="theme">Trails of light</p>
+          <p class="line">On black paper, the wake of every planet is drawn in light.</p>
+          <p class="dl">
+            <a href="solar-spiral/media/sp07-spiral-pastel-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 10.7 MB</span></a>
+            <a href="solar-spiral/media/sp07-spiral-pastel-web.mp4" download>Download (web)<span>720p · 12 fps · 2.3 MB</span></a>
+          </p>
+          <p class="still"><a href="solar-spiral/media/sp07-spiral-pastel-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 128 KB</p>
+        </div>
+      </section>
+        <div class="grid-head">
+          <h2>Ten styles</h2>
+          <p>Tap any piece to play it. Every clip is silent, square and free to download.</p>
+        </div>
+        <div class="grid">
+        <article class="piece" id="sp01">
+          <figure class="anim" data-loop-from="4.000000" data-poster-at="7.000000" data-autoplay="false">
+            <video src="solar-spiral/media/sp01-spiral-blueprint-web.mp4" poster="solar-spiral/media/sp01-spiral-blueprint-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in blueprint style: white chalk helices on a blue drafting grid, coiling back from a small yellow-rayed sun and its planets towards the upper left, dashed where they pass behind the sun's centre line, with a dimension line, an arrow and a title block."></video>
+            <button class="control" type="button" hidden>Play</button>
+          </figure>
+          <div class="text">
+            <p class="num">SP01</p>
+            <h3>Blueprint</h3>
+            <p class="theme">A spring on the board</p>
+            <p class="line">Drawn as an engineer draws a spring: axis, coils, hidden lines.</p>
+            <p class="dl">
+              <a href="solar-spiral/media/sp01-spiral-blueprint-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 11.4 MB</span></a>
+              <a href="solar-spiral/media/sp01-spiral-blueprint-web.mp4" download>Download (web)<span>720p · 12 fps · 2.7 MB</span></a>
+            </p>
+            <p class="still"><a href="solar-spiral/media/sp01-spiral-blueprint-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 159 KB</p>
+          </div>
+        </article>
+        <article class="piece" id="sp02">
+          <figure class="anim" data-loop-from="4.000000" data-poster-at="7.000000" data-autoplay="false">
+            <video src="solar-spiral/media/sp02-spiral-woodblock-web.mp4" poster="solar-spiral/media/sp02-spiral-woodblock-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in Japanese woodblock-print style: coloured bands outlined in black spiralling back from a vermilion sun in an ochre halo, flat-coloured planets at their heads, under a deep blue sky band with carved stars, a title cartouche and a red seal in the corner."></video>
+            <button class="control" type="button" hidden>Play</button>
+          </figure>
+          <div class="text">
+            <p class="num">SP02</p>
+            <h3>Woodblock</h3>
+            <p class="theme">Streams cut in the block</p>
+            <p class="line">Every wake a band of block colour, cut like a stream.</p>
+            <p class="dl">
+              <a href="solar-spiral/media/sp02-spiral-woodblock-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 14.9 MB</span></a>
+              <a href="solar-spiral/media/sp02-spiral-woodblock-web.mp4" download>Download (web)<span>720p · 12 fps · 3.3 MB</span></a>
+            </p>
+            <p class="still"><a href="solar-spiral/media/sp02-spiral-woodblock-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 205 KB</p>
+          </div>
+        </article>
+        <article class="piece" id="sp03">
+          <figure class="anim" data-loop-from="4.000000" data-poster-at="7.000000" data-autoplay="false">
+            <video src="solar-spiral/media/sp03-spiral-sumi-web.mp4" poster="solar-spiral/media/sp03-spiral-sumi-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in sumi ink: black brush-stroke spirals, pale where they pass behind, coiling back from a red sun in a black circle, planets as grey and black ink dabs, with a column of brushed characters and a red seal at the lower left."></video>
+            <button class="control" type="button" hidden>Play</button>
+          </figure>
+          <div class="text">
+            <p class="num">SP03</p>
+            <h3>Sumi Ink</h3>
+            <p class="theme">One stroke for each wake</p>
+            <p class="line">Each wake one stroke of the brush, running dry as it goes back.</p>
+            <p class="dl">
+              <a href="solar-spiral/media/sp03-spiral-sumi-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 8.9 MB</span></a>
+              <a href="solar-spiral/media/sp03-spiral-sumi-web.mp4" download>Download (web)<span>720p · 12 fps · 1.8 MB</span></a>
+            </p>
+            <p class="still"><a href="solar-spiral/media/sp03-spiral-sumi-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 79 KB</p>
+          </div>
+        </article>
+        <article class="piece" id="sp04">
+          <figure class="anim" data-loop-from="4.000000" data-poster-at="7.000000" data-autoplay="false">
+            <video src="solar-spiral/media/sp04-spiral-etching-web.mp4" poster="solar-spiral/media/sp04-spiral-etching-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in etching style: brown engraved ribbons, hatched across, spiralling back from a ringed sun in a burst of fine rays, on a finely cross-hatched sky inside a ruled border with an engraved corner fan and lettering."></video>
+            <button class="control" type="button" hidden>Play</button>
+          </figure>
+          <div class="text">
+            <p class="num">SP04</p>
+            <h3>Etching</h3>
+            <p class="theme">Engraved ribbons</p>
+            <p class="line">Tone is only ever the density of lines, even in a spiral.</p>
+            <p class="dl">
+              <a href="solar-spiral/media/sp04-spiral-etching-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 29.5 MB</span></a>
+              <a href="solar-spiral/media/sp04-spiral-etching-web.mp4" download>Download (web)<span>720p · 12 fps · 6.0 MB</span></a>
+            </p>
+            <p class="still"><a href="solar-spiral/media/sp04-spiral-etching-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 608 KB</p>
+          </div>
+        </article>
+        <article class="piece" id="sp05">
+          <figure class="anim" data-loop-from="4.000000" data-poster-at="7.000000" data-autoplay="false">
+            <video src="solar-spiral/media/sp05-spiral-riso-web.mp4" poster="solar-spiral/media/sp05-spiral-riso-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in risograph poster style: bright halftone bands in yellow, pink, green and violet spiralling back from an orange sun across a blue halftone sky with yellow stars, printed slightly out of register inside a paper margin."></video>
+            <button class="control" type="button" hidden>Play</button>
+          </figure>
+          <div class="text">
+            <p class="num">SP05</p>
+            <h3>Riso</h3>
+            <p class="theme">Three inks in a spin</p>
+            <p class="line">Solid in front, screened behind, and everything an overprint.</p>
+            <p class="dl">
+              <a href="solar-spiral/media/sp05-spiral-riso-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 33.1 MB</span></a>
+              <a href="solar-spiral/media/sp05-spiral-riso-web.mp4" download>Download (web)<span>720p · 12 fps · 6.8 MB</span></a>
+            </p>
+            <p class="still"><a href="solar-spiral/media/sp05-spiral-riso-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 1.2 MB</p>
+          </div>
+        </article>
+        <article class="piece" id="sp06">
+          <figure class="anim" data-loop-from="4.000000" data-poster-at="7.000000" data-autoplay="false">
+            <video src="solar-spiral/media/sp06-spiral-stipple-web.mp4" poster="solar-spiral/media/sp06-spiral-stipple-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in stipple: spirals made of black dots, rose near the planets, coiling back from a sun of rose dots through dotted orbit rings on pale grey paper, with dotted planets and a sky darkening to the corners."></video>
+            <button class="control" type="button" hidden>Play</button>
+          </figure>
+          <div class="text">
+            <p class="num">SP06</p>
+            <h3>Stipple</h3>
+            <p class="theme">Spirals in single dots</p>
+            <p class="line">Every coil, every shadow, one dot at a time.</p>
+            <p class="dl">
+              <a href="solar-spiral/media/sp06-spiral-stipple-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 21.6 MB</span></a>
+              <a href="solar-spiral/media/sp06-spiral-stipple-web.mp4" download>Download (web)<span>720p · 12 fps · 5.9 MB</span></a>
+            </p>
+            <p class="still"><a href="solar-spiral/media/sp06-spiral-stipple-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 318 KB</p>
+          </div>
+        </article>
+        <article class="piece" id="sp08">
+          <figure class="anim" data-loop-from="4.000000" data-poster-at="7.000000" data-autoplay="false">
+            <video src="solar-spiral/media/sp08-spiral-cut-paper-web.mp4" poster="solar-spiral/media/sp08-spiral-cut-paper-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in layered cut paper: overlapping paper strips in cream, blue, teal, red and tan spiralling back from an orange paper sun, casting soft shadows, with paper planets at their heads on a navy background with paper-punch stars."></video>
+            <button class="control" type="button" hidden>Play</button>
+          </figure>
+          <div class="text">
+            <p class="num">SP08</p>
+            <h3>Cut Paper</h3>
+            <p class="theme">Strips of paper in a spiral</p>
+            <p class="line">Every wake a string of paper strips, darker as it goes.</p>
+            <p class="dl">
+              <a href="solar-spiral/media/sp08-spiral-cut-paper-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 11.3 MB</span></a>
+              <a href="solar-spiral/media/sp08-spiral-cut-paper-web.mp4" download>Download (web)<span>720p · 12 fps · 2.4 MB</span></a>
+            </p>
+            <p class="still"><a href="solar-spiral/media/sp08-spiral-cut-paper-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 158 KB</p>
+          </div>
+        </article>
+        <article class="piece" id="sp09">
+          <figure class="anim" data-loop-from="4.000000" data-poster-at="7.000000" data-autoplay="false">
+            <video src="solar-spiral/media/sp09-spiral-bauhaus-web.mp4" poster="solar-spiral/media/sp09-spiral-bauhaus-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in Bauhaus style: red, yellow, blue and black bands spiralling back from a red and yellow sun along a heavy black line dotted with yellow circles, over thin black orbit ellipses, with a black band, a red square and a blue quarter circle framing it."></video>
+            <button class="control" type="button" hidden>Play</button>
+          </figure>
+          <div class="text">
+            <p class="num">SP09</p>
+            <h3>Bauhaus</h3>
+            <p class="theme">Bands, rules and circles</p>
+            <p class="line">Colour in front, a black line behind, and circles at the end.</p>
+            <p class="dl">
+              <a href="solar-spiral/media/sp09-spiral-bauhaus-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 12.8 MB</span></a>
+              <a href="solar-spiral/media/sp09-spiral-bauhaus-web.mp4" download>Download (web)<span>720p · 12 fps · 3.6 MB</span></a>
+            </p>
+            <p class="still"><a href="solar-spiral/media/sp09-spiral-bauhaus-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 152 KB</p>
+          </div>
+        </article>
+        <article class="piece" id="sp10">
+          <figure class="anim" data-loop-from="4.000000" data-poster-at="7.000000" data-autoplay="false">
+            <video src="solar-spiral/media/sp10-spiral-deco-web.mp4" poster="solar-spiral/media/sp10-spiral-deco-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in art deco style: fine gold spiral pinstripes coiling back from a spiked gold sunburst over teal wedges on black lacquer, gold-ringed planets engraved with fine lines, inside a stepped gold frame with fan-shaped corners."></video>
+            <button class="control" type="button" hidden>Play</button>
+          </figure>
+          <div class="text">
+            <p class="num">SP10</p>
+            <h3>Art Deco</h3>
+            <p class="theme">Gold pinstripes</p>
+            <p class="line">Gold pinstripes on lacquer, wound into a spiral.</p>
+            <p class="dl">
+              <a href="solar-spiral/media/sp10-spiral-deco-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 13.9 MB</span></a>
+              <a href="solar-spiral/media/sp10-spiral-deco-web.mp4" download>Download (web)<span>720p · 12 fps · 2.9 MB</span></a>
+            </p>
+            <p class="still"><a href="solar-spiral/media/sp10-spiral-deco-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 190 KB</p>
+          </div>
+        </article>
+        </div>
+      </section>
     </main>
     <footer>
       <p>Made with hand-sketch: deterministic Canvas 2D scenes with a tapered, wobbling pen, rendered offline at 12 drawings a second.</p>
@@ -280,7 +482,7 @@
     </footer>
   </div>
   <script>
-    // The hero autoplays (intro, then two loops, then rests on its poster frame) unless the visitor prefers reduced
+    // Each set's hero autoplays as it comes into view (intro, then two loops, then rests on its poster frame) unless the visitor prefers reduced
     // motion; every other piece plays on tap and loops until paused. On 'ended' a clip seeks to its loop start
     // (a keyframe), so only the loop repeats, not the draw-on. Clips pause while scrolled off-screen.
     const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -289,10 +491,10 @@
     });
     for (const fig of document.querySelectorAll('.anim')) {
       const video = fig.querySelector('video'), button = fig.querySelector('.control');
-      const name = fig.closest('.piece').querySelector('h2, h3').textContent;
+      const name = `${fig.closest('.set').querySelector('.set-title').textContent}: ${fig.closest('.piece').querySelector('h2, h3').textContent}`;
       const loopFrom = Number(fig.dataset.loopFrom), posterAt = Number(fig.dataset.posterAt);
       const hero = fig.dataset.autoplay === 'true';
-      let playing = false, rested = false, loops = 0, visible = true;
+      let playing = false, rested = false, loops = 0, visible = false;
       video.controls = false;
       button.hidden = false;
       const label = text => { button.textContent = text; button.setAttribute('aria-label', `${text} ${name}`); };
