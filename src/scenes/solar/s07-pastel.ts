@@ -11,7 +11,8 @@ import { clamp, TAU } from '../../core/math';
 import { rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { cached, ground, knockOut, scratch, still, toothMask } from '../gallery/common';
-import { annulus, BOX, C, cyclePhase, disc, enter, frameFit, LOOP, MOON, moonOffset, once, orbitClock, PLANETS, planetAngle, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type Planet, type PlanetName } from './common';
+import { annulus, BOX, C, cyclePhase, disc, enter, frameFit, LOOP, MOON, moonOffset, once, PLANETS, planetAngle, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type Planet, type PlanetName } from './common';
+import { skyOf, type Sky } from './sky';
 import { SOLAR } from './palettes';
 
 const PAL = SOLAR.pastel;
@@ -72,8 +73,8 @@ function staticChalk(g: SceneFrame, fr: Frame): void {
 }
 
 /** A planet in pastel: bare paper on the night side, its colour scumbled across the day side, a lit rim. */
-function planet(c: CanvasRenderingContext2D, p: Planet, m: number): void {
-  const [x, y] = planetAt(p, m), toSun = sunward([x, y]), r = p.r, col = COLOR[p.name];
+function planet(c: CanvasRenderingContext2D, p: Planet, sky: Sky): void {
+  const [x, y] = planetAt(p, sky), toSun = sunward([x, y]), r = p.r, col = COLOR[p.name];
   c.save();
   c.translate(x, y);
   if (p.name === 'saturn') {
@@ -136,7 +137,7 @@ function planet(c: CanvasRenderingContext2D, p: Planet, m: number): void {
   c.arc(0, 0, r, toSun - 1.2, toSun + 1.2);
   c.stroke();
   if (p.name === 'earth') {
-    const [mx, my] = moonOffset(m);
+    const [mx, my] = moonOffset(sky);
     c.fillStyle = rgba(CREAM, 0.9);
     c.fill(disc(mx, my, MOON.r));
   }
@@ -144,8 +145,8 @@ function planet(c: CanvasRenderingContext2D, p: Planet, m: number): void {
 }
 
 /** A smudge of the planet's colour dragged back along its path, fading. */
-function trail(c: CanvasRenderingContext2D, p: Planet, m: number): void {
-  const a = planetAngle(p, m), span = 170 / p.a, col = COLOR[p.name], steps = 14;
+function trail(c: CanvasRenderingContext2D, p: Planet, sky: Sky): void {
+  const a = planetAngle(p, sky), span = 170 / p.a, col = COLOR[p.name], steps = 14;
   c.lineCap = 'round';
   for (let j = 0; j < steps; j++) {
     const u0 = j / steps, u1 = (j + 1.4) / steps;
@@ -164,14 +165,14 @@ export const pastelScene: Scene = {
   poster: POSTER_M / 12,
   draw(f) {
     const { ctx, stage } = f;
-    const fr = frameFit(stage.w, stage.h), m = orbitClock(f, 0);
+    const fr = frameFit(stage.w, stage.h), sky = skyOf(f, 0);
     ground(f, PAPER, { seed: 1700, texture: 1.7, vignette: 0.55 });
     // the stars, a few twinkling
     ctx.save();
     enter(ctx, fr);
     ctx.fillStyle = CREAM;
     for (const s of STARS()) {
-      const tw = s.cycles ? 0.5 + 0.5 * Math.sin(TAU * (cyclePhase(s.cycles, m) + s.off)) : 1;
+      const tw = s.cycles ? 0.5 + 0.5 * Math.sin(TAU * (cyclePhase(s.cycles, sky.beat) + s.off)) : 1;
       ctx.globalAlpha = 0.25 + 0.6 * tw * (0.4 + s.s / 3.4);
       ctx.beginPath();
       ctx.arc(s.x, s.y, s.s * (0.7 + 0.3 * tw), 0, TAU);
@@ -184,16 +185,16 @@ export const pastelScene: Scene = {
       const c = g.ctx;
       g.stage.blit(c, chalk);
       enter(c, fr);
-      for (const p of PLANETS) trail(c, p, m);
+      for (const p of PLANETS) trail(c, p, sky);
       c.fillStyle = rgba(LILAC, 0.7);
       c.beginPath();
       for (const rk of ROCKS) {
-        const [x, y] = rockAt(rk, m), s = 0.7 + rk.size * 0.7;
+        const [x, y] = rockAt(rk, sky), s = 0.7 + rk.size * 0.7;
         c.moveTo(x + s, y);
         c.arc(x, y, s, 0, TAU);
       }
       c.fill();
-      for (const p of PLANETS) planet(c, p, m);
+      for (const p of PLANETS) planet(c, p, sky);
       c.setTransform(1, 0, 0, 1, 0, 0);
       knockOut(g, c, toothMask(g, { seed: 1703, kind: 'streak', angle: -0.6, density: 70, size: 1.1, length: 8 }), 0.45);
       knockOut(g, c, toothMask(g, { seed: 1704, density: 90, size: 1.2 }), 0.45);

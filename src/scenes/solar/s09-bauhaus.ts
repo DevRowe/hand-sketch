@@ -10,7 +10,8 @@
 import { TAU, type Vec2 } from '../../core/math';
 import type { Scene } from '../../core/scene';
 import { ground, ink, polyPath } from '../gallery/common';
-import { annulus, BELT, BOX, C, dayHalf, disc, enter, frameFit, LOOP, MOON, moonOffset, orbitAngle, orbitClock, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type PlanetName } from './common';
+import { annulus, BELT, BOX, C, dayHalf, disc, enter, frameFit, LOOP, MOON, moonOffset, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type PlanetName } from './common';
+import { skyOf } from './sky';
 import { SOLAR } from './palettes';
 
 const PAL = SOLAR.bauhaus;
@@ -29,7 +30,7 @@ export const bauhausScene: Scene = {
   poster: POSTER_M / 12,
   draw(f) {
     const { stage } = f;
-    const fr = frameFit(stage.w, stage.h), m = orbitClock(f, 0);
+    const fr = frameFit(stage.w, stage.h), sky = skyOf(f, 0);
     ground(f, BONE, { seed: 1900, texture: 0.9 });
     const tooth = (seed: number) => ({ seed, density: 45, size: 1.2, alpha: 0.28 });
 
@@ -51,7 +52,7 @@ export const bauhausScene: Scene = {
       c.fillStyle = RED;
       c.fill(disc(C[0], C[1], SUN_R));
       for (const p of PLANETS) {
-        const [x, y] = planetAt(p, m), toSun = sunward([x, y]);
+        const [x, y] = planetAt(p, sky), toSun = sunward([x, y]);
         if (p.name === 'saturn') {
           c.fillStyle = RED;
           c.fill(annulus(x, y, RINGS.inner + 3, RINGS.outer - 3, RINGS.squash, RINGS.angle));
@@ -66,7 +67,7 @@ export const bauhausScene: Scene = {
           c.restore();
         }
         if (p.name === 'earth') {
-          const [mx, my] = moonOffset(m);
+          const [mx, my] = moonOffset(sky);
           c.fillStyle = YELLOW;
           c.fill(disc(x + mx, y + my, MOON.r + 0.5));
         }
@@ -110,14 +111,14 @@ export const bauhausScene: Scene = {
       c.save();
       c.globalCompositeOperation = 'destination-out';
       for (const p of PLANETS) {
-        const [x, y] = planetAt(p, m);
+        const [x, y] = planetAt(p, sky);
         c.fill(disc(x, y, p.r));
         if (p.name === 'saturn') c.fill(annulus(x, y, RINGS.inner + 1, RINGS.outer - 1, RINGS.squash, RINGS.angle));
       }
       c.restore();
       // the belt: small squares, each turned square to its orbit
       for (const rk of ROCKS) {
-        const [x, y] = rockAt(rk, m), a = orbitAngle(rk.turns, rk.at0, m), s = 1.4 + rk.size * 1.1;
+        const [x, y] = rockAt(rk, sky), a = sky.rock(rk.i, sky.now), s = 1.4 + rk.size * 1.1;
         c.save();
         c.translate(x, y);
         c.rotate(a);
@@ -125,7 +126,7 @@ export const bauhausScene: Scene = {
         c.restore();
       }
       for (const p of PLANETS) {
-        const [x, y] = planetAt(p, m), toSun = sunward([x, y]);
+        const [x, y] = planetAt(p, sky), toSun = sunward([x, y]);
         if (p.name === 'saturn') {
           c.lineWidth = 2.4;
           c.beginPath();
@@ -148,7 +149,7 @@ export const bauhausScene: Scene = {
         c.arc(x, y, p.r, 0, TAU);
         c.stroke();
         if (p.name === 'earth') {
-          const [mx, my] = moonOffset(m);
+          const [mx, my] = moonOffset(sky);
           c.lineWidth = 1.2;
           c.beginPath();
           c.arc(x + mx, y + my, MOON.r + 0.5, 0, TAU);

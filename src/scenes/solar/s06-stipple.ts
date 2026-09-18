@@ -11,7 +11,8 @@ import { clamp, TAU, type Vec2 } from '../../core/math';
 import { rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { ground, stipple, still } from '../gallery/common';
-import { BOX, C, enter, frameFit, LOOP, MOON, moonOffset, once, orbitClock, PLANETS, planetAngle, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type Planet, type PlanetName } from './common';
+import { BOX, C, enter, frameFit, LOOP, MOON, moonOffset, once, PLANETS, planetAngle, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type Planet, type PlanetName } from './common';
+import { skyOf, type Sky } from './sky';
 import { SOLAR } from './palettes';
 
 const PAL = SOLAR.stipple;
@@ -66,8 +67,8 @@ function dot(c: CanvasRenderingContext2D, x: number, y: number, s: number): void
 }
 
 /** A sphere in dots: dark on the side turned from the Sun, darkening at the limb, banded in page-fixed rows. */
-function planet(c: CanvasRenderingContext2D, p: Planet, k: number, m: number): void {
-  const [x, y] = planetAt(p, m), a = sunward([x, y]), lx = Math.cos(a), ly = Math.sin(a), t = TONE[p.name], r = p.r;
+function planet(c: CanvasRenderingContext2D, p: Planet, k: number, sky: Sky): void {
+  const [x, y] = planetAt(p, sky), a = sunward([x, y]), lx = Math.cos(a), ly = Math.sin(a), t = TONE[p.name], r = p.r;
   c.fillStyle = PAPER;
   c.beginPath();
   c.arc(x, y, r + 2, 0, TAU);
@@ -93,8 +94,8 @@ function planet(c: CanvasRenderingContext2D, p: Planet, k: number, m: number): v
   c.fill();
 }
 
-function saturnRing(c: CanvasRenderingContext2D, p: Planet, m: number): void {
-  const [x, y] = planetAt(p, m), a = sunward([x, y]), lx = Math.cos(a), ly = Math.sin(a);
+function saturnRing(c: CanvasRenderingContext2D, p: Planet, sky: Sky): void {
+  const [x, y] = planetAt(p, sky), a = sunward([x, y]), lx = Math.cos(a), ly = Math.sin(a);
   c.fillStyle = BLACK;
   c.beginPath();
   ringDots().forEach(([u, v], j) => {
@@ -106,7 +107,7 @@ function saturnRing(c: CanvasRenderingContext2D, p: Planet, m: number): void {
   c.fill();
 }
 
-function sky(g: SceneFrame, fr: Frame): void {
+function skyDots(g: SceneFrame, fr: Frame): void {
   const c = g.ctx;
   enter(c, fr);
   // the sky darkens towards the corners, dot by dot
@@ -144,9 +145,9 @@ export const stippleScene: Scene = {
   poster: POSTER_M / 12,
   draw(f) {
     const { ctx, stage } = f;
-    const fr = frameFit(stage.w, stage.h), m = orbitClock(f, 0);
+    const fr = frameFit(stage.w, stage.h), sky = skyOf(f, 0);
     ground(f, PAPER, { seed: 1600, texture: 1.1 });
-    still(f, 's06-sky', g => sky(g, fr));
+    still(f, 's06-sky', g => skyDots(g, fr));
 
     ctx.save();
     enter(ctx, fr);
@@ -154,7 +155,7 @@ export const stippleScene: Scene = {
     ctx.fillStyle = ROSE;
     ctx.beginPath();
     for (const p of PLANETS) {
-      const a = planetAngle(p, m), span = 140 / p.a;
+      const a = planetAngle(p, sky), span = 140 / p.a;
       for (const w of wakeDots()) {
         if (w.keep > 0.85 * (1 - w.s) ** 1.3) continue;
         const b = a + w.s * span, rr = p.a + w.w * p.r * (1 - w.s * 0.5);
@@ -166,14 +167,14 @@ export const stippleScene: Scene = {
     ctx.fillStyle = BLACK;
     ctx.beginPath();
     for (const rk of ROCKS) {
-      const [x, y] = rockAt(rk, m);
+      const [x, y] = rockAt(rk, sky);
       dot(ctx, x, y, 0.6 + rk.size * 0.45);
     }
     ctx.fill();
     PLANETS.forEach((p, k) => {
-      if (p.name === 'saturn') saturnRing(ctx, p, m);
-      planet(ctx, p, k, m);
-      const [x, y] = planetAt(p, m);
+      if (p.name === 'saturn') saturnRing(ctx, p, sky);
+      planet(ctx, p, k, sky);
+      const [x, y] = planetAt(p, sky);
       if (p.name === 'uranus') {
         ctx.fillStyle = BLACK;
         ctx.beginPath();
@@ -185,7 +186,7 @@ export const stippleScene: Scene = {
         ctx.fill();
       }
       if (p.name === 'earth') {
-        const [mx, my] = moonOffset(m), a = sunward([x + mx, y + my]);
+        const [mx, my] = moonOffset(sky), a = sunward([x + mx, y + my]);
         ctx.fillStyle = BLACK;
         ctx.beginPath();
         for (let j = 0; j < 34; j++) {

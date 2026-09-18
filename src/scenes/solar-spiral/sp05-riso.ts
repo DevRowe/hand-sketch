@@ -13,7 +13,7 @@ import { rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { cached, ground, ink, polyPath, screen, type InkOptions } from '../gallery/common';
 import { SOLAR } from '../solar/palettes';
-import { bodyBand, bodyRing, BOX, disc, dust, E1, E2, enter, frameFit, INTRO, litShape, LOOP, MOTION, orbitRing, PLANETS, POSTER_M, project, ribbon, RINGS, runs, snapshot, spiralClock, SUN_R, trace, URANUS_RING, type Body, type Frame, type PlanetName, type Sample, type Snapshot } from './common';
+import { bodyBand, bodyRing, BOX, disc, dust, E1, E2, enter, frameFit, INTRO, litShape, LOOP, MOTION, orbitRing, PLANETS, POSTER_M, project, ribbon, RINGS, runs, snapshot, spiralSky, SUN_R, trace, URANUS_RING, type Body, type Frame, type PlanetName, type Sample, type Snapshot } from './common';
 
 const PAL = SOLAR.riso;
 const [BLUE, PINK, YELLOW] = PAL.inks as [string, string, string];
@@ -158,13 +158,14 @@ export const risoSpiral: Scene = {
   poster: (INTRO + POSTER_M) / 12,
   draw(f) {
     const { stage } = f;
-    const fr = frameFit(stage.w, stage.h), m = spiralClock(f), S = snapshot(m);
+    const fr = frameFit(stage.w, stage.h), S = snapshot(spiralSky(f));
     ground(f, STOCK, { seed: 2500, texture: 0.8 });
     const clipArea = (c: CanvasRenderingContext2D): void => { c.beginPath(); c.rect(...AREA); c.clip(); };
     const wakes = (c: CanvasRenderingContext2D, plate: Plate): void => {
       for (const t of S.trails) {
-        if (t.k === 8) wakeOn(c, plate, t.samples, 1.4, plate === 'yellow' ? 0.5 : 0);
-        else { const n = PLANETS[t.k]!.name; wakeOn(c, plate, t.samples, WIDTH[t.k]!, WAKE[n][plate] ?? 0); }
+        // a fading wake is a lighter screen
+        if (t.k === 8) wakeOn(c, plate, t.samples, 1.4, (plate === 'yellow' ? 0.5 : 0) * S.plan.alpha);
+        else { const n = PLANETS[t.k]!.name; wakeOn(c, plate, t.samples, WIDTH[t.k]!, (WAKE[n][plate] ?? 0) * S.plan.alpha); }
       }
     };
 
@@ -221,12 +222,12 @@ export const risoSpiral: Scene = {
         cell: CELL, angle: ANGLE.yellow, color: YELLOW,
         density: (x, y) => Math.max(0, 0.9 - (Math.hypot(x - X, y - Y) - SUN_R - 6) / 34),
       });
-      wakeOn(c, 'yellow', S.sunTrail, 7, 0.75);
+      wakeOn(c, 'yellow', S.sunTrail, 7, 0.75 * S.plan.alpha);
       c.fillStyle = YELLOW;
       c.beginPath();
       for (const [x, y, s] of STARS) { c.moveTo(x + s, y); c.arc(x, y, s, 0, TAU); }
       c.fill();
-      for (const d of dust(m)) {
+      for (const d of dust(S)) {
         const s = (1 + d.tone * 1.8) * d.s;
         c.globalAlpha = d.alpha;
         c.fill(disc(d.x, d.y, s));

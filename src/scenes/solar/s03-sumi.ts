@@ -11,7 +11,8 @@ import { noise1 } from '../../core/random';
 import type { Scene } from '../../core/scene';
 import { drawStroke, prepareStroke, withPressure, type PreparedStroke, type StrokeStyle } from '../../core/stroke';
 import { ground, ink, polyPath, still, wash } from '../gallery/common';
-import { brushChar, C, enter, frameFit, LOOP, MOON, moonOffset, once, orbitClock, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Planet } from './common';
+import { brushChar, C, drawnFrame, enter, frameFit, LOOP, MOON, moonOffset, once, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Planet } from './common';
+import { skyOf, type Sky } from './sky';
 import { SOLAR } from './palettes';
 
 const PAL = SOLAR.sumi;
@@ -70,8 +71,8 @@ const layout = once((): Layout => {
 
 const orbitDone = (k: number): number => F.orbits + k * F.every + F.swing;
 
-function drawPlanet(ctx: CanvasRenderingContext2D, L: Layout, p: Planet, k: number, m: number, dab: number): void {
-  const [x, y] = planetAt(p, m), toSun = sunward([x, y]), s = 0.4 + 0.6 * dab;
+function drawPlanet(ctx: CanvasRenderingContext2D, L: Layout, p: Planet, k: number, sky: Sky, dab: number): void {
+  const [x, y] = planetAt(p, sky), toSun = sunward([x, y]), s = 0.4 + 0.6 * dab;
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(s, s);
@@ -100,7 +101,7 @@ function drawPlanet(ctx: CanvasRenderingContext2D, L: Layout, p: Planet, k: numb
   if (p.name === 'jupiter') for (const b of L.bands) drawStroke(ctx, b, 1);
   if (p.name === 'uranus') drawStroke(ctx, L.uranusRing, 1);
   if (p.name === 'earth') {
-    const [mx, my] = moonOffset(m);
+    const [mx, my] = moonOffset(sky);
     ctx.fillStyle = SOOT;
     ctx.beginPath();
     ctx.arc(mx, my, MOON.r, 0, TAU);
@@ -116,7 +117,7 @@ export const sumiScene: Scene = {
   poster: (LOOP_FROM + POSTER_M) / 12,
   draw(f) {
     const { stage } = f;
-    const fr = frameFit(stage.w, stage.h), L = layout(), m = orbitClock(f, LOOP_FROM), n = m + LOOP_FROM;
+    const fr = frameFit(stage.w, stage.h), L = layout(), sky = skyOf(f, LOOP_FROM), n = drawnFrame(f);
     ground(f, PAPER, { seed: 1300, texture: 1.5, vignette: 0.12, vignetteColor: '#6b5a3a' });
 
     // the Sun: a vermilion wash, then the ensō round it in one loaded stroke
@@ -143,7 +144,7 @@ export const sumiScene: Scene = {
         c.beginPath();
         ROCKS.forEach((rk, k) => {
           if (k / ROCKS.length > beltIn) return;
-          const [x, y] = rockAt(rk, m), s = 0.5 + rk.size * 0.9, a = rk.at0 * 3;
+          const [x, y] = rockAt(rk, sky), s = 0.5 + rk.size * 0.9, a = rk.at0 * 3;
           c.moveTo(x + Math.cos(a) * s * (1 + rk.tone), y + Math.sin(a) * s * (1 + rk.tone));
           c.ellipse(x, y, s * (1 + rk.tone), s, a, 0, TAU);
         });
@@ -152,7 +153,7 @@ export const sumiScene: Scene = {
       }
       PLANETS.forEach((p, k) => {
         const dab = clamp((n - orbitDone(k)) / 3, 0, 1);
-        if (dab > 0) drawPlanet(c, L, p, k, m, dab);
+        if (dab > 0) drawPlanet(c, L, p, k, sky, dab);
       });
       const textIn = (n - F.text[0]) / (F.text[1] - F.text[0]);
       L.text.forEach((s, k) => {

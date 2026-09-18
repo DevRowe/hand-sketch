@@ -14,7 +14,8 @@ import type { Scene } from '../../core/scene';
 import { drawStroke, drawStrokeRange, prepareStroke, type PreparedStroke, type StrokeStyle } from '../../core/stroke';
 import { circle, ground, group, polyPath, sec, still } from '../gallery/common';
 import { SOLAR } from './palettes';
-import { BELT, C, disc, enter, frameFit, LOOP, MOON, moonOffset, once, orbitClock, PLANETS, planetAngle, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Planet } from './common';
+import { BELT, C, disc, drawnFrame, enter, frameFit, LOOP, MOON, moonOffset, once, PLANETS, planetAngle, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Planet } from './common';
+import { skyOf, type Sky } from './sky';
 
 const PAL = SOLAR.blueprint;
 const CHALK = PAL.ink, DIM = PAL.accents[1]!, PENCIL = PAL.accents[0]!, BLUE = PAL.paper;
@@ -99,8 +100,8 @@ const layout = once((): Layout => {
 /** Frame at which orbit k has been swung and its planet appears. */
 const orbitDone = (k: number): number => F.orbits + k * F.orbitEvery + F.orbitSwing;
 
-function drawPlanet(ctx: CanvasRenderingContext2D, L: Layout, p: Planet, k: number, m: number): void {
-  const [x, y] = planetAt(p, m), toSun = sunward([x, y]);
+function drawPlanet(ctx: CanvasRenderingContext2D, L: Layout, p: Planet, k: number, sky: Sky): void {
+  const [x, y] = planetAt(p, sky), toSun = sunward([x, y]);
   ctx.save();
   ctx.translate(x, y);
   if (p.name === 'saturn') {
@@ -143,7 +144,7 @@ function drawPlanet(ctx: CanvasRenderingContext2D, L: Layout, p: Planet, k: numb
   if (p.name === 'uranus') drawStroke(ctx, L.uranusRing, 1);
   if (p.name === 'earth') {
     drawStroke(ctx, L.moonOrbit, 1);
-    const [mx, my] = moonOffset(m);
+    const [mx, my] = moonOffset(sky);
     ctx.translate(mx, my);
     ctx.fillStyle = BLUE;
     ctx.fill(disc(0, 0, MOON.r + 1));
@@ -159,7 +160,7 @@ export const blueprintScene: Scene = {
   poster: (LOOP_FROM + POSTER_M) / 12,
   draw(f) {
     const { ctx, stage } = f;
-    const fr = frameFit(stage.w, stage.h), L = layout(), m = orbitClock(f, LOOP_FROM), n = m + LOOP_FROM;
+    const fr = frameFit(stage.w, stage.h), L = layout(), sky = skyOf(f, LOOP_FROM), n = drawnFrame(f);
     ground(f, BLUE, { seed: 1100, texture: 1.4, vignette: 0.45, vignetteColor: '#06182c' });
     still(f, 's01-grid', g => {
       const c = g.ctx;
@@ -189,7 +190,7 @@ export const blueprintScene: Scene = {
       ctx.fillStyle = DIM;
       ctx.beginPath();
       for (const rk of ROCKS) {
-        const [x, y] = rockAt(rk, m);
+        const [x, y] = rockAt(rk, sky);
         ctx.moveTo(x + rk.size, y);
         ctx.arc(x, y, rk.size, 0, TAU);
       }
@@ -214,7 +215,7 @@ export const blueprintScene: Scene = {
       drawStroke(ctx, orbit, prog);
       const on = clamp((n - orbitDone(k)) / 6, 0, 1);
       if (on <= 0) return;
-      const head = (((planetAngle(p, m) - SWING[k]!) / TAU) % 1 + 1) % 1, trail = Math.min(0.22, TRAIL / (TAU * p.a));
+      const head = (((planetAngle(p, sky) - SWING[k]!) / TAU) % 1 + 1) % 1, trail = Math.min(0.22, TRAIL / (TAU * p.a));
       for (let j = 0; j < 4; j++) {
         ctx.save();
         ctx.globalAlpha *= on * (0.95 - j * 0.22);
@@ -243,7 +244,7 @@ export const blueprintScene: Scene = {
       if (on <= 0) return;
       ctx.save();
       ctx.globalAlpha *= on;
-      drawPlanet(ctx, L, p, k, m);
+      drawPlanet(ctx, L, p, k, sky);
       ctx.restore();
     });
     drawGroup(fx, L.notes, L.noteSlots);

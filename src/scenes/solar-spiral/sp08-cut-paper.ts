@@ -15,7 +15,7 @@ import { rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { circle, composite, ground, polyPath, scissor, still, toothMask } from '../gallery/common';
 import { SOLAR } from '../solar/palettes';
-import { angleAt, bodyBand, bodyRing, BOX, dust, E1, E2, enter, frameFit, hash01, INTRO, litShape, LOOP, MOTION, once, paint, PLANETS, POSTER_M, RINGS, snapshot, spiralClock, SUB, SUN_R, tangent, URANUS_RING, type Body, type Frame, type PlanetName, type Sample, type Snapshot } from './common';
+import { angleAt, bodyBand, bodyRing, BOX, dust, E1, E2, enter, frameFit, hash01, INTRO, inWake, litShape, LOOP, MOTION, once, orbitRings, paint, PLANETS, POSTER_M, RINGS, snapshot, spiralSky, SUB, SUN_R, tangent, URANUS_RING, type Body, type Frame, type PlanetName, type Sample, type Snapshot } from './common';
 
 const PAL = SOLAR.cutPaper;
 const GROUND = PAL.paper;
@@ -175,7 +175,7 @@ export const cutPaperSpiral: Scene = {
   poster: (INTRO + POSTER_M) / 12,
   draw(f) {
     const { ctx, stage } = f;
-    const fr = frameFit(stage.w, stage.h), m = spiralClock(f), k = stage.scale * fr.s, S = snapshot(m), L = cut();
+    const fr = frameFit(stage.w, stage.h), k = stage.scale * fr.s, S = snapshot(spiralSky(f)), L = cut();
     ground(f, GROUND, { seed: 2800, texture: 1.2, vignette: 0.35 });
     still(f, 'sp08-stars', g => stars(g, fr));
     ctx.save();
@@ -185,7 +185,7 @@ export const cutPaperSpiral: Scene = {
     lifted(ctx, k, 0.8);
     ctx.fillStyle = CREAM;
     ctx.beginPath();
-    for (const d of dust(m)) {
+    for (const d of dust(S)) {
       if (d.alpha < 0.35 || d.tone > 0.5) continue;
       const s = (0.8 + d.tone * 1.4) * d.s;
       ctx.moveTo(d.x + s, d.y);
@@ -194,10 +194,11 @@ export const cutPaperSpiral: Scene = {
     ctx.fill();
     ctx.restore();
     paint(S, {
-      run(t, run, near) {
+      run: (t, run, near) => inWake(ctx, S, () => {
         if (t.k === 8) strips(ctx, k, run, 8, GREY, 1.5, near);
         else strips(ctx, k, run, t.k, COLOR[PLANETS[t.k]!.name], WIDTH[t.k]!, near);
-      },
+      }),
+      orbit: (_pl, half, near) => orbitRings(ctx, S, half, near, CREAM, 1.6),
       rocks(rocks) {
         ctx.save();
         lifted(ctx, k, 0.8);
@@ -211,12 +212,12 @@ export const cutPaperSpiral: Scene = {
         }
         ctx.restore();
       },
-      sunTrail: st => strips(ctx, k, st, 9, SUN_O, 5, true),
+      sunTrail: st => inWake(ctx, S, () => strips(ctx, k, st, 9, SUN_O, 5, true)),
       sun() {
         ctx.save();
         ctx.translate(S.sun.x, S.sun.y);
         ctx.save();
-        ctx.rotate(angleAt(1, 0, SUB * m));
+        ctx.rotate(angleAt(1, 0, SUB * S.beat));
         lifted(ctx, k, 3);
         ctx.fillStyle = SUN_O;
         ctx.fill(polyPath(L.star));

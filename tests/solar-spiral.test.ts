@@ -5,7 +5,7 @@ import { programById, PROGRAM_IDS } from '../src/scenes/demo';
 import { SOLAR_CATALOG } from '../src/scenes/solar';
 import { PLANETS as PLAN, LOOP as PLAN_LOOP, POSTER_M as PLAN_POSTER } from '../src/scenes/solar/common';
 import { SPIRAL_CATALOG, spiralScenes } from '../src/scenes/solar-spiral';
-import { behind, dust, E1, E2, INTRO, litShape, LOOP, MOON, MOTION, paint, PLANETS, POSTER_M, project, reveal, runs, shadeAt, snapshot, SPEED, SUB } from '../src/scenes/solar-spiral/common';
+import { behind, dust, E1, E2, INTRO, litShape, loopSnapshot, LOOP, MOON, MOTION, paint, PLANETS, POSTER_M, project, reveal, runs, shadeAt, SPEED, SUB, type Snapshot } from '../src/scenes/solar-spiral/common';
 
 const dot = (a: readonly number[], b: readonly number[]): number => a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]!;
 
@@ -74,7 +74,7 @@ describe('spiral geometry', () => {
   });
 
   it('traces a helix: one year back along a wake is exactly one pitch back along the Sun\'s line', () => {
-    const m = 100, S = snapshot(m), merc = S.bodies[0]!, year = LOOP / merc.planet.turns;
+    const m = 100, S = loopSnapshot(m), merc = S.bodies[0]!, year = LOOP / merc.planet.turns;
     const sample = S.trails[0]!.samples[year * SUB]!, want = project(behind(merc.p, year));
     expect(sample.x).toBeCloseTo(want.x, 9);
     expect(sample.y).toBeCloseTo(want.y, 9);
@@ -83,10 +83,11 @@ describe('spiral geometry', () => {
   });
 
   it('closes the loop exactly: the seam frame repeats the first, wakes, bodies and dust alike', () => {
-    expect({ ...snapshot(LOOP), m: 0 }).toEqual(snapshot(0));
-    expect(dust(LOOP)).toEqual(dust(0));
+    const scene = (S: Snapshot): Partial<Snapshot> => ({ sun: S.sun, bodies: S.bodies, moon: S.moon, trails: S.trails, sunTrail: S.sunTrail, rocks: S.rocks });
+    expect(scene(loopSnapshot(LOOP))).toEqual(scene(loopSnapshot(0)));
+    expect(dust(loopSnapshot(LOOP))).toEqual(dust(loopSnapshot(0)));
     // the intro counts back into the loop without a jump; only the wakes are still unspooling
-    const a = snapshot(-1), b = snapshot(LOOP - 1);
+    const a = loopSnapshot(-1), b = loopSnapshot(LOOP - 1);
     expect(a.bodies).toEqual(b.bodies);
     expect(a.moon).toEqual(b.moon);
     expect(reveal(-INTRO)).toBe(0);
@@ -94,7 +95,7 @@ describe('spiral geometry', () => {
   });
 
   it('paints back to front: far wakes and bodies before the Sun, near ones after', () => {
-    const S = snapshot(POSTER_M), log: string[] = [];
+    const S = loopSnapshot(POSTER_M), log: string[] = [];
     paint(S, {
       run: (_t, _r, near) => log.push(near ? 'near' : 'far'),
       body: b => log.push(b.near ? 'near' : 'far'),

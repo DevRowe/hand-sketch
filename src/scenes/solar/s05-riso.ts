@@ -11,7 +11,8 @@ import { TAU, type Vec2 } from '../../core/math';
 import { rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { cached, ground, ink, polyPath, screen, type InkOptions } from '../gallery/common';
-import { annulus, BOX, C, dayHalf, disc, enter, frameFit, LOOP, MOON, moonOffset, orbitClock, PLANETS, planetAngle, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type Planet, type PlanetName } from './common';
+import { annulus, BOX, C, dayHalf, disc, enter, frameFit, LOOP, MOON, moonOffset, PLANETS, planetAngle, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type Planet, type PlanetName } from './common';
+import { skyOf, type Sky } from './sky';
 import { SOLAR } from './palettes';
 
 const PAL = SOLAR.riso;
@@ -97,8 +98,8 @@ const STARS: readonly [number, number, number][] = (() => {
 const bbox = (x: number, y: number, r: number): readonly [number, number, number, number] => [x - r - CELL, y - r - CELL, 2 * (r + CELL), 2 * (r + CELL)];
 
 /** Everything planet `p` lays on one plate. */
-function planetOn(c: CanvasRenderingContext2D, plate: Plate, p: Planet, m: number): void {
-  const [x, y] = planetAt(p, m), toSun = sunward([x, y]), r = p.r, color = plate === 'blue' ? BLUE : plate === 'pink' ? PINK : YELLOW, angle = ANGLE[plate];
+function planetOn(c: CanvasRenderingContext2D, plate: Plate, p: Planet, sky: Sky): void {
+  const [x, y] = planetAt(p, sky), toSun = sunward([x, y]), r = p.r, color = plate === 'blue' ? BLUE : plate === 'pink' ? PINK : YELLOW, angle = ANGLE[plate];
   const body = disc(x, y, r), box = bbox(x, y, r);
   if (p.name === 'saturn') {
     const ring = annulus(x, y, RINGS.inner, RINGS.outer, RINGS.squash, RINGS.angle), rbox = bbox(x, y, RINGS.outer);
@@ -130,7 +131,7 @@ function planetOn(c: CanvasRenderingContext2D, plate: Plate, p: Planet, m: numbe
     c.restore();
   }
   if (p.name === 'earth') {
-    const [mx, my] = moonOffset(m), cover = plate === 'blue' ? 0.35 : plate === 'pink' ? 0.3 : 0;
+    const [mx, my] = moonOffset(sky), cover = plate === 'blue' ? 0.35 : plate === 'pink' ? 0.3 : 0;
     tone(c, disc(x + mx, y + my, MOON.r + 0.8), bbox(x + mx, y + my, MOON.r), cover, color, angle);
   }
   // the night half, screened in blue
@@ -138,13 +139,13 @@ function planetOn(c: CanvasRenderingContext2D, plate: Plate, p: Planet, m: numbe
 }
 
 /** The pink wake behind a planet: a band along its orbit, screened thinner the further back it is. */
-function wake(c: CanvasRenderingContext2D, p: Planet, m: number): void {
-  const a = planetAngle(p, m), span = WAKE / p.a, w = Math.max(3, p.r * 0.6);
+function wake(c: CanvasRenderingContext2D, p: Planet, sky: Sky): void {
+  const a = planetAngle(p, sky), span = WAKE / p.a, w = Math.max(3, p.r * 0.6);
   const band = new Path2D();
   band.arc(C[0], C[1], p.a + w, a, a + span);
   band.arc(C[0], C[1], p.a - w, a + span, a, true);
   band.closePath();
-  const [x, y] = planetAt(p, m), reach = WAKE + p.r;
+  const [x, y] = planetAt(p, sky), reach = WAKE + p.r;
   screen(c, [x - reach, y - reach, 2 * reach, 2 * reach], {
     cell: CELL, angle: ANGLE.pink, color: PINK, clip: band,
     density: (px, py) => {
@@ -161,19 +162,19 @@ export const risoScene: Scene = {
   poster: POSTER_M / 12,
   draw(f) {
     const { stage } = f;
-    const fr = frameFit(stage.w, stage.h), m = orbitClock(f, 0);
+    const fr = frameFit(stage.w, stage.h), sky = skyOf(f, 0);
     ground(f, STOCK, { seed: 1500, texture: 0.8 });
 
     // blue: the sky (wiped clean where a planet stands) and each planet's blue
-    const sky = cached(f, 's05-sky', g => blueSky(g, fr));
+    const blue = cached(f, 's05-sky', g => blueSky(g, fr));
     ink(f, 's05-blue', g => {
       const c = g.ctx;
-      g.stage.blit(c, sky);
+      g.stage.blit(c, blue);
       enter(c, fr);
       c.save();
       c.globalCompositeOperation = 'destination-out';
       for (const p of PLANETS) {
-        const [x, y] = planetAt(p, m);
+        const [x, y] = planetAt(p, sky);
         c.fill(disc(x, y, p.r + 3));
         if (p.name === 'saturn') c.fill(annulus(x, y, RINGS.inner - 2, RINGS.outer + 2, RINGS.squash, RINGS.angle));
       }
@@ -181,12 +182,12 @@ export const risoScene: Scene = {
       c.fillStyle = BLUE;
       c.beginPath();
       for (const rk of ROCKS) {
-        const [x, y] = rockAt(rk, m), s = 0.7 + rk.size * 0.8;
+        const [x, y] = rockAt(rk, sky), s = 0.7 + rk.size * 0.8;
         c.moveTo(x + s, y);
         c.arc(x, y, s, 0, TAU);
       }
       c.fill();
-      for (const p of PLANETS) planetOn(c, 'blue', p, m);
+      for (const p of PLANETS) planetOn(c, 'blue', p, sky);
     }, plateOpts(1502, [0, 0]));
 
     // pink: the Sun's heart and its screened corona, the wakes, the planets' pink
@@ -200,8 +201,8 @@ export const risoScene: Scene = {
           return d < SUN_R ? 1 : Math.max(0, 0.95 - (d - SUN_R) / 150);
         },
       });
-      for (const p of PLANETS) wake(c, p, m);
-      for (const p of PLANETS) planetOn(c, 'pink', p, m);
+      for (const p of PLANETS) wake(c, p, sky);
+      for (const p of PLANETS) planetOn(c, 'pink', p, sky);
     }, plateOpts(1503, [2.6, -1.8]));
 
     // yellow: the Sun, the stars, the planets' yellow
@@ -217,7 +218,7 @@ export const risoScene: Scene = {
       c.beginPath();
       for (const [x, y, s] of STARS) { c.moveTo(x + s, y); c.arc(x, y, s, 0, TAU); }
       c.fill();
-      for (const p of PLANETS) planetOn(c, 'yellow', p, m);
+      for (const p of PLANETS) planetOn(c, 'yellow', p, sky);
     }, plateOpts(1504, [-2, 2.2]));
   },
 };

@@ -148,11 +148,16 @@ export function sceneFrame(ctx: Ctx, stage: Stage, scene: Scene, localFrame: num
   return { ctx, stage, t: localFrame / fps, frame: localFrame, fps, duration: scene.duration, loopPhase, loopFromFrame: loops ? from : null, loopFrames: loops ? dur - from : 0, settings };
 }
 
-/** Draw one scene frame onto `ctx` with a clean logical transform before and after. */
-export function drawScene(ctx: Ctx, stage: Stage, scene: Scene, localFrame: number, timing: Timing, settings: RenderSettings): void {
+/**
+ * Draw one scene frame onto `ctx` with a clean logical transform before and after. `inputs` join the frame for a
+ * driven scene (the live explorer hands the solar scenes its sky this way); renders pass none, so every frame stays a
+ * pure function of local time.
+ */
+export function drawScene(ctx: Ctx, stage: Stage, scene: Scene, localFrame: number, timing: Timing, settings: RenderSettings, inputs?: Readonly<Record<string, unknown>>): void {
   stage.reset(ctx);
   ctx.save();
-  scene.draw(sceneFrame(ctx, stage, scene, localFrame, timing, settings));
+  const f = sceneFrame(ctx, stage, scene, localFrame, timing, settings);
+  scene.draw(inputs ? { ...f, ...inputs } : f);
   ctx.restore();
   stage.reset(ctx);
 }

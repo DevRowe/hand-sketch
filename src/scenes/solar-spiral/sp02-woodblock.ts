@@ -16,7 +16,7 @@ import { drawStroke, prepareStroke, type PreparedStroke, type StrokeStyle } from
 import { circle, composite, ground, knockOut, polyPath, scratch, still, toothMask } from '../gallery/common';
 import { mix } from '../../art/color';
 import { SOLAR } from '../solar/palettes';
-import { bodyBand, bodyRing, disc, dust, E1, E2, enter, frameFit, INTRO, litShape, LOOP, MOTION, once, paint, POSTER_M, project, ribbon, RINGS, snapshot, spiralClock, SUN_R, URANUS_RING, type Body, type Frame, type PlanetName, type Sample, type Snapshot } from './common';
+import { bodyBand, bodyRing, disc, dust, E1, E2, enter, frameFit, INTRO, inWake, litShape, LOOP, MOTION, once, orbitRings, paint, POSTER_M, project, ribbon, RINGS, snapshot, spiralSky, SUN_R, URANUS_RING, type Body, type Frame, type PlanetName, type Sample, type Snapshot } from './common';
 import { brushChar } from '../solar/common';
 
 const PAL = SOLAR.woodblock;
@@ -134,10 +134,11 @@ function wakeBand(c: CanvasRenderingContext2D, run: Sample[], color: string, hal
   c.fill(polyPath(band));
   const [l, r] = edges(band);
   c.strokeStyle = KEY;
-  c.globalAlpha = near ? 1 : 0.7;
+  const base = c.globalAlpha;
+  c.globalAlpha = base * (near ? 1 : 0.7);
   keyLine(c, l, 1.3);
   keyLine(c, r, 1.3);
-  c.globalAlpha = 1;
+  c.globalAlpha = base;
 }
 
 function drawBody(c: CanvasRenderingContext2D, S: Snapshot, b: Body): void {
@@ -202,7 +203,7 @@ export const woodblockSpiral: Scene = {
   poster: (INTRO + POSTER_M) / 12,
   draw(f) {
     const { stage } = f;
-    const fr = frameFit(stage.w, stage.h), L = layout(), m = spiralClock(f), S = snapshot(m);
+    const fr = frameFit(stage.w, stage.h), L = layout(), S = snapshot(spiralSky(f));
     ground(f, WASHI, { seed: 2200, texture: 1.3 });
     still(f, 'sp02-blue', g => blueBlock(g, fr), { blend: 'multiply' });
 
@@ -214,7 +215,7 @@ export const woodblockSpiral: Scene = {
       // rain lines: the dust the system flies through, carved as fine strokes along its path
       c.strokeStyle = WASHI;
       const dx = MOTION[0], dy = MOTION[1];
-      for (const d of dust(m)) {
+      for (const d of dust(S)) {
         const len = (10 + d.tone * 22) * d.s;
         c.globalAlpha = d.alpha * 0.8;
         c.lineWidth = (0.8 + d.tone * 0.8) * d.s;
@@ -225,17 +226,18 @@ export const woodblockSpiral: Scene = {
       }
       c.globalAlpha = 1;
       paint(S, {
-        run(t, run, near) {
+        run: (t, run, near) => inWake(c, S, () => {
           if (t.k === 8) wakeBand(c, run, WASHI, 1.4, near);
           else { const n = S.bodies[t.k]!.planet.name; wakeBand(c, run, WAKE[n], WIDTH[n], near); }
-        },
+        }),
+        orbit: (_pl, half, near) => orbitRings(c, S, half, near, KEY, 1.4),
         rocks(rocks) {
           c.fillStyle = KEY;
           c.beginPath();
           for (const r of rocks) { const s = (0.5 + r.rock.size * 0.6) * r.s; c.moveTo(r.x + s, r.y); c.arc(r.x, r.y, s, 0, TAU); }
           c.fill();
         },
-        sunTrail(st) { wakeBand(c, st, HALO, 5, false); },
+        sunTrail: st => inWake(c, S, () => wakeBand(c, st, HALO, 5, false)),
         sun() {
           const sx = S.sun.x, sy = S.sun.y;
           c.fillStyle = HALO;

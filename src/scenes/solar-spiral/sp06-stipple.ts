@@ -13,7 +13,7 @@ import { rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { ground, stipple, still } from '../gallery/common';
 import { SOLAR } from '../solar/palettes';
-import { bodyRing, BOX, dust, E1, E2, enter, frameFit, hash01, INTRO, LOOP, MOTION, once, orbitRing, paint, PLANETS, POSTER_M, project, RINGS, shadeAt, snapshot, spiralClock, SUN_R, tangent, URANUS_RING, type Body, type Frame, type PlanetName, type Sample, type Snapshot, type Vec3 } from './common';
+import { bodyRing, BOX, dust, E1, E2, enter, frameFit, hash01, INTRO, LOOP, MOTION, once, orbitRing, paint, PLANETS, POSTER_M, project, RINGS, shadeAt, snapshot, spiralSky, SUN_R, tangent, URANUS_RING, type Body, type Frame, type PlanetName, type Sample, type Snapshot, type Vec3 } from './common';
 
 const PAL = SOLAR.stipple;
 const BLACK = PAL.ink, ROSE = PAL.accents[0]!, PAPER = PAL.paper;
@@ -121,7 +121,7 @@ function wakeDots(c: CanvasRenderingContext2D, S: Snapshot, run: readonly Sample
   c.beginPath();
   run.forEach((s, i) => {
     const [tx, ty] = tangent(run, i), half = half0 * s.s * (1 - s.age * 0.6);
-    const density = Math.pow(Math.max(0, 1 - s.age), 1.1) * (near ? 1 : 0.5);
+    const density = Math.pow(Math.max(0, 1 - s.age), 1.1) * (near ? 1 : 0.5) * S.plan.alpha;
     for (let j = 0; j < tries; j++) {
       if (hash01(s.q, k, j) >= density) continue;
       const newest = s.age < 0.07 || (s.age < 0.14 && hash01(s.q, k, j, 5) < (0.14 - s.age) / 0.07);
@@ -174,7 +174,7 @@ export const stippleSpiral: Scene = {
   poster: (INTRO + POSTER_M) / 12,
   draw(f) {
     const { ctx, stage } = f;
-    const fr = frameFit(stage.w, stage.h), m = spiralClock(f), S = snapshot(m);
+    const fr = frameFit(stage.w, stage.h), S = snapshot(spiralSky(f));
     ground(f, PAPER, { seed: 2600, texture: 1.1 });
     still(f, 'sp06-sky', g => sky(g, fr));
 
@@ -182,7 +182,7 @@ export const stippleSpiral: Scene = {
     enter(ctx, fr);
     // dust drifting past: stray dots
     ctx.fillStyle = BLACK;
-    for (const d of dust(m)) {
+    for (const d of dust(S)) {
       if (d.tone > 0.55) continue;
       ctx.globalAlpha = d.alpha;
       ctx.beginPath();
@@ -212,7 +212,7 @@ export const stippleSpiral: Scene = {
         ctx.fillStyle = ROSE;
         ctx.beginPath();
         for (const s of st) {
-          if (s.q % 3 !== 0 || hash01(s.q, 99) > 0.8 * (1 - s.age) || Math.hypot(s.x - S.sun.x, s.y - S.sun.y) < SUN_R + 4) continue;
+          if (s.q % 3 !== 0 || hash01(s.q, 99) > 0.8 * (1 - s.age) * S.plan.alpha || Math.hypot(s.x - S.sun.x, s.y - S.sun.y) < SUN_R + 4) continue;
           dot(ctx, s.x + (hash01(s.q, 98) - 0.5) * 3, s.y + (hash01(s.q, 97) - 0.5) * 3, 1.1 * s.s);
         }
         ctx.fill();

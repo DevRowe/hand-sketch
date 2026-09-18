@@ -8,7 +8,8 @@
  *   small orbit around the Earth.
  * - The clock: one loop of `LOOP` drawn frames. Every body makes a whole number of turns per loop, inner faster than
  *   outer, counter-clockwise on the page as seen from the north. Angles are counted as whole-frame remainders
- *   (`turns * m mod LOOP`), so the seam frame is exact, not merely equal up to rounding.
+ *   (`turns * m mod LOOP`), so the seam frame is exact, not merely equal up to rounding. Pieces read positions from a
+ *   `Sky` (`sky.ts`): a render's is this loop clock, the live explorer's the real sky on a date.
  * - Light: each planet is lit on its sunward half; `sunward` gives the direction, `dayHalf` the lit half-disc.
  *
  * The technique kit (layers, inks, page-locked screens, hatching, stipple, scissor cuts) is the gallery's.
@@ -17,6 +18,7 @@ import { TAU, type Vec2 } from '../../core/math';
 import { rng } from '../../core/random';
 import type { SceneFrame } from '../../core/scene';
 import { fit, nf, perSize, type Fit } from '../kit';
+import type { Sky } from './sky';
 
 /** Design box (square: a plan has no horizon). */
 export const BOX = 1080;
@@ -34,6 +36,8 @@ export type PlanetName = 'mercury' | 'venus' | 'earth' | 'mars' | 'jupiter' | 's
 
 export interface Planet {
   name: PlanetName;
+  /** Index, inner to outer: the body a `Sky` knows it by. */
+  k: number;
   /** Orbit radius, design units. */
   a: number;
   /** Disc radius. */
@@ -49,20 +53,23 @@ export interface Planet {
  * on orbits compressed like these; the Earth makes seven years in one loop, Neptune one.
  */
 export const PLANETS: readonly Planet[] = [
-  { name: 'mercury', a: 86, r: 6.5, turns: 12, at0: 5.3 },
-  { name: 'venus', a: 122, r: 10.5, turns: 9, at0: 2.2 },
-  { name: 'earth', a: 164, r: 11.5, turns: 7, at0: 3.95 },
-  { name: 'mars', a: 210, r: 8.5, turns: 5, at0: 0.55 },
-  { name: 'jupiter', a: 292, r: 28, turns: 4, at0: 4.75 },
-  { name: 'saturn', a: 366, r: 21, turns: 3, at0: 1.2 },
-  { name: 'uranus', a: 430, r: 14, turns: 2, at0: 3.05 },
-  { name: 'neptune', a: 488, r: 13.5, turns: 1, at0: 5.85 },
+  { name: 'mercury', k: 0, a: 86, r: 6.5, turns: 12, at0: 5.3 },
+  { name: 'venus', k: 1, a: 122, r: 10.5, turns: 9, at0: 2.2 },
+  { name: 'earth', k: 2, a: 164, r: 11.5, turns: 7, at0: 3.95 },
+  { name: 'mars', k: 3, a: 210, r: 8.5, turns: 5, at0: 0.55 },
+  { name: 'jupiter', k: 4, a: 292, r: 28, turns: 4, at0: 4.75 },
+  { name: 'saturn', k: 5, a: 366, r: 21, turns: 3, at0: 1.2 },
+  { name: 'uranus', k: 6, a: 430, r: 14, turns: 2, at0: 3.05 },
+  { name: 'neptune', k: 7, a: 488, r: 13.5, turns: 1, at0: 5.85 },
 ];
 
 export const planet = (name: PlanetName): Planet => PLANETS.find(p => p.name === name)!;
 
 /** The Moon's orbit around the Earth: four months to an Earth year here, 28 per loop. */
 export const MOON = { a: 25, r: 4, turns: 28, at0: 1.1 } as const;
+
+/** Body index of the Moon for a `Sky`; the planets are 0..7, inner to outer. */
+export const MOON_K = 8;
 
 /**
  * Saturn's rings seen from above: an annulus (inner and outer radius) whose axis stays fixed in space as the planet
@@ -74,6 +81,8 @@ export const RINGS = { inner: 28, outer: 40, squash: 0.86, angle: -0.5 } as cons
 export const URANUS_RING = { rx: 22, ry: 6, angle: 0.35 } as const;
 
 export interface Rock {
+  /** Index in the belt: the rock a `Sky` knows it by. */
+  i: number;
   a: number;
   at0: number;
   /** Inner rocks keep Mars's pace, outer ones Jupiter's, so the belt shears as it turns. */
@@ -90,18 +99,21 @@ export const ROCKS: readonly Rock[] = (() => {
   const r = rng(90210), out: Rock[] = [];
   for (let k = 0; k < 170; k++) {
     const u = (r() + r() + r()) / 3, a = BELT.inner + u * (BELT.outer - BELT.inner);
-    out.push({ a, at0: r() * TAU, turns: a < (BELT.inner + BELT.outer) / 2 ? 5 : 4, size: 0.6 + Math.pow(r(), 3) * 2.2, tone: r() });
+    out.push({ i: k, a, at0: r() * TAU, turns: a < (BELT.inner + BELT.outer) / 2 ? 5 : 4, size: 0.6 + Math.pow(r(), 3) * 2.2, tone: r() });
   }
   return out;
 })();
 
 /* ---------- clock ---------- */
 
+/** Whole drawn frames since the scene started: the clock a draw-on intro is storyboarded on. */
+export const drawnFrame = (f: SceneFrame): number => Math.round(nf(f));
+
 /**
  * Whole drawn frames since the loop section started, unwrapped: negative through a draw-on intro, `LOOP` on the
  * never-shown seam frame. Rounded so a render on ones shows the same positions as on twos.
  */
-export const orbitClock = (f: SceneFrame, loopFromFrames: number): number => Math.round(nf(f)) - loopFromFrames;
+export const orbitClock = (f: SceneFrame, loopFromFrames: number): number => drawnFrame(f) - loopFromFrames;
 
 /** `x` modulo `m`, always in [0, m). */
 const wrap = (x: number, m: number): number => ((x % m) + m) % m;
@@ -112,25 +124,26 @@ const wrap = (x: number, m: number): number => ((x % m) + m) % m;
  */
 export const orbitAngle = (turns: number, at0: number, m: number): number => at0 - (TAU * wrap(turns * m, LOOP)) / LOOP;
 
-export const planetAngle = (p: Planet, m: number): number => orbitAngle(p.turns, p.at0, m);
+/** Page angle of a planet under `sky`, now. */
+export const planetAngle = (p: Planet, sky: Sky): number => sky.angle(p.k, sky.now);
 
 /** Phase 0..1 of something that runs `cycles` whole cycles per loop, `m` frames in: exact at the seam, like the angles. */
 export const cyclePhase = (cycles: number, m: number): number => wrap(cycles * m, LOOP) / LOOP;
 
-/** Centre of a planet `m` frames into the loop, design units. */
-export function planetAt(p: Planet, m: number): Vec2 {
-  const a = planetAngle(p, m);
+/** Centre of a planet under `sky`, design units. */
+export function planetAt(p: Planet, sky: Sky): Vec2 {
+  const a = planetAngle(p, sky);
   return [C[0] + Math.cos(a) * p.a, C[1] + Math.sin(a) * p.a];
 }
 
 /** The Moon's offset from the Earth's centre. */
-export function moonOffset(m: number): Vec2 {
-  const a = orbitAngle(MOON.turns, MOON.at0, m);
+export function moonOffset(sky: Sky): Vec2 {
+  const a = sky.angle(MOON_K, sky.now);
   return [Math.cos(a) * MOON.a, Math.sin(a) * MOON.a];
 }
 
-export function rockAt(rk: Rock, m: number): Vec2 {
-  const a = orbitAngle(rk.turns, rk.at0, m);
+export function rockAt(rk: Rock, sky: Sky): Vec2 {
+  const a = sky.rock(rk.i, sky.now);
   return [C[0] + Math.cos(a) * rk.a, C[1] + Math.sin(a) * rk.a];
 }
 

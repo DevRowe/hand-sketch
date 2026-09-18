@@ -1,10 +1,13 @@
 /**
- * The stage: logical frame size, output scale, and cached offscreen layers.
+ * The stage: logical frame size, output scale, an optional view camera, and cached offscreen layers.
  *
  * Scenes draw in logical units where the short side is always 1080 and place things relative to
  * `cx`, `cy`, `w`, `h`, so one scene renders square, wide or tall. Output resolution is a separate,
  * render-time choice: `scale` maps logical units to output pixels, so a 4K render stays crisp.
  * (Scheme ported from alesha-pro/tools hand-drawn-canvas-animation `setFormat`, MIT, see NOTICE.)
+ *
+ * The view camera magnifies and pans the whole frame (the live explorer's zoom); renders never set it, so their
+ * transform is the plain output scale.
  */
 
 export const SHORT_SIDE = 1080;
@@ -48,37 +51,85 @@ export function frameSize({ ar, width }: Format): FrameSize {
 
 export type Ctx = CanvasRenderingContext2D;
 
+/**
+ * A view camera over the logical frame: magnified `zoom` times (1 shows the whole frame) about the logical point
+ * (`x`, `y`), which lands on the centre of the output.
+ */
+export interface View {
+  readonly zoom: number;
+  readonly x: number;
+  readonly y: number;
+}
+
 export class Stage implements FrameSize {
   readonly w: number;
   readonly h: number;
-  readonly scale: number;
   readonly outW: number;
   readonly outH: number;
-  private readonly layers = new Map<string, HTMLCanvasElement>();
+  /** Output pixels per logical unit of the whole frame, before any zoom. */
+  readonly base: number;
+  private camera: View;
+  /** Bumped by every view change: a layer drawn under an older view is wiped before it is handed out again. */
+  private generation = 0;
+  private readonly layers = new Map<string, { canvas: HTMLCanvasElement; generation: number }>();
 
   constructor(readonly format: Format) {
-    ({ w: this.w, h: this.h, scale: this.scale, outW: this.outW, outH: this.outH } = frameSize(format));
+    ({ w: this.w, h: this.h, scale: this.base, outW: this.outW, outH: this.outH } = frameSize(format));
+    this.camera = { zoom: 1, x: this.w / 2, y: this.h / 2 };
   }
 
   get cx(): number { return this.w / 2; }
   get cy(): number { return this.h / 2; }
 
+  /** Output pixels per logical unit through the view (the base scale times the zoom): what pixel-sized effects scale by. */
+  get scale(): number { return this.base * this.camera.zoom; }
+
+  get view(): View { return this.camera; }
+
+  /**
+   * Point the view camera. A change wipes every layer on its next use, so layers built once (paper, stills, tooth
+   * masks) are rebuilt for the new view while per-frame layers keep their canvases.
+   */
+  setView(v: View): void {
+    if (!(v.zoom > 0 && Number.isFinite(v.zoom) && Number.isFinite(v.x) && Number.isFinite(v.y))) throw new Error(`bad view ${JSON.stringify(v)}`);
+    const c = this.camera;
+    if (v.zoom === c.zoom && v.x === c.x && v.y === c.y) return;
+    this.camera = { zoom: v.zoom, x: v.x, y: v.y };
+    this.generation++;
+  }
+
+  /** Output pixel of a logical point, through the view. */
+  toPixel(x: number, y: number): [number, number] {
+    const { zoom, x: vx, y: vy } = this.camera;
+    return [this.base * (this.w / 2 + zoom * (x - vx)), this.base * (this.h / 2 + zoom * (y - vy))];
+  }
+
+  /** Logical point under an output pixel, through the view. */
+  toLogical(px: number, py: number): [number, number] {
+    const { zoom, x: vx, y: vy } = this.camera;
+    return [vx + (px / this.base - this.w / 2) / zoom, vy + (py / this.base - this.h / 2) / zoom];
+  }
+
   /** A cached offscreen canvas at output resolution, or at an explicit pixel size. */
   layer(key: string, pixelW = this.outW, pixelH = this.outH): HTMLCanvasElement {
     const id = `${key}@${pixelW}x${pixelH}`;
-    let c = this.layers.get(id);
-    if (!c) {
-      c = document.createElement('canvas');
-      c.width = pixelW;
-      c.height = pixelH;
-      this.layers.set(id, c);
+    let entry = this.layers.get(id);
+    if (!entry) {
+      const canvas = document.createElement('canvas');
+      canvas.width = pixelW;
+      canvas.height = pixelH;
+      this.layers.set(id, (entry = { canvas, generation: this.generation }));
+    } else if (entry.generation !== this.generation) {
+      // drawn under an older view: resetting the size clears the bitmap and every piece of context state
+      entry.canvas.width = pixelW;
+      entry.generation = this.generation;
     }
-    return c;
+    return entry.canvas;
   }
 
-  /** True when the layer already exists (lets callers build static layers once). */
+  /** True when the layer already exists for the current view (lets callers build static layers once). */
   hasLayer(key: string, pixelW = this.outW, pixelH = this.outH): boolean {
-    return this.layers.has(`${key}@${pixelW}x${pixelH}`);
+    return this.layers.get(`${key}@${pixelW}x${pixelH}`)?.generation === this.generation;
   }
 
   context(canvas: HTMLCanvasElement): Ctx {
@@ -87,9 +138,10 @@ export class Stage implements FrameSize {
     return ctx;
   }
 
-  /** Reset `ctx` to logical units with default compositing. */
+  /** Reset `ctx` to logical units (through the view) with default compositing. */
   reset(ctx: Ctx): void {
-    ctx.setTransform(this.scale, 0, 0, this.scale, 0, 0);
+    const { zoom, x, y } = this.camera, k = this.base * zoom;
+    ctx.setTransform(k, 0, 0, k, this.base * (this.w / 2 - zoom * x), this.base * (this.h / 2 - zoom * y));
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
   }

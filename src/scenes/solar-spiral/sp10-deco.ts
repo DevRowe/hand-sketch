@@ -15,7 +15,7 @@ import { rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { cached, composite, ground, knockOut, polyPath, scratch, still, toothMask } from '../gallery/common';
 import { SOLAR } from '../solar/palettes';
-import { bodyRing, BOX, cyclePhase, disc, dust, E1, E2, enter, frameFit, INTRO, litShape, LOOP, MOTION, once, paint, PLANETS, POSTER_M, project, RINGS, snapshot, spiralClock, strokeRun, SUB, SUN_R, tangent, trace, URANUS_RING, type Body, type Frame, type Sample, type Snapshot } from './common';
+import { bodyRing, BOX, cyclePhase, disc, dust, E1, E2, enter, frameFit, INTRO, inWake, litShape, LOOP, MOTION, once, paint, POSTER_M, project, RINGS, snapshot, spiralSky, strokeRun, SUN_R, SUN_W, tangent, trace, URANUS_RING, type Body, type Frame, type Sample, type Snapshot } from './common';
 
 const PAL = SOLAR.deco;
 const LACQUER = PAL.paper, GOLD = PAL.ink, PALE_GOLD = PAL.accents[1]!;
@@ -198,7 +198,7 @@ export const decoSpiral: Scene = {
   poster: (INTRO + POSTER_M) / 12,
   draw(f) {
     const { stage } = f;
-    const fr = frameFit(stage.w, stage.h), m = spiralClock(f), S = snapshot(m);
+    const fr = frameFit(stage.w, stage.h), S = snapshot(spiralSky(f));
     ground(f, LACQUER, { seed: 3000, texture: 0.7, vignette: 0.5 });
     still(f, 'sp10-wedges', g => background(g, fr));
     // bare lacquer under the Sun and each planet, so the wedges stop at their rims
@@ -219,7 +219,7 @@ export const decoSpiral: Scene = {
       c.lineCap = 'butt';
       c.fillStyle = GOLD;
       c.beginPath();
-      for (const d of dust(m)) {
+      for (const d of dust(S)) {
         if (d.tone > 0.5 || d.alpha < 0.3) continue;
         const s = (0.5 + d.tone) * d.s;
         c.moveTo(d.x + s, d.y);
@@ -227,7 +227,7 @@ export const decoSpiral: Scene = {
       }
       c.fill();
       paint(S, {
-        run(t, run, near) { pinstripe(c, run, t.k === 8 ? 1 : SPREAD[t.k]!, near); },
+        run: (t, run, near) => inWake(c, S, () => pinstripe(c, run, t.k === 8 ? 1 : SPREAD[t.k]!, near)),
         orbit(_pl, half, near) {
           c.strokeStyle = GOLD;
           c.globalAlpha = near ? 0.34 : 0.2;
@@ -243,8 +243,8 @@ export const decoSpiral: Scene = {
           for (const r of rocks) { const s = (0.45 + r.rock.size * 0.45) * r.s; c.moveTo(r.x + s, r.y); c.arc(r.x, r.y, s, 0, TAU); }
           c.fill();
         },
-        sunTrail(st) {
-          // a double rule back along the Sun's path, a diamond at every year of Mercury's
+        sunTrail: st => inWake(c, S, () => {
+          // a double rule back along the Sun's path, a diamond at every tick of the ruler (a year of Mercury's in the loop)
           for (const side of [-1, 1]) {
             const line = st.map((s, i): Sample => {
               const [tx, ty] = tangent(st, i), h = side * 3.2 * s.s;
@@ -254,15 +254,15 @@ export const decoSpiral: Scene = {
             strokeRun(c, line, 4, s => ({ width: 1 * s.s, alpha: Math.pow(1 - s.age, 1.3) }));
           }
           c.fillStyle = GOLD;
-          const year = (LOOP / PLANETS[0]!.turns) * SUB, [dx, dy] = [MOTION[0], MOTION[1]];
+          const tick = S.plan.tick[SUN_W]!, [dx, dy] = [MOTION[0], MOTION[1]], base = c.globalAlpha;
           for (const s of st) {
-            if (s.q % year !== 0 || s.age < 0.03 || s.age > 0.85) continue;
+            if (s.q % tick !== 0 || s.age < 0.03 || s.age > 0.85) continue;
             const L = 8 * s.s, W = 4.5 * s.s;
-            c.globalAlpha = Math.pow(1 - s.age, 1.1);
+            c.globalAlpha = base * Math.pow(1 - s.age, 1.1);
             c.fill(polyPath([[s.x + dx * L, s.y + dy * L], [s.x - dy * W, s.y + dx * W], [s.x - dx * L, s.y - dy * L], [s.x + dy * W, s.y - dx * W]]));
           }
-          c.globalAlpha = 1;
-        },
+          c.globalAlpha = base;
+        }),
         sun: () => sunGold(c, S.sun.x, S.sun.y),
         body: b => drawBody(c, S, b),
       });
@@ -270,7 +270,7 @@ export const decoSpiral: Scene = {
       // sparkles: four-point stars flashing in turn
       c.fillStyle = GOLD;
       for (const s of SPARKLES()) {
-        const flash = Math.max(0, Math.sin(TAU * (cyclePhase(s.cycles, m) + s.off))) ** 3;
+        const flash = Math.max(0, Math.sin(TAU * (cyclePhase(s.cycles, S.beat) + s.off))) ** 3;
         if (flash < 0.02) continue;
         const L = s.s * (0.4 + 0.6 * flash);
         c.globalAlpha = flash;
@@ -278,7 +278,7 @@ export const decoSpiral: Scene = {
       }
       c.globalAlpha = 1;
       // the sheen: a band of pale light crossing the gold once a loop, laid only where there is gold
-      const u = cyclePhase(1, m) * 1.6 - 0.3, sx = u * BOX * 2;
+      const u = cyclePhase(1, S.beat) * 1.6 - 0.3, sx = u * BOX * 2;
       const sheen = c.createLinearGradient(sx - 160, 0, sx + 160, 0);
       sheen.addColorStop(0, 'rgba(243,226,174,0)');
       sheen.addColorStop(0.5, 'rgba(255,246,214,0.85)');

@@ -6,6 +6,7 @@ import { programById, PROGRAM_IDS } from '../src/scenes/demo';
 import { SOLAR_CATALOG, solarScenes } from '../src/scenes/solar';
 import { BELT, cyclePhase, LOOP, MOON, moonOffset, orbitAngle, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, URANUS_RING } from '../src/scenes/solar/common';
 import { SOLAR } from '../src/scenes/solar/palettes';
+import { loopSky } from '../src/scenes/solar/sky';
 
 describe('solar set', () => {
   it('catalogues exactly the ten scenes, S01..S10, each as a loop program', () => {
@@ -57,9 +58,9 @@ describe('solar geometry', () => {
   });
 
   it('closes every orbit exactly on the seam frame, not just up to rounding', () => {
-    for (const p of PLANETS) expect(planetAt(p, LOOP)).toEqual(planetAt(p, 0));
-    expect(moonOffset(LOOP)).toEqual(moonOffset(0));
-    for (const rk of ROCKS) expect(rockAt(rk, LOOP)).toEqual(rockAt(rk, 0));
+    for (const p of PLANETS) expect(planetAt(p, loopSky(LOOP))).toEqual(planetAt(p, loopSky(0)));
+    expect(moonOffset(loopSky(LOOP))).toEqual(moonOffset(loopSky(0)));
+    for (const rk of ROCKS) expect(rockAt(rk, loopSky(LOOP))).toEqual(rockAt(rk, loopSky(0)));
     for (const c of [1, 3, 7]) expect(cyclePhase(c, LOOP)).toBe(cyclePhase(c, 0));
     // an intro counts back from the loop start without a jump
     expect(orbitAngle(5, 1, -1)).toBeCloseTo(orbitAngle(5, 1, LOOP - 1), 12);

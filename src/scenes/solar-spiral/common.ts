@@ -19,13 +19,17 @@
  *   LOOP`), and its offset along the wake depends only on its age, so a trail is a pure function of the loop clock,
  *   never accumulated from frame to frame, and the seam frame repeats the first exactly. Dust in the wake scrolls
  *   through a periodic box a whole number of times a loop, fading at the box's ends so nothing pops.
+ * - Under the live explorer's dated sky (`../solar/sky`) the same wakes trace the planets' real motion: how far back
+ *   they reach is the viewer's choice, and the Sun's pace is set so that span always fills the same depth (see
+ *   `datedPlan`). Either way every wake is sampled on a grid fixed in time, so marks keyed to a sample ride with it.
  */
 import { clamp, TAU, type Vec2 } from '../../core/math';
 import { loopNoise, rng } from '../../core/random';
 import type { SceneFrame } from '../../core/scene';
-import { BELT as PLAN_BELT, LOOP, MOON as PLAN_MOON, once, PLANETS as PLAN_PLANETS, ROCKS as PLAN_ROCKS, orbitClock, type PlanetName } from '../solar/common';
+import { BELT as PLAN_BELT, LOOP, MOON as PLAN_MOON, MOON_K, once, PLANETS as PLAN_PLANETS, ROCKS as PLAN_ROCKS, orbitClock, type PlanetName } from '../solar/common';
+import { loopSky, skyOf, type Sky, type TrailSpec } from '../solar/sky';
 
-export { BOX, cyclePhase, disc, enter, frameFit, LOOP, once, POSTER_M, type Frame, type PlanetName } from '../solar/common';
+export { BOX, cyclePhase, disc, drawnFrame, enter, frameFit, LOOP, once, POSTER_M, type Frame, type PlanetName } from '../solar/common';
 
 export type Vec3 = readonly [number, number, number];
 
@@ -80,7 +84,7 @@ export const MOON = { a: 14, r: 2.8, turns: PLAN_MOON.turns, at0: PLAN_MOON.at0,
 
 export const BELT = { inner: PLAN_BELT.inner * K, outer: PLAN_BELT.outer * K } as const;
 
-export interface Rock { a: number; at0: number; turns: number; size: number; tone: number }
+export interface Rock { i: number; a: number; at0: number; turns: number; size: number; tone: number }
 
 export const ROCKS: readonly Rock[] = PLAN_ROCKS.map(rk => ({ ...rk, a: rk.a * K, size: rk.size * 0.8 }));
 
@@ -131,8 +135,8 @@ export const inPlane = (a: number, ang: number): Vec3 => {
   return [E1[0] * c + E2[0] * s, E1[1] * c + E2[1] * s, E1[2] * c + E2[2] * s];
 };
 
-/** A point `age` drawn frames back along the Sun's line, relative to where the Sun is now. */
-export const behind = (p: Vec3, age: number): Vec3 => [p[0] - MOTION[0] * SPEED * age, p[1] - MOTION[1] * SPEED * age, p[2] - MOTION[2] * SPEED * age];
+/** A point `age` back along the Sun's line (drawn frames at `SPEED`, or any time unit at its `speed`), relative to where the Sun is now. */
+export const behind = (p: Vec3, age: number, speed = SPEED): Vec3 => [p[0] - MOTION[0] * speed * age, p[1] - MOTION[1] * speed * age, p[2] - MOTION[2] * speed * age];
 
 /** Whether an offset from the Sun's line lies on the viewer's side of it (the near half of an orbit or a coil). */
 export const isNear = (offset: Vec3): boolean => offset[2] < 0;
@@ -144,6 +148,9 @@ export const INTRO = 48;
 
 /** Whole drawn frames since the loop started, unwrapped: negative in the intro, `LOOP` on the seam frame. */
 export const spiralClock = (f: SceneFrame): number => orbitClock(f, INTRO);
+
+/** The sky a spiral frame is drawn under: the one it carries (the explorer's), else the loop sky at the spiral clock. */
+export const spiralSky = (f: SceneFrame): Sky => skyOf(f, INTRO);
 
 /** Trail samples per drawn frame. */
 export const SUB = 2;
@@ -162,12 +169,98 @@ export const reveal = (m: number): number => {
   return t * t * (3 - 2 * t);
 };
 
+/* ---------- how the wakes are sampled ---------- */
+
+/** Wake index of the Sun's own line; the planets' are 0..7 and the Moon's 8. */
+export const SUN_W = 9;
+
+/** How deep a dated sky's wakes reach along the Sun's line, design units: about the plan's Neptune wake. */
+const DEPTH = 1400;
+/** A dated wake reaches back at most this many turns of its coil, so the inner planets stay coils, not tubes. */
+const COILS_MAX = 3;
+const MOON_COILS_MAX = 5;
+/** Aimed-for distance between neighbouring samples along a dated wake, design units (the loop's are 2 to 3.5). */
+const SPACING = 2.5;
+/** Most samples a dated wake may take. */
+const MAX_SAMPLES = 2400;
+/** Sky time a dated wake grid counts from (the year 1000): every key stays positive. */
+const ORIGIN = -365_242;
+
+/**
+ * How the wakes are sampled under a sky: a render's are the piece's own (`SUB` samples a drawn frame, each wake its
+ * fixed length, the Sun at `SPEED`); a dated sky's come from the viewer's trail span.
+ */
+export interface WakePlan {
+  /** Sky time per sample of each wake (planets 0..7, the Moon 8, the Sun's line 9). */
+  step: readonly number[];
+  /** Samples in each wake when wholly unspooled. */
+  full: readonly number[];
+  /**
+   * Samples per ruler tick along each wake (one Mercury year in a render, a dozen ticks a span on a dated sky): marks
+   * at `q % tick === 0` line up in time across wakes.
+   */
+  tick: readonly number[];
+  /** Design units the Sun covers per unit of sky time. */
+  speed: number;
+  /** 0..1 of each wake unspooled. */
+  reveal: number;
+  /** 0..1 strength the wakes are drawn at. */
+  alpha: number;
+  /** Sample keys wrap at this (one loop, so the seam repeats exactly), or never (0). */
+  keyWrap: number;
+  /** Sky time the sample grid counts from. */
+  origin: number;
+  /** How far the wake dust has scrolled through its box, in 1/LOOP of the box. */
+  dust: number;
+}
+
+/** The piece's own wakes, `m` frames into the loop. */
+function loopPlan(m: number): WakePlan {
+  const full = [...PLANETS.map(pl => pl.trail * SUB), MOON.trail * SUB, LOOP * SUB];
+  return {
+    step: full.map(() => 1 / SUB), full, tick: full.map(() => (LOOP / PLANETS[0]!.turns) * SUB),
+    speed: SPEED, reveal: reveal(m), alpha: 1, keyWrap: SUB * LOOP, origin: 0, dust: DUST_PASSES * m,
+  };
+}
+
+/**
+ * Wakes of the real motion, reaching `spec.span` days back. The Sun's pace is chosen so that span fills `DEPTH`
+ * whatever it is: a short span stretches the coils out, a long one packs them tight. Each wake is capped at a few
+ * turns of its coil; its samples fall about `SPACING` apart along the path, on a grid of whole fractions of a Mercury
+ * year counted from `ORIGIN`, so a mark keyed to a sample rides with it and ruler ticks line up across wakes.
+ */
+function datedPlan(sky: Sky, spec: TrailSpec): WakePlan {
+  // ruler ticks: whole Mercury years, about a dozen along the span
+  const speed = DEPTH / spec.span, year = sky.period(0), ruler = Math.max(1, Math.round(spec.span / 12 / year));
+  const step: number[] = [], full: number[] = [], tick: number[] = [];
+  for (let w = 0; w <= SUN_W; w++) {
+    let reach = spec.span, pace = 0;
+    if (w < SUN_W) {
+      const P = sky.period(w), a = w === MOON_K ? MOON.a : PLANETS[w]!.a;
+      reach = Math.min(spec.span, (w === MOON_K ? MOON_COILS_MAX : COILS_MAX) * P);
+      // the Moon rides the Earth: bound its pace by the two together
+      pace = (TAU * a) / P + (w === MOON_K ? (TAU * PLANETS[2]!.a) / sky.period(2) : 0);
+    }
+    const ideal = Math.max(SPACING / Math.hypot(pace, speed), reach / MAX_SAMPLES), n = Math.max(2, Math.round(year / ideal));
+    step.push(year / n);
+    tick.push(n * ruler);
+    full.push(reach / (year / n));
+  }
+  return { step, full, tick, speed, reveal: spec.reveal, alpha: spec.alpha, keyWrap: 0, origin: ORIGIN, dust: (speed * (sky.now - ORIGIN) * LOOP) / DUST_LEN };
+}
+
+/** The wake plan of a sky: the viewer's when it carries trails, else the piece's own. */
+export const wakePlan = (sky: Sky): WakePlan => (sky.trails ? datedPlan(sky, sky.trails) : loopPlan(sky.now));
+
 /* ---------- a moment of the system ---------- */
 
 export interface Sample extends Projected {
   /** 0 at the head, 1 at the tail of the full-length wake. */
   age: number;
-  /** Sub-step of the sample's own time, wrapped into one loop: a key for marks that should ride along with the path. */
+  /**
+   * Index of the sample on its wake's grid, fixed in time (wrapped into one loop for a render): a key for marks that
+   * should ride along with the path. A head or tail between grid points carries a fractional one.
+   */
   q: number;
   near: boolean;
   /** Where the sample sits round the Sun's line: -1 straight behind it .. 1 straight in front (0 on the line). */
@@ -206,10 +299,18 @@ export interface MoonState extends Projected {
   light: Vec3;
 }
 
-export interface RockState extends Projected { rock: Rock; near: boolean }
+export interface RockState extends Projected {
+  rock: Rock;
+  near: boolean;
+  /** Its angle round the Sun, radians. */
+  angle: number;
+}
 
 export interface Snapshot {
-  m: number;
+  /** The moment, in the sky's time unit. */
+  now: number;
+  /** Drawn frames of ambient motion (twinkles, sparkles, sweeps). */
+  beat: number;
   sun: Projected & { R: number };
   bodies: Body[];
   moon: MoonState;
@@ -217,6 +318,13 @@ export interface Snapshot {
   /** The Sun's own wake: its line, back into the distance. */
   sunTrail: Sample[];
   rocks: RockState[];
+  /** How the wakes were sampled: their strength, ruler ticks and the dust's scroll. */
+  plan: WakePlan;
+  /**
+   * Strength of plain orbit rings standing in for the wakes as a viewer fades them out (0 in renders): pieces that
+   * draw no rings of their own draw them at this.
+   */
+  rings: number;
 }
 
 function light(p: Vec3, pr: Projected, sun: Projected): { toSun: number; phase: number; light: Vec3 } {
@@ -241,40 +349,50 @@ export function hash01(a: number, b = 0, c = 0, d = 0): number {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-/** A wake `full` frames long when whole, `rv` of it unspooled: the path sampled back from the head at `m`. */
-function trailOf(full: number, rv: number, m: number, at: (q: number) => Vec3): Sample[] {
-  const out: Sample[] = [], n = Math.round(full * rv * SUB), q0 = SUB * m;
-  for (let j = 0; j <= n; j++) {
-    const q = q0 - j, off = at(q), pr = project(behind(off, j / SUB)), r = Math.hypot(off[0], off[1], off[2]);
-    out.push({ ...pr, age: j / (full * SUB), q: wrapInt(q, SUB * LOOP), near: isNear(off), side: r > 0 ? -off[2] / r : 0 });
-  }
+/**
+ * Wake `w` sampled back from `now` along its grid: the head, every grid point behind it, and the tail where the
+ * unspooled length runs out (head and tail fall between grid points when `now` does).
+ */
+function wakeOf(plan: WakePlan, w: number, now: number, at: (t: number) => Vec3): Sample[] {
+  const out: Sample[] = [], h = plan.step[w]!, full = plan.full[w]!, q0 = (now - plan.origin) / h, n = Math.round(full * plan.reveal);
+  const sample = (q: number): Sample => {
+    const back = q0 - q, off = at(plan.origin + q * h), pr = project(behind(off, back * h, plan.speed)), r = Math.hypot(off[0], off[1], off[2]);
+    return { ...pr, age: back / full, q: plan.keyWrap ? wrapInt(q, plan.keyWrap) : q, near: isNear(off), side: r > 0 ? -off[2] / r : 0 };
+  };
+  out.push(sample(q0));
+  for (let q = Math.ceil(q0) - 1; q > q0 - n; q--) out.push(sample(q));
+  if (n > 0) out.push(sample(q0 - n));
   return out;
 }
 
-/** The whole system `m` drawn frames into the loop (negative in the intro), as the camera sees it. */
-export function snapshot(m: number): Snapshot {
-  const sun = { ...project([0, 0, 0]), R: SUN_R };
-  const rv = reveal(m);
+/** The whole system under a sky (a render's loop sky, or the explorer's dated one), as the camera sees it. */
+export function snapshot(sky: Sky): Snapshot {
+  const now = sky.now, plan = wakePlan(sky), sun = { ...project([0, 0, 0]), R: SUN_R };
   const bodies = PLANETS.map((pl): Body => {
-    const p = inPlane(pl.a, angleAt(pl.turns, pl.at0, SUB * m)), pr = project(p);
+    const p = inPlane(pl.a, sky.angle(pl.k, now)), pr = project(p);
     return { ...pr, planet: pl, R: pl.r * pr.s, p, near: isNear(p), ...light(p, pr, sun) };
   });
   const earth = bodies[2]!;
-  const moonAt = (q: number): Vec3 => {
-    const e = inPlane(PLANETS[2]!.a, angleAt(PLANETS[2]!.turns, PLANETS[2]!.at0, q)), o = inPlane(MOON.a, angleAt(MOON.turns, MOON.at0, q));
+  const moonAt = (t: number): Vec3 => {
+    const e = inPlane(PLANETS[2]!.a, sky.angle(2, t)), o = inPlane(MOON.a, sky.angle(MOON_K, t));
     return [e[0] + o[0], e[1] + o[1], e[2] + o[2]];
   };
-  const mp = moonAt(SUB * m), mpr = project(mp);
+  const mp = moonAt(now), mpr = project(mp);
   const moon: MoonState = { ...mpr, R: MOON.r * mpr.s, p: mp, front: mp[2] < earth.p[2], ...light(mp, mpr, sun) };
-  const trails: Trail[] = PLANETS.map(pl => ({ k: pl.k, samples: trailOf(pl.trail, rv, m, q => inPlane(pl.a, angleAt(pl.turns, pl.at0, q))) }));
-  trails.push({ k: 8, samples: trailOf(MOON.trail, rv, m, moonAt) });
-  const sunTrail = trailOf(LOOP, rv, m, () => [0, 0, 0]);
+  // a faded-out wake is not sampled at all
+  const live = plan.alpha > 0;
+  const trails: Trail[] = PLANETS.map(pl => ({ k: pl.k, samples: live ? wakeOf(plan, pl.k, now, t => inPlane(pl.a, sky.angle(pl.k, t))) : [] }));
+  trails.push({ k: MOON_K, samples: live ? wakeOf(plan, MOON_K, now, moonAt) : [] });
+  const sunTrail = live ? wakeOf(plan, SUN_W, now, () => [0, 0, 0]) : [];
   const rocks = ROCKS.map((rock): RockState => {
-    const p = inPlane(rock.a, angleAt(rock.turns, rock.at0, SUB * m));
-    return { ...project(p), rock, near: isNear(p) };
+    const angle = sky.rock(rock.i, now), p = inPlane(rock.a, angle);
+    return { ...project(p), rock, near: isNear(p), angle };
   });
-  return { m, sun, bodies, moon, trails, sunTrail, rocks };
+  return { now, beat: sky.beat, sun, bodies, moon, trails, sunTrail, rocks, plan, rings: sky.trails ? 1 - sky.trails.alpha : 0 };
 }
+
+/** The loop sky's snapshot `m` frames into the loop: what a render draws. */
+export const loopSnapshot = (m: number): Snapshot => snapshot(loopSky(m));
 
 /* ---------- wake dust ---------- */
 
@@ -297,13 +415,13 @@ const DUST_BASE = (() => {
 const ACROSS: Vec3 = unit3(cross3(MOTION, E1));
 
 /**
- * Dust motes `m` frames into the loop, projected. Each rides the box at the Sun's speed (it is still; the camera
- * moves), counted in whole frames so the seam is exact, and fades in and out at the ends of the box.
+ * Dust motes of a moment, projected. Each rides the box at the Sun's speed (it is still; the camera moves), counted in
+ * whole frames on the loop sky so the seam is exact, and fades in and out at the ends of the box.
  */
-export function dust(m: number): Mote[] {
+export function dust(S: Snapshot): Mote[] {
   const out: Mote[] = [];
   for (const d of DUST_BASE) {
-    const w = wrapInt(d.along - DUST_PASSES * m, LOOP) / LOOP, along = (w - 0.35) * DUST_LEN;
+    const w = wrapInt(d.along - S.plan.dust, LOOP) / LOOP, along = (w - 0.35) * DUST_LEN;
     const p: Vec3 = [
       MOTION[0] * along + E1[0] * d.u + ACROSS[0] * d.v,
       MOTION[1] * along + E1[1] * d.u + ACROSS[1] * d.v,
@@ -429,6 +547,38 @@ export function strokeRun(ctx: CanvasRenderingContext2D, run: readonly Sample[],
 /** Trace a run of points into the current path. */
 export function trace(ctx: CanvasRenderingContext2D | Path2D, pts: readonly { x: number; y: number }[]): void {
   pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+}
+
+/**
+ * Draw part of a wake at the wakes' strength: as it is in a render, faded as the viewer asks in the explorer (a
+ * wholly faded wake has no samples, so nothing reaches `draw`).
+ */
+export function inWake(ctx: CanvasRenderingContext2D, S: Snapshot, draw: () => void): void {
+  const a = S.plan.alpha;
+  if (a >= 1) return draw();
+  if (a <= 0) return;
+  ctx.save();
+  ctx.globalAlpha *= a;
+  draw();
+  ctx.restore();
+}
+
+/**
+ * One half of a plain orbit ring, for pieces that draw no rings of their own: the rings stand in for the wakes as a
+ * viewer fades them out (`S.rings`, 0 in a render, so renders never draw them). The far half is fainter and finer.
+ */
+export function orbitRings(ctx: CanvasRenderingContext2D, S: Snapshot, half: readonly Projected[], near: boolean, color: string, width: number): void {
+  if (S.rings <= 0) return;
+  ctx.save();
+  ctx.globalAlpha *= S.rings * (near ? 0.8 : 0.45);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = width * (near ? 1 : 0.75);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  trace(ctx, half);
+  ctx.stroke();
+  ctx.restore();
 }
 
 /* ---------- painter's order ---------- */
