@@ -84,6 +84,8 @@ export interface SequenceEntry {
 export interface Sequence {
   readonly name: string;
   readonly entries: readonly SequenceEntry[];
+  /** Seconds into the sequence of its resting frame (poster, reduced motion). Defaults to the last frame. */
+  readonly poster?: number;
 }
 
 export type Program =

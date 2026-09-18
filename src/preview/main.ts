@@ -1,6 +1,6 @@
 /**
  * Interactive preview and offline-render hooks.
- * Query string: program=sequence|scene:<name>|loop:<name>, ar=16:9, w=<output px>, strokes=engine|legacy,
+ * Query string: program=sequence|sequence:<name>|scene:<name>|loop:<name>, ar=16:9, w=<output px>, strokes=engine|legacy,
  * twos=1|0, frame=<n> (hold a frame), bare=1 (canvas only, used by scripts/render.mjs).
  */
 import type { DrawnFrameInfo } from '../core/program';

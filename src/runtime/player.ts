@@ -44,10 +44,12 @@ export class Player {
     return p.kind === 'loop' && p.scene.loopFrom !== undefined ? toFrames(p.scene.loopFrom, this.config.timing.fps) : null;
   }
 
-  /** Global drawn frame of the program's poster: the looped scene's resting frame, or the last frame of a sequence. */
+  /** Global drawn frame of the program's poster: the looped scene's resting frame, or the sequence's (default its last frame). */
   get poster(): number {
     const p = this.config.program;
-    return p.kind === 'loop' ? posterFrame(p.scene, this.config.timing.fps) : this.frames - 1;
+    if (p.kind === 'loop') return posterFrame(p.scene, this.config.timing.fps);
+    const at = p.sequence.poster;
+    return at === undefined ? this.frames - 1 : Math.min(this.frames - 1, toFrames(at, this.config.timing.fps));
   }
 
   /**

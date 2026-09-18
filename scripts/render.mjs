@@ -17,10 +17,12 @@
 //   node scripts/render.mjs --seam                   looped programs: fail unless phase 1 draws exactly like loopFrom
 //   node scripts/render.mjs --web                    web delivery for a loop:<name> program: 12 fps H.264 (CRF 28) + VP9
 //                                                    with a keyframe at loopFrom, plus <name>-poster.png/.jpg; implies --seam
+//   node scripts/render.mjs --poster                 with a full mp4 render: also <name>-poster.png/.jpg at the program's poster frame
+//   node scripts/render.mjs --frames dir             where the frame PNGs go (default <out>/<name>-frames/)
 //   node scripts/render.mjs --name hero              base name of the outputs (default derived from program and format)
 // Env: CHROME=/path/to/chrome when Chrome/Chromium is not on PATH. Needs ffmpeg on PATH for mp4 and sheets.
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -41,6 +43,7 @@ const grid = flag('--grid') ? Number(flag('--grid')) : 0;
 const only = flag('--only')?.split(',').map(Number).filter(Number.isInteger);
 const verify = has('--verify');
 const web = has('--web');
+const posterOut = has('--poster');
 const seam = web || has('--seam');
 const outRoot = path.resolve(root, flag('--out') ?? 'output/sequence');
 const name = flag('--name') ?? [program.replace(':', '-'), strokes === 'legacy' ? 'legacy' : null, ar.replace(':', 'x'), twos ? null : 'ones'].filter(Boolean).join('-');
@@ -65,6 +68,8 @@ function hasFfmpeg() {
   try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); return true; } catch { return false; }
 }
 if (web && (grid || only)) fail('--web renders the whole program; drop --grid / --only');
+// a full render empties its frame folder first, so only ever point it inside the ignored output root
+if (flag('--frames') && !path.resolve(root, flag('--frames')).startsWith(path.join(root, 'output') + path.sep)) fail('--frames must be a folder under output/');
 if (web && !program.startsWith('loop:')) fail('--web needs a loop:<name> program (intro + one loop period, keyframe at loopFrom)');
 const needFfmpeg = !only;
 if (needFfmpeg && !hasFfmpeg()) fail('ffmpeg not found on PATH');
@@ -103,7 +108,7 @@ async function openPage() {
 const save = (file, dataUrl) => writeFileSync(file, Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64'));
 const pad = i => String(i).padStart(5, '0');
 // web deliveries keep their frames out of the delivery folder
-const frameDir = web ? path.join(root, 'output', 'sequence', 'web-frames', name) : path.join(outRoot, `${name}-frames`);
+const frameDir = flag('--frames') ? path.resolve(root, flag('--frames')) : web ? path.join(root, 'output', 'sequence', 'web-frames', name) : path.join(outRoot, `${name}-frames`);
 let code = 0;
 
 try {
@@ -149,6 +154,8 @@ try {
   }
 
   if (errors.length === 0 && needFfmpeg) {
+    // the frames may live outside the delivery folder (--frames, --web), so it may not exist yet
+    mkdirSync(outRoot, { recursive: true });
     const ff = args => execFileSync('ffmpeg', ['-v', 'error', '-y', ...args], { stdio: 'inherit' });
     const tile = (frames, file) => {
       const cols = 6, rows = Math.ceil(frames.length / cols);
@@ -163,7 +170,6 @@ try {
       console.log(`grid: ${sheet}`);
     } else if (web) {
       // 12 fps with no duplicated frames; a forced keyframe at loopFrom so the page can seek there exactly on `ended`
-      mkdirSync(outRoot, { recursive: true });
       const input = ['-framerate', String(fps), '-start_number', '0', '-i', path.join(frameDir, '%05d.png')];
       const keys = ['-force_key_frames', loopFrom === null ? '0' : `0,${(loopFrom / fps).toFixed(6)}`];
       // bitexact: no random container UIDs or encoder strings, so re-rendering unchanged frames gives identical files
@@ -185,6 +191,12 @@ try {
       const sheet = path.join(outRoot, `${name}-contact.jpg`);
       tile(evenly(tiles), sheet);
       console.log(`mp4: ${mp4}\ncontact sheet: ${sheet}`);
+      if (posterOut && !grid && !only) {
+        const png = path.join(outRoot, `${name}-poster.png`), jpg = path.join(outRoot, `${name}-poster.jpg`);
+        copyFileSync(path.join(frameDir, `${pad(poster)}.png`), png);
+        ff(['-i', png, '-q:v', '3', jpg]);
+        console.log(`poster: frame ${poster} -> ${png}, ${jpg}`);
+      }
     }
   }
 } catch (e) {
