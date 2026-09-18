@@ -1,7 +1,7 @@
 /**
  * Fact cards for the bodies the explorer draws. Figures are NASA's (NSSDCA planetary fact sheets, science.nasa.gov),
- * rounded for reading; "~" marks an approximation, and moon counts carry the date NASA gave them. Research notes and
- * sources: docs/explorer/SOURCES.md.
+ * rounded for reading; "~" marks an approximation, and moon counts carry the date NASA gave them. Sources:
+ * SOURCES.md beside this file.
  */
 import type { BodyId } from '../bodies';
 

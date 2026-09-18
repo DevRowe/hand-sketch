@@ -32,11 +32,9 @@ const app = new App({
   skipIntro: reduceMotion || url.day !== undefined,
 });
 if (url.span) app.setSpan(url.span);
-if (reduceMotion) {
-  // no easing either: trails appear whole
-  sim.trails.alpha = sim.trails.on ? sim.trails.opacity : 0;
-  sim.trails.reveal = 1;
-}
+// reduced motion: trails switch and the camera moves at once, without easing
+sim.instant = reduceMotion;
+app.reducedMotion = reduceMotion;
 
 /* ---------- toast ---------- */
 
@@ -56,6 +54,7 @@ const panel = new Panel(app, { toast });
 /* ---------- controls ---------- */
 
 function reset(): void {
+  panel.clearPreset();
   panel.close();
   app.select(null);
   app.setDirection(1);

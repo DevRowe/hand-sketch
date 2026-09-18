@@ -91,8 +91,8 @@ export function drawCraft(ctx: CanvasRenderingContext2D, app: App, [x, y]: Vec2,
   ctx.stroke();
   ctx.fillStyle = INK;
   ctx.fill();
-  // to the left: planets carry their own names on the right
-  if (label) text(ctx, app, [x - 11 * k, y - 8 * k], label, 'right', 1, true);
+  // above: planets carry their own names on the right, and a craft is often just beside one
+  if (label) text(ctx, app, [x, y - 13 * k], label, 'center', 1, true);
   ctx.restore();
 }
 

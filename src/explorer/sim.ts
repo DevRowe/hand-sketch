@@ -50,6 +50,8 @@ export class Sim {
   /** 1 runs forwards, -1 back. */
   direction: 1 | -1 = 1;
   playing = true;
+  /** Trails change at once instead of fading and unspooling (reduced motion). */
+  instant = false;
   /** Ambient drawn frames: 12 a second while playing. */
   beat = 0;
   trails: Trails;
@@ -82,6 +84,11 @@ export class Sim {
       this.beat += 12 * dt;
     }
     const t = this.trails, target = t.on ? t.opacity : 0;
+    if (this.instant) {
+      t.alpha = target;
+      t.reveal = t.on ? 1 : 0;
+      return stopped;
+    }
     const step = dt / FADE;
     t.alpha = t.alpha < target ? Math.min(target, t.alpha + step) : Math.max(target, t.alpha - step);
     if (t.on) t.reveal = Math.min(1, t.reveal + dt / UNSPOOL);

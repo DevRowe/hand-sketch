@@ -1,6 +1,6 @@
 /**
  * The guide: short, sourced sections on orbits, moons, satellites, spaceflight, the far reaches and scale, plus an
- * honest word on the drawings themselves. Figures as of September 2026 (see src/explorer/content/SOURCES.md).
+ * honest word on the drawings themselves. Figures as of September 2026 (sources: SOURCES.md beside this file).
  */
 
 export interface Item {

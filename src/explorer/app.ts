@@ -2,8 +2,8 @@
  * The explorer itself: the simulation, the view camera and the renderer tied together, with the choices the viewer
  * makes (view, style, selection, names, trail lengths) and the animation loop that draws.
  *
- * Drawing follows the hand-drawn cadence: twelve drawings a second ("on twos") at gentle paces, rising towards the
- * display's rate as the pace quickens so a fast planet still moves in readable steps. While paused it draws only when
+ * Drawing follows the hand-drawn cadence: twelve drawings a second ("on twos") at gentle paces, rising to thirty as
+ * the pace quickens so a fast planet still moves in readable steps. While paused it draws only when
  * something changes (a control, the camera, the trails easing), so an idle page costs nothing.
  */
 import { toFrames } from '../core/scene';
@@ -28,6 +28,8 @@ const RANK: readonly BodyId[] = ['sun', 'earth', 'jupiter', 'saturn', 'mars', 'v
 const MERCURY_DAYS = 87.97;
 /** Most degrees Mercury may move between drawings before the cadence rises. */
 const STEP_DEG = 8;
+/** The cadence tops out at film rate: past it a faster planet only blurs, and resolution and battery matter more. */
+const MAX_FPS = 30;
 
 /** Something drawn over the scene in design units (a transfer orbit, sight lines). */
 export type Overlay = (ctx: CanvasRenderingContext2D, app: App) => void;
@@ -52,6 +54,8 @@ export class App {
   /** Keep the selected body centred as it moves. */
   following = false;
   names = true;
+  /** Camera moves jump instead of gliding (reduced motion). */
+  reducedMotion = false;
   /** Each view keeps its own trail length: short sweeps read best from above, long wakes in motion. */
   readonly spans: Record<ViewId, number> = { sky: 2 * 30.44, wake: 12 * YEAR };
   /** Extra drawing over the scene (the jump-to presets' geometry). */
@@ -98,6 +102,9 @@ export class App {
   }
 
   get scene() { return this.style.scenes[this.view]; }
+
+  /** Seconds a camera move eases over. */
+  private get glide(): number { return this.reducedMotion ? 0 : 0.7; }
 
   /** Mark the picture stale: it redraws on the next frame. */
   invalidate(): void { this.dirty = true; }
@@ -208,7 +215,6 @@ export class App {
     this.changed();
   }
 
-  setZoom(zoom: number): void { this.zoomBy(zoom / this.camera.zoom); }
 
   /** Pan by a drag of (dx, dy) CSS pixels. */
   panBy(dx: number, dy: number): void {
@@ -220,7 +226,7 @@ export class App {
 
   resetView(): void {
     this.following = false;
-    this.camera.reset();
+    this.camera.reset(this.glide);
     this.changed();
   }
 
@@ -239,7 +245,7 @@ export class App {
     const zoom = clamp(Math.min(r.w, r.h) / (2 * radius * perDesign), ZOOM_MIN, ZOOM_MAX);
     const [lx, ly] = this.renderer.designToLogical(x, y), [cx, cy] = this.centreFor(lx, ly, zoom);
     this.following = false;
-    this.camera.glideTo({ zoom, x: cx, y: cy });
+    this.camera.glideTo({ zoom, x: cx, y: cy }, this.glide);
     this.changed();
   }
 
@@ -249,7 +255,7 @@ export class App {
     if (!m) return;
     const z = clamp(Math.max(zoom, this.camera.zoom), ZOOM_MIN, ZOOM_MAX), [lx, ly] = this.renderer.designToLogical(m.x, m.y), [cx, cy] = this.centreFor(lx, ly, z);
     this.following = true;
-    this.camera.glideTo({ zoom: z, x: cx, y: cy });
+    this.camera.glideTo({ zoom: z, x: cx, y: cy }, this.glide);
     this.changed();
   }
 
@@ -281,7 +287,7 @@ export class App {
   get interval(): number {
     if (!this.sim.playing) return 1000 / 60;
     const degPerSecond = (this.sim.pace * 360) / MERCURY_DAYS;
-    return 1000 / clamp(degPerSecond / STEP_DEG, 12, 60);
+    return 1000 / clamp(degPerSecond / STEP_DEG, 12, MAX_FPS);
   }
 
   start(): void {

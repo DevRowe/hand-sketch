@@ -4,7 +4,7 @@
  */
 import type { App } from './app';
 import { ZOOM_MAX, ZOOM_MIN } from './camera';
-import { dateLabel, dateLong, fromLog, isoDate, paceFromSlider, paceLabel, paceToSlider, parseIsoDate, spanFromSlider, spanLabel, spanToSlider, toLog, today } from './format';
+import { dateLabel, dateLong, dayOfYear, isoDate, paceFromSlider, paceLabel, paceToSlider, parseIsoDate, spanFromSlider, spanLabel, spanToSlider, today, yearOf } from './format';
 import { DAY, MONTH, WEEK, YEAR } from './sim';
 import { STYLES } from './styles';
 
@@ -58,7 +58,9 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     spanOut: $<HTMLOutputElement>('span-out'),
     opacity: $<HTMLInputElement>('opacity'),
     opacityOut: $<HTMLOutputElement>('opacity-out'),
-    zoom: $<HTMLInputElement>('zoom'),
+    zoom: $<HTMLOutputElement>('zoom-out-readout'),
+    year: $<HTMLInputElement>('year'),
+    yearOut: $<HTMLOutputElement>('year-out'),
     zoomIn: $<HTMLButtonElement>('zoom-in'),
     zoomOut: $<HTMLButtonElement>('zoom-out'),
     viewReset: $<HTMLButtonElement>('view-reset'),
@@ -115,8 +117,17 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     if (day !== null) app.jump(day);
   });
   // the native picker opens on a click anywhere on the date
-  ui.dateIn.addEventListener('click', () => { try { ui.dateIn.showPicker?.(); } catch { /* not allowed here: the field still works */ } });
+  ui.dateIn.addEventListener('click', () => {
+    // while the date runs the field lags behind it: open the picker on the date shown
+    ui.dateIn.value = isoDate(app.sim.day);
+    try { ui.dateIn.showPicker?.(); } catch { /* not allowed here: the field still works */ }
+  });
   ui.pace.addEventListener('input', () => app.setPace(paceFromSlider(Number(ui.pace.value) / 1000)));
+  // the year scrubber: dragging it moves the sky through time (the date keeps running from wherever it is let go)
+  let scrubbing = false;
+  ui.year.addEventListener('pointerdown', () => (scrubbing = true));
+  addEventListener('pointerup', () => (scrubbing = false));
+  ui.year.addEventListener('input', () => app.jump(dayOfYear(Number(ui.year.value))));
   const chips = PACE_PRESETS.map(([pace, label]) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -135,8 +146,6 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     app.setOpacity(Number(ui.opacity.value) / 100);
     if (!app.sim.trails.on && Number(ui.opacity.value) > 0) app.setTrails(true);
   });
-  const zoomToSlider = (z: number): number => toLog(z, ZOOM_MIN, ZOOM_MAX);
-  ui.zoom.addEventListener('input', () => app.setZoom(fromLog(Number(ui.zoom.value) / 1000, ZOOM_MIN, ZOOM_MAX)));
   ui.zoomIn.addEventListener('click', () => app.zoomBy(1.5));
   ui.zoomOut.addEventListener('click', () => app.zoomBy(1 / 1.5));
   ui.viewReset.addEventListener('click', () => app.resetView());
@@ -224,7 +233,15 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
   /* ---------- gestures on the sky ---------- */
 
   const pointers = new Map<number, { x: number; y: number; x0: number; y0: number; t0: number }>();
-  let pinch: { d: number } | null = null, dragged = false;
+  let pinch: { d: number } | null = null, dragged = false, lastTap = { t: -1e9, x: 0, y: 0 };
+  /** Fly in on the body under a point and follow it, or zoom in there. */
+  const flyIn = (x: number, y: number): void => {
+    const hit = app.pickAt(x, y);
+    if (hit && hit.id !== 'belt') {
+      app.select(hit.id);
+      app.focusSelected(Math.max(4, app.camera.zoom * 2));
+    } else app.zoomBy(2, x, y);
+  };
   const canvas = ui.canvas;
   canvas.addEventListener('pointerdown', e => {
     canvas.setPointerCapture(e.pointerId);
@@ -265,7 +282,15 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     if (pointers.size < 2) pinch = null;
     canvas.classList.remove('dragging');
     if (!p || dragged || e.type === 'pointercancel') return;
-    if (performance.now() - p.t0 > 700) return;
+    const now = performance.now();
+    if (now - p.t0 > 700) return;
+    // a second tap on a touch screen, close by and soon after, flies in (touch screens send no reliable dblclick)
+    if (e.pointerType === 'touch' && now - lastTap.t < 320 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) {
+      lastTap = { t: -1e9, x: 0, y: 0 };
+      flyIn(e.clientX, e.clientY);
+      return;
+    }
+    lastTap = { t: now, x: e.clientX, y: e.clientY };
     const hit = app.pickAt(e.clientX, e.clientY);
     if (hit) {
       app.select(hit.id);
@@ -281,11 +306,7 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     app.zoomBy(Math.exp(-e.deltaY * k), e.clientX, e.clientY);
   }, { passive: false });
   canvas.addEventListener('dblclick', e => {
-    const hit = app.pickAt(e.clientX, e.clientY);
-    if (hit && hit.id !== 'belt') {
-      app.select(hit.id);
-      app.focusSelected(Math.max(4, app.camera.zoom * 2));
-    } else app.zoomBy(2, e.clientX, e.clientY);
+    if (!(e as MouseEvent & { sourceCapabilities?: { firesTouchEvents?: boolean } }).sourceCapabilities?.firesTouchEvents) flyIn(e.clientX, e.clientY);
   });
   // two fingers tapping the sky bring hidden controls back
   canvas.addEventListener('touchend', e => {
@@ -298,10 +319,21 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
   const onDraw = (): void => {
     if (app.camera.zoom !== shown.zoom) {
       shown.zoom = app.camera.zoom;
-      ui.zoom.value = String(Math.round(zoomToSlider(app.camera.zoom) * 1000));
-      ui.zoom.setAttribute('aria-valuetext', `${Math.round(app.camera.zoom * 10) / 10} times`);
-      fill(ui.zoom);
+      const z = app.camera.zoom;
+      ui.zoom.textContent = `${z < 10 ? (Math.round(z * 10) / 10).toString() : Math.round(z)}×`;
+      ui.zoomIn.disabled = z >= ZOOM_MAX - 1e-6;
+      ui.zoomOut.disabled = z <= ZOOM_MIN + 1e-6;
       ui.viewReset.disabled = app.camera.home;
+    }
+    const y = yearOf(app.sim.day);
+    if (!scrubbing && Math.abs(Number(ui.year.value) - y) > 0.004) {
+      ui.year.value = y.toFixed(2);
+      fill(ui.year);
+    }
+    const whole = String(Math.floor(y));
+    if (ui.yearOut.textContent !== whole) {
+      ui.yearOut.textContent = whole;
+      ui.year.setAttribute('aria-valuetext', whole);
     }
     const label = dateLabel(app.sim.day);
     if (label !== shown.date) {

@@ -40,6 +40,10 @@ export function parseIsoDate(s: string): number | null {
   return dayOf(back.getTime());
 }
 
+/** A day count as a fractional year (for the scrubber), and back: 1 January 2000 is 2000.0. */
+export const yearOf = (day: number): number => 2000 + (day + 0.5) / 365.2425;
+export const dayOfYear = (year: number): number => (year - 2000) * 365.2425 - 0.5;
+
 /** The day count of now. */
 export const today = (): number => dayOf(Date.now());
 

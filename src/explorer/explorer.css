@@ -229,8 +229,13 @@ input[type='range']::-moz-range-thumb { width: 12px; height: 12px; border-radius
 
 .extra-row { flex-wrap: wrap; gap: 10px 18px; padding-top: 10px; border-top: 1px solid var(--rule); }
 .group { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.trails { flex: 1 1 420px; }
-.zoom { flex: 0 1 300px; }
+.trails { flex: 3 1 360px; gap: 16px; }
+.mini.year { flex: 2 1 240px; }
+.mini.year output { min-width: 38px; }
+.zoom { flex: 0 0 auto; }
+.zoom-readout { min-width: 40px; text-align: center; color: var(--ink); font-weight: 600; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.round:disabled, .link:disabled { opacity: .4; cursor: default; }
+.round:disabled:hover { background: rgb(239 230 212 / .06); }
 .mini { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; color: var(--faint); font-size: 12px; }
 .mini output { min-width: 58px; color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .toggle {
@@ -400,7 +405,7 @@ body.hide-ui .pill { transform: translate(-50%, -8px); }
   .style small { display: none; }
   .extra-row { display: none; }
   .dock.expanded .extra-row { display: flex; }
-  .trails, .zoom { flex-basis: 100%; }
+  .trails, .zoom, .mini.year { flex-basis: 100%; }
   .trails { flex-wrap: wrap; row-gap: 6px; }
   .trails .mini { flex: 1 1 100%; }
   .more {
@@ -411,6 +416,7 @@ body.hide-ui .pill { transform: translate(-50%, -8px); }
   @keyframes sheet-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
   .panel h2 { font-size: 24px; }
   .pill { top: calc(100px + var(--safe-t)); }
+  .toast { top: calc(148px + var(--safe-t)); }
   .facts dd { font-size: 13px; }
   body.panel-open .dock { visibility: hidden; }
 }
