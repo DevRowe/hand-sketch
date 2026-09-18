@@ -171,7 +171,9 @@ try {
     } else if (web) {
       // 12 fps with no duplicated frames; a forced keyframe at loopFrom so the page can seek there exactly on `ended`
       const input = ['-framerate', String(fps), '-start_number', '0', '-i', path.join(frameDir, '%05d.png')];
-      const keys = ['-force_key_frames', loopFrom === null ? '0' : `0,${(loopFrom / fps).toFixed(6)}`];
+      // and no periodic keyframes besides: the page only ever seeks to those two, and long loops of fine texture
+      // (halftones, hatching) otherwise pay for a full picture every few seconds
+      const keys = ['-force_key_frames', loopFrom === null ? '0' : `0,${(loopFrom / fps).toFixed(6)}`, '-g', String(N)];
       // bitexact: no random container UIDs or encoder strings, so re-rendering unchanged frames gives identical files
       keys.push('-fflags', '+bitexact', '-flags:v', '+bitexact');
       const mp4 = path.join(outRoot, `${name}.mp4`), webm = path.join(outRoot, `${name}.webm`);

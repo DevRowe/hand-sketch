@@ -15,6 +15,7 @@
     "keystone": "vite build && node scripts/keystone.mjs",
     "poetic": "vite build && node scripts/poetic.mjs",
     "gallery": "vite build && node scripts/gallery.mjs",
+    "solar": "vite build && node scripts/solar.mjs",
     "requiem": "vite build && node scripts/requiem.mjs"
   },
   "devDependencies": {
