@@ -12,7 +12,7 @@ import { rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { cached, ground, ink, polyPath, screen, type InkOptions } from '../gallery/common';
 import { annulus, BOX, C, dayHalf, disc, enter, frameFit, LOOP, MOON, moonOffset, PLANETS, planetAngle, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type Planet, type PlanetName } from './common';
-import { skyOf, type Sky } from './sky';
+import { skyOf, trailSweep, type Sky } from './sky';
 import { SOLAR } from './palettes';
 
 const PAL = SOLAR.riso;
@@ -140,17 +140,20 @@ function planetOn(c: CanvasRenderingContext2D, plate: Plate, p: Planet, sky: Sky
 
 /** The pink wake behind a planet: a band along its orbit, screened thinner the further back it is. */
 function wake(c: CanvasRenderingContext2D, p: Planet, sky: Sky): void {
-  const a = planetAngle(p, sky), span = WAKE / p.a, w = Math.max(3, p.r * 0.6);
+  const a = planetAngle(p, sky), { sweep: span, alpha } = trailSweep(sky, p.k, WAKE / p.a), w = Math.max(3, p.r * 0.6);
+  if (span <= 0 || alpha <= 0) return;
   const band = new Path2D();
   band.arc(C[0], C[1], p.a + w, a, a + span);
   band.arc(C[0], C[1], p.a - w, a + span, a, true);
   band.closePath();
-  const [x, y] = planetAt(p, sky), reach = WAKE + p.r;
-  screen(c, [x - reach, y - reach, 2 * reach, 2 * reach], {
+  // a viewer's trail may run right round the orbit: screen the whole ring then
+  const [x, y] = planetAt(p, sky), reach = WAKE + p.r, R = p.a + w;
+  const box: [number, number, number, number] = sky.trails ? [C[0] - R, C[1] - R, 2 * R, 2 * R] : [x - reach, y - reach, 2 * reach, 2 * reach];
+  screen(c, box, {
     cell: CELL, angle: ANGLE.pink, color: PINK, clip: band,
     density: (px, py) => {
       const behind = ((((Math.atan2(py - C[1], px - C[0]) - a) % TAU) + TAU) % TAU) / span;
-      return behind <= 1 ? 0.85 * (1 - behind) ** 1.4 : 0;
+      return behind <= 1 ? 0.85 * (1 - behind) ** 1.4 * alpha : 0;
     },
   });
 }

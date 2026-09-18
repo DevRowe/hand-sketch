@@ -12,6 +12,7 @@ import type { Scene } from '../../core/scene';
 import { ground, ink, polyPath } from '../gallery/common';
 import { annulus, BELT, BOX, C, dayHalf, disc, enter, frameFit, LOOP, MOON, moonOffset, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type PlanetName } from './common';
 import { skyOf } from './sky';
+import { orbitTrail } from './trails';
 import { SOLAR } from './palettes';
 
 const PAL = SOLAR.bauhaus;
@@ -51,6 +52,8 @@ export const bauhausScene: Scene = {
       c.fill(disc(C[0], C[1], SUN_R + 30));
       c.fillStyle = RED;
       c.fill(disc(C[0], C[1], SUN_R));
+      // a viewer's trails: flat bands of each planet's colour
+      for (const p of PLANETS) orbitTrail(c, p, sky, { color: p.name === 'mercury' ? BLACK : COLOR[p.name], width: Math.max(3, p.r * 0.75), tail: 0.2, cap: 'butt' });
       for (const p of PLANETS) {
         const [x, y] = planetAt(p, sky), toSun = sunward([x, y]);
         if (p.name === 'saturn') {

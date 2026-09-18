@@ -12,7 +12,7 @@ import { rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { cached, ground, knockOut, scratch, still, toothMask } from '../gallery/common';
 import { annulus, BOX, C, cyclePhase, disc, enter, frameFit, LOOP, MOON, moonOffset, once, PLANETS, planetAngle, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type Planet, type PlanetName } from './common';
-import { skyOf, type Sky } from './sky';
+import { skyOf, trailSweep, type Sky } from './sky';
 import { SOLAR } from './palettes';
 
 const PAL = SOLAR.pastel;
@@ -146,11 +146,13 @@ function planet(c: CanvasRenderingContext2D, p: Planet, sky: Sky): void {
 
 /** A smudge of the planet's colour dragged back along its path, fading. */
 function trail(c: CanvasRenderingContext2D, p: Planet, sky: Sky): void {
-  const a = planetAngle(p, sky), span = 170 / p.a, col = COLOR[p.name], steps = 14;
+  const a = planetAngle(p, sky), { sweep: span, alpha } = trailSweep(sky, p.k, 170 / p.a), col = COLOR[p.name];
+  if (span <= 0 || alpha <= 0) return;
+  const steps = sky.trails ? Math.min(72, Math.max(14, Math.round((14 * span * p.a) / 170))) : 14;
   c.lineCap = 'round';
   for (let j = 0; j < steps; j++) {
     const u0 = j / steps, u1 = (j + 1.4) / steps;
-    c.strokeStyle = rgba(col, 0.42 * (1 - u0) ** 1.6);
+    c.strokeStyle = rgba(col, 0.42 * (1 - u0) ** 1.6 * alpha);
     c.lineWidth = p.r * 1.3 * (1 - u0 * 0.7);
     c.beginPath();
     c.arc(C[0], C[1], p.a, a + u0 * span, a + u1 * span);

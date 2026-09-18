@@ -15,6 +15,7 @@ import type { Scene, SceneFrame } from '../../core/scene';
 import { composite, ground, knockOut, polyPath, scratch, still, toothMask } from '../gallery/common';
 import { BOX, C, cyclePhase, dayHalf, disc, drawnFrame, enter, frameFit, LOOP, MOON, moonOffset, once, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type Planet } from './common';
 import { skyOf, type Sky } from './sky';
+import { orbitTrail } from './trails';
 import { SOLAR } from './palettes';
 
 const PAL = SOLAR.deco;
@@ -243,6 +244,8 @@ export const decoScene: Scene = {
         }
         c.fill();
       }
+      // a viewer's trails: a gold rule back along each orbit
+      if (n >= F.orbits + 8 * F.every + F.sweep) for (const p of PLANETS) orbitTrail(c, p, sky, { color: GOLD, width: 2.2, tail: 0.3 });
       PLANETS.forEach((p, k) => {
         const on = clamp((n - F.orbits - k * F.every - F.sweep) / 3, 0, 1);
         if (on <= 0) return;

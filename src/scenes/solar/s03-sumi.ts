@@ -13,6 +13,7 @@ import { drawStroke, prepareStroke, withPressure, type PreparedStroke, type Stro
 import { ground, ink, polyPath, still, wash } from '../gallery/common';
 import { brushChar, C, drawnFrame, enter, frameFit, LOOP, MOON, moonOffset, once, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Planet } from './common';
 import { skyOf, type Sky } from './sky';
+import { orbitTrail } from './trails';
 import { SOLAR } from './palettes';
 
 const PAL = SOLAR.sumi;
@@ -151,6 +152,8 @@ export const sumiScene: Scene = {
         c.fill();
         c.restore();
       }
+      // a viewer's trails: a thin wash of ink dragged back along each orbit
+      for (const p of PLANETS) orbitTrail(c, p, sky, { color: SOOT, width: Math.max(3, p.r * 0.7), alpha: 0.5, tail: 0.15 });
       PLANETS.forEach((p, k) => {
         const dab = clamp((n - orbitDone(k)) / 3, 0, 1);
         if (dab > 0) drawPlanet(c, L, p, k, sky, dab);

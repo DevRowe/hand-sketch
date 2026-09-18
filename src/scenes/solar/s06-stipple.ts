@@ -12,7 +12,7 @@ import { rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { ground, stipple, still } from '../gallery/common';
 import { BOX, C, enter, frameFit, LOOP, MOON, moonOffset, once, PLANETS, planetAngle, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type Planet, type PlanetName } from './common';
-import { skyOf, type Sky } from './sky';
+import { skyOf, trailSweep, type Sky } from './sky';
 import { SOLAR } from './palettes';
 
 const PAL = SOLAR.stipple;
@@ -155,11 +155,16 @@ export const stippleScene: Scene = {
     ctx.fillStyle = ROSE;
     ctx.beginPath();
     for (const p of PLANETS) {
-      const a = planetAngle(p, sky), span = 140 / p.a;
-      for (const w of wakeDots()) {
-        if (w.keep > 0.85 * (1 - w.s) ** 1.3) continue;
-        const b = a + w.s * span, rr = p.a + w.w * p.r * (1 - w.s * 0.5);
-        dot(ctx, C[0] + Math.cos(b) * rr, C[1] + Math.sin(b) * rr, w.size);
+      const a = planetAngle(p, sky), { sweep: span, alpha } = trailSweep(sky, p.k, 140 / p.a);
+      // a longer trail repeats the pattern along it, so its dots keep their density
+      const reps = sky.trails ? Math.max(1, Math.round((span * p.a) / 140)) : 1;
+      for (let r = 0; r < reps; r++) {
+        for (const w of wakeDots()) {
+          const s = (r + w.s) / reps;
+          if (w.keep > 0.85 * (1 - s) ** 1.3 * alpha) continue;
+          const b = a + s * span, rr = p.a + w.w * p.r * (1 - s * 0.5);
+          dot(ctx, C[0] + Math.cos(b) * rr, C[1] + Math.sin(b) * rr, w.size);
+        }
       }
     }
     ctx.fill();

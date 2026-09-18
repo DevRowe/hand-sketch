@@ -14,6 +14,7 @@ import { drawStroke, prepareStroke, type PreparedStroke, type StrokeStyle } from
 import { circle, composite, ground, ink, knockOut, polyPath, still, toothMask } from '../gallery/common';
 import { annulus, brushChar, C, dayHalf, disc, enter, frameFit, LOOP, MOON, moonOffset, once, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type PlanetName } from './common';
 import { skyOf } from './sky';
+import { orbitTrail } from './trails';
 import { SOLAR } from './palettes';
 
 const PAL = SOLAR.woodblock;
@@ -140,6 +141,8 @@ export const woodblockScene: Scene = {
       c.restore();
       c.fillStyle = VERMILION;
       c.fill(disc(C[0], C[1], SUN_R));
+      // a viewer's trails: bands of each planet's colour, carved back along its orbit
+      for (const p of PLANETS) orbitTrail(c, p, sky, { color: COLOR[p.name], width: Math.max(4, p.r * 0.9), tail: 0.35, cap: 'butt' });
       for (const p of PLANETS) {
         const [x, y] = planetAt(p, sky), toSun = sunward([x, y]);
         c.save();

@@ -17,6 +17,11 @@ export interface Format {
   ar: string;
   /** Output width in pixels; defaults to the logical width. */
   width?: number;
+  /**
+   * Output height in pixels, with `width`: pins the output to exactly that size (a live canvas matching its device
+   * pixels). Renders leave it out, and both sides are rounded even for libx264.
+   */
+  height?: number;
 }
 
 export interface FrameSize {
@@ -37,10 +42,15 @@ export function parseAspect(ar: string): number {
   return a / b;
 }
 
-export function frameSize({ ar, width }: Format): FrameSize {
+export function frameSize({ ar, width, height }: Format): FrameSize {
   const r = parseAspect(ar);
   const w = r >= 1 ? Math.round(SHORT_SIDE * r) : SHORT_SIDE;
   const h = r >= 1 ? SHORT_SIDE : Math.round(SHORT_SIDE / r);
+  if (width && height) {
+    // exact pixels: scale by the short side, which the logical frame holds at exactly SHORT_SIDE
+    if (!(Number.isInteger(width) && Number.isInteger(height) && width > 0 && height > 0)) throw new Error(`bad output size ${width}x${height}`);
+    return { w, h, scale: r >= 1 ? height / h : width / w, outW: width, outH: height };
+  }
   // libx264 needs even dimensions: round the output height to even, then derive the scale from it.
   let scale = width ? width / w : 1;
   const outH = 2 * Math.round((h * scale) / 2);

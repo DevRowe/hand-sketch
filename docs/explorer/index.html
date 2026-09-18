@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0d0f15">
+  <title>Solar System Explorer · One Sun, Ten Hands</title>
+  <meta name="description" content="The solar system hand-sketched live in your browser, in ten visual styles, at the real positions for any date. Speed time up or run it backwards, trail the planets' wakes, zoom in, tap any world for the facts, and jump to launch windows, great conjunctions and the Voyager grand tour.">
+  <meta property="og:title" content="Solar System Explorer">
+  <meta property="og:description" content="The solar system hand-sketched live, at the real positions for any date, in ten visual styles.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="../solar/media/s07-solar-pastel-poster.jpg">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='6' fill='%23e8a33d'/%3E%3Ccircle cx='16' cy='16' r='12.5' fill='none' stroke='%23efe6d4' stroke-width='1.5'/%3E%3Ccircle cx='28.5' cy='16' r='2.5' fill='%23efe6d4'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,300&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="./assets/index-BGDDVzvJ.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-kHwsgV1r.css">
+</head>
+<body>
+  <canvas id="sky" role="img" aria-label="The solar system, drawn live"></canvas>
+  <div class="labels" id="labels" aria-hidden="true"></div>
+
+  <header class="top chrome" id="top">
+    <a class="brand" href="../" title="Back to One Sun, Ten Hands">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="6" fill="#e8a33d"/><circle cx="16" cy="16" r="12.5" fill="none" stroke="currentColor" stroke-width="1.5"/><circle cx="28.5" cy="16" r="2.5" fill="currentColor"/></svg>
+      <span class="brand-text"><b>Solar System Explorer</b><small>hand-sketched live · One Sun, Ten Hands</small></span>
+    </a>
+    <div class="views seg" role="radiogroup" aria-label="View">
+      <button type="button" role="radio" data-view="sky" aria-checked="true"><span>From above</span><small>One Sky</small></button>
+      <button type="button" role="radio" data-view="wake" aria-checked="false"><span>In motion</span><small>One Wake</small></button>
+    </div>
+    <nav class="actions" aria-label="Explore">
+      <button type="button" class="btn" id="jump-btn" aria-haspopup="dialog" aria-controls="panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12M13 6l6 6-6 6"/></svg><span>Jump to</span></button>
+      <button type="button" class="btn" id="guide-btn" aria-haspopup="dialog" aria-controls="panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5C6.5 4 9.5 4 12 5.5 14.5 4 17.5 4 20 5.5V19c-2.5-1.5-5.5-1.5-8 0-2.5-1.5-5.5-1.5-8 0z"/><path d="M12 5.5V19"/></svg><span>Guide</span></button>
+      <button type="button" class="btn icon" id="hide-btn" aria-pressed="false" title="Hide the controls (H)" aria-label="Hide the controls"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+      <button type="button" class="btn icon" id="fs-btn" title="Full screen (F)" aria-label="Full screen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    </nav>
+  </header>
+
+  <nav class="rail chrome" id="rail" aria-label="Styles">
+    <div class="styles" id="styles" role="radiogroup" aria-label="Style"></div>
+  </nav>
+
+  <section class="dock chrome" id="dock" aria-label="Time, speed and trails">
+    <div class="row time-row">
+      <button type="button" class="round primary" id="play" aria-label="Pause" title="Play or pause (Space)">
+        <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
+        <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>
+      </button>
+      <div class="when">
+        <label class="date-pick" title="Go to a date">
+          <span class="sr">Date</span>
+          <output id="date-out" aria-live="off">…</output>
+          <input type="date" id="date-in" min="1000-01-01" max="2999-12-31">
+        </label>
+        <div class="when-actions">
+          <button type="button" class="link" id="today-btn" title="Back to today (T)">Today</button>
+          <button type="button" class="link" id="reset-btn" title="Reset time, speed and view (Home)">Reset</button>
+        </div>
+      </div>
+      <div class="pace">
+        <div class="pace-line">
+          <button type="button" class="round small" id="reverse" aria-pressed="false" title="Run time backwards (R)" aria-label="Run time backwards"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6l-6 6 6 6M19 6l-6 6 6 6"/></svg></button>
+          <input type="range" id="pace" min="0" max="1000" step="1" aria-label="Speed" title="Speed (arrow keys)">
+          <output id="pace-out" class="pace-out">…</output>
+        </div>
+        <div class="chips" id="pace-chips" role="group" aria-label="Speed presets"></div>
+      </div>
+    </div>
+    <div class="row style-row" id="style-slot"></div>
+    <div class="row extra-row" id="extras">
+      <div class="group trails" role="group" aria-labelledby="trails-label">
+        <button type="button" class="toggle" id="trails-btn" aria-pressed="true" title="Trails on or off (W)"><span class="dot" aria-hidden="true"></span><span id="trails-label">Trails</span></button>
+        <label class="mini"><span>Length</span><input type="range" id="span" min="0" max="1000" step="1" aria-label="Trail length"><output id="span-out">…</output></label>
+        <label class="mini"><span>Opacity</span><input type="range" id="opacity" min="0" max="100" step="1" aria-label="Trail opacity"><output id="opacity-out">…</output></label>
+      </div>
+      <div class="group zoom" role="group" aria-label="Zoom">
+        <button type="button" class="round small" id="zoom-out" aria-label="Zoom out" title="Zoom out (-)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+        <input type="range" id="zoom" min="0" max="1000" step="1" aria-label="Zoom">
+        <button type="button" class="round small" id="zoom-in" aria-label="Zoom in" title="Zoom in (+)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg></button>
+        <button type="button" class="link" id="view-reset" title="Reset the view (Z)">Reset view</button>
+      </div>
+      <button type="button" class="toggle" id="labels-btn" aria-pressed="true" title="Names on or off (L)"><span class="dot" aria-hidden="true"></span>Names</button>
+    </div>
+    <button type="button" class="more" id="more-btn" aria-expanded="false" aria-controls="extras">More controls</button>
+  </section>
+
+  <aside class="panel" id="panel" role="dialog" aria-modal="false" aria-labelledby="panel-title" hidden>
+    <div class="panel-head">
+      <div class="panel-titles">
+        <p class="eyebrow" id="panel-eyebrow"></p>
+        <h2 id="panel-title"></h2>
+      </div>
+      <button type="button" class="btn icon close" id="panel-close" aria-label="Close" title="Close (Esc)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+    </div>
+    <div class="panel-body" id="panel-body"></div>
+  </aside>
+
+  <button type="button" class="btn icon show-ui" id="show-btn" aria-label="Show the controls" title="Show the controls (H)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <noscript><p class="noscript">The explorer draws the solar system live with JavaScript. <a href="../">Watch the recorded pieces instead.</a></p></noscript>
+</body>
+</html>

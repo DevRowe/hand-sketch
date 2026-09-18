@@ -13,6 +13,7 @@ import type { Scene, SceneFrame } from '../../core/scene';
 import { circle, composite, ground, polyPath, scissor, still, toothMask } from '../gallery/common';
 import { BOX, C, enter, frameFit, LOOP, MOON, moonOffset, once, orbitAngle, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, URANUS_RING, type Frame, type PlanetName } from './common';
 import { skyOf } from './sky';
+import { orbitTrail } from './trails';
 import { SOLAR } from './palettes';
 
 const PAL = SOLAR.cutPaper;
@@ -121,6 +122,12 @@ export const cutPaperScene: Scene = {
     lifted(ctx, k, 2);
     ctx.fillStyle = SUN_PALE;
     ctx.fill(polyPath(L.sunHeart));
+    ctx.restore();
+
+    // a viewer's trails: strips of each planet's paper, lifted with their shadow
+    ctx.save();
+    lifted(ctx, k, 1.2);
+    for (const p of PLANETS) orbitTrail(ctx, p, sky, { color: COLOR[p.name], width: Math.max(3, p.r * 0.8), tail: 0.3, cap: 'butt' });
     ctx.restore();
 
     // planets: discs lifted off the stack, pieces pasted on top

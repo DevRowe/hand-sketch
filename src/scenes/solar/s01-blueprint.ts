@@ -15,7 +15,7 @@ import { drawStroke, drawStrokeRange, prepareStroke, type PreparedStroke, type S
 import { circle, ground, group, polyPath, sec, still } from '../gallery/common';
 import { SOLAR } from './palettes';
 import { BELT, C, disc, drawnFrame, enter, frameFit, LOOP, MOON, moonOffset, once, PLANETS, planetAngle, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Planet } from './common';
-import { skyOf, type Sky } from './sky';
+import { skyOf, trailSweep, type Sky } from './sky';
 
 const PAL = SOLAR.blueprint;
 const CHALK = PAL.ink, DIM = PAL.accents[1]!, PENCIL = PAL.accents[0]!, BLUE = PAL.paper;
@@ -215,10 +215,12 @@ export const blueprintScene: Scene = {
       drawStroke(ctx, orbit, prog);
       const on = clamp((n - orbitDone(k)) / 6, 0, 1);
       if (on <= 0) return;
-      const head = (((planetAngle(p, sky) - SWING[k]!) / TAU) % 1 + 1) % 1, trail = Math.min(0.22, TRAIL / (TAU * p.a));
+      const { sweep, alpha } = trailSweep(sky, k, Math.min(0.22, TRAIL / (TAU * p.a)) * TAU);
+      if (sweep <= 0 || alpha <= 0) return;
+      const head = (((planetAngle(p, sky) - SWING[k]!) / TAU) % 1 + 1) % 1, trail = sky.trails ? sweep / TAU : Math.min(0.22, TRAIL / (TAU * p.a));
       for (let j = 0; j < 4; j++) {
         ctx.save();
-        ctx.globalAlpha *= on * (0.95 - j * 0.22);
+        ctx.globalAlpha *= on * (0.95 - j * 0.22) * alpha;
         drawStrokeRange(ctx, { ...orbit, style: { ...orbit.style, color: PENCIL, size: 4 - j * 0.7, alpha: 1 } }, head + (trail * j) / 4, head + (trail * (j + 1)) / 4, { taperStart: 2, taperEnd: 2 });
         ctx.restore();
       }

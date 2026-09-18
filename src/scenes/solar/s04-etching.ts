@@ -14,6 +14,7 @@ import type { Scene, SceneFrame } from '../../core/scene';
 import { cached, ground, hatchLines, ink, still } from '../gallery/common';
 import { annulus, BELT, BOX, C, disc, enter, frameFit, LOOP, MOON, moonOffset, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type Planet } from './common';
 import { skyOf, type Sky } from './sky';
+import { orbitTrail } from './trails';
 import { SOLAR } from './palettes';
 
 const PAL = SOLAR.etching;
@@ -343,6 +344,8 @@ export const etchingScene: Scene = {
         c.arc(x, y, s, 0, TAU);
       }
       c.fill();
+      // a viewer's trails: a fine engraved line back along each orbit
+      for (const p of PLANETS) orbitTrail(c, p, sky, { color: WARM, width: 1.6, tail: 0.4 });
       for (const p of PLANETS) planetPlate(c, p, sky);
     }, { offset: [0.8, 0.6] satisfies Vec2 });
   },
