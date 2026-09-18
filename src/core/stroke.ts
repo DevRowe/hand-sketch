@@ -223,50 +223,72 @@ export function strokeOutline(stroke: PreparedStroke, progress: number): Vec2[] 
   return outlineOf(stroke, pts, pressures, drawn, progress >= 1, {});
 }
 
-function fillOutlines(ctx: CanvasRenderingContext2D, stroke: PreparedStroke, outlines: readonly Vec2[][], ranges: readonly [number, number][]): void {
+/** The paths that ink a stroke: its outline, and the dry-brush gaps scraped through it (when it has them). */
+interface Ink {
+  path: Path2D;
+  dry: Path2D | null;
+}
+
+function inkOf(stroke: PreparedStroke, outlines: readonly Vec2[][], ranges: readonly [number, number][]): Ink | null {
   const shapes = outlines.filter(o => o.length >= 3);
-  if (shapes.length === 0) return;
-  const { color, alpha = 1, dryBrush = 0, paper, size } = stroke.style;
+  if (shapes.length === 0) return null;
+  const { dryBrush = 0, paper, size } = stroke.style;
   const path = new Path2D();
   for (const outline of shapes) {
     outline.forEach(([x, y], k) => (k ? path.lineTo(x, y) : path.moveTo(x, y)));
     path.closePath();
   }
+  if (!(dryBrush > 0 && paper)) return { path, dry: null };
+  const dry = new Path2D();
+  for (let j = 0; j < 3; j++) {
+    const lane = (j - 1) * size * 0.28;
+    for (const [a, b] of ranges) {
+      let pen = false;
+      for (let k = 0; k < stroke.points.length && stroke.lengths[k]! <= b; k++) {
+        const s = stroke.lengths[k]!;
+        if (s < a) continue;
+        const gap = noise1(s / 11, stroke.seed + 53 + j * 13) > 0.18 - dryBrush * 0.25;
+        if (!gap) { pen = false; continue; }
+        const [nx, ny] = normalAt(stroke.points, k), p = stroke.points[k]!;
+        const x = p[0] + nx * lane, y = p[1] + ny * lane;
+        if (pen) dry.lineTo(x, y); else { dry.moveTo(x, y); pen = true; }
+      }
+    }
+  }
+  return { path, dry };
+}
+
+function paint(ctx: CanvasRenderingContext2D, stroke: PreparedStroke, ink: Ink | null): void {
+  if (!ink) return;
+  const { color, alpha = 1, dryBrush = 0, paper, size } = stroke.style;
   ctx.save();
   ctx.globalAlpha *= alpha;
   ctx.fillStyle = color;
-  ctx.fill(path);
-  if (dryBrush > 0 && paper) {
-    ctx.clip(path);
+  ctx.fill(ink.path);
+  if (ink.dry && paper) {
+    ctx.clip(ink.path);
     ctx.strokeStyle = paper;
     ctx.lineCap = 'round';
     ctx.lineWidth = Math.max(0.4, size * 0.13);
     ctx.globalAlpha = alpha * clamp(dryBrush, 0, 1) * 0.8;
-    ctx.beginPath();
-    for (let j = 0; j < 3; j++) {
-      const lane = (j - 1) * size * 0.28;
-      for (const [a, b] of ranges) {
-        let pen = false;
-        for (let k = 0; k < stroke.points.length && stroke.lengths[k]! <= b; k++) {
-          const s = stroke.lengths[k]!;
-          if (s < a) continue;
-          const gap = noise1(s / 11, stroke.seed + 53 + j * 13) > 0.18 - dryBrush * 0.25;
-          if (!gap) { pen = false; continue; }
-          const [nx, ny] = normalAt(stroke.points, k), p = stroke.points[k]!;
-          const x = p[0] + nx * lane, y = p[1] + ny * lane;
-          if (pen) ctx.lineTo(x, y); else { ctx.moveTo(x, y); pen = true; }
-        }
-      }
-    }
-    ctx.stroke();
+    ctx.stroke(ink.dry);
   }
   ctx.restore();
 }
 
+/** The paths of strokes drawn whole: they are pure functions of the prepared stroke, and redrawn every frame. */
+const whole = new WeakMap<PreparedStroke, Ink | null>();
+
 /** Draw the stroke revealed up to `progress`. */
 export function drawStroke(ctx: CanvasRenderingContext2D, stroke: PreparedStroke, progress: number): void {
+  if (progress >= 1) {
+    let ink = whole.get(stroke);
+    if (ink === undefined) whole.set(stroke, (ink = inkOf(stroke, [strokeOutline(stroke, 1)], [[0, stroke.length]])));
+    paint(ctx, stroke, ink);
+    return;
+  }
   const drawn = clamp(progress, 0, 1) * stroke.length;
-  fillOutlines(ctx, stroke, [strokeOutline(stroke, progress)], [[0, drawn]]);
+  paint(ctx, stroke, inkOf(stroke, [strokeOutline(stroke, progress)], [[0, drawn]]));
 }
 
 /**
@@ -274,7 +296,8 @@ export function drawStroke(ctx: CanvasRenderingContext2D, stroke: PreparedStroke
  * (`from` and `to` both moving), erase-from-tail (`from` rising to meet `to`), or un-draw (`to` falling).
  */
 export function drawStrokeRange(ctx: CanvasRenderingContext2D, stroke: PreparedStroke, from: number, to: number, o: RangeOptions = {}): void {
-  fillOutlines(ctx, stroke, strokeRangeOutlines(stroke, from, to, o), spans(stroke, from, to));
+  const ranges = spans(stroke, from, to);
+  paint(ctx, stroke, inkOf(stroke, strokeRangeOutlines(stroke, from, to, o), ranges));
 }
 
 export interface StrokeSample {
