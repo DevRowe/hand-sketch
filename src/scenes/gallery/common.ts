@@ -14,7 +14,7 @@
  * - clocks: most pieces start whole and are all loop (`loopFrom` 0), so `phase` is their clock; periodic helpers
  *   (`wave`, `swell`, `wrap`) keep every motion a whole number of cycles per loop.
  */
-import { drawPaper } from '../../art/paper';
+import { paperSteps } from '../../art/paper';
 import { parseColor } from '../../art/color';
 import { arcLengths, pointAtLength, resample } from '../../core/geometry';
 import { clamp, TAU, type Vec2 } from '../../core/math';
@@ -117,8 +117,8 @@ export interface GroundOptions {
 export function ground(f: SceneFrame, color: string, o: GroundOptions = {}): void {
   const { seed = 17, texture = 1, vignette = 0, vignetteColor = '#000000' } = o, { stage } = f;
   // page-locked, like the paper it is made of: a moving view camera only maps it
-  const layer = stage.pageLayer(`gallery-ground:${color}:${seed}:${texture}:${vignette}:${vignetteColor}`, ctx => {
-    drawPaper(ctx, stage, { color, seed, texture });
+  const layer = stage.pageLayer(`gallery-ground:${color}:${seed}:${texture}:${vignette}:${vignetteColor}`, function* (ctx, region) {
+    yield* paperSteps(stage, ctx, region, { color, seed, texture });
     if (vignette > 0) {
       const [r, gr, b] = parseColor(vignetteColor), R = Math.hypot(stage.w, stage.h) / 2;
       const grad = ctx.createRadialGradient(stage.cx, stage.cy, R * 0.3, stage.cx, stage.cy, R);
@@ -147,12 +147,19 @@ export interface ToothOptions {
   color?: string;
 }
 
+/** Marks drawn between yields while a sharp copy of a texture is built a slice at a time. */
+const SLICE = 600;
+
 /** A cached texture mask (opaque marks on transparent), full frame, page-locked: a page layer, kept whatever the view. */
 export function toothMask(f: SceneFrame, o: ToothOptions): HTMLCanvasElement {
   const { seed, density = 30, size = 2, kind = 'speck', angle = 0, length = 20, color = '#000' } = o;
   const { stage } = f, id = `gallery-tooth:${seed}:${density}:${size}:${kind}:${angle}:${length}:${color}`;
-  return stage.pageLayer(id, g => {
+  return stage.pageLayer(id, function* (g, region) {
     const r = rng(seed), W = stage.w, H = stage.h;
+    // a mark reaching no further than `e` from (x, y) is skipped when it misses the region (every mark still draws
+    // its random numbers, so the rest land where they always do)
+    const out = (x: number, y: number, e: number): boolean => region !== null && (x + e < region[0] || x - e > region[2] || y + e < region[1] || y - e > region[3]);
+    let drawn = 0;
     g.fillStyle = color;
     g.strokeStyle = color;
     g.lineCap = 'round';
@@ -161,8 +168,14 @@ export function toothMask(f: SceneFrame, o: ToothOptions): HTMLCanvasElement {
       g.beginPath();
       for (let i = 0; i < n; i++) {
         const x = r() * W, y = r() * H, s = size * (0.3 + r()), ry = s * (0.5 + r() * 0.5), a = r() * TAU;
+        if (out(x, y, s)) continue;
         g.moveTo(x + s * Math.cos(a), y + s * Math.sin(a));
         g.ellipse(x, y, s, ry, a, 0, TAU);
+        if (region && ++drawn % SLICE === 0) {
+          g.fill();
+          yield;
+          g.beginPath();
+        }
       }
       g.fill();
     } else if (kind === 'streak') {
@@ -171,8 +184,14 @@ export function toothMask(f: SceneFrame, o: ToothOptions): HTMLCanvasElement {
       g.beginPath();
       for (let i = 0; i < n; i++) {
         const x = r() * W, y = r() * H, L = length * (0.3 + r()), j = (r() - 0.5) * 0.3;
+        if (out(x, y, L * 1.1 + size)) continue;
         g.moveTo(x, y);
         g.lineTo(x + (ca - sa * j) * L, y + (sa + ca * j) * L);
+        if (region && ++drawn % SLICE === 0) {
+          g.stroke();
+          yield;
+          g.beginPath();
+        }
       }
       g.stroke();
     } else {
@@ -180,6 +199,7 @@ export function toothMask(f: SceneFrame, o: ToothOptions): HTMLCanvasElement {
       g.lineWidth = size;
       for (let i = 0; i < n; i++) {
         const y0 = r() * H, x0 = r() * W - 200, L = length * (0.5 + r()), a = 0.2 + r() * 0.8;
+        if (region && (x0 > region[2] || x0 + L < region[0] || y0 + 30 < region[1] || y0 - 30 > region[3])) continue;
         g.globalAlpha = a;
         g.beginPath();
         for (let s = 0; s <= L; s += 12) {
@@ -187,6 +207,7 @@ export function toothMask(f: SceneFrame, o: ToothOptions): HTMLCanvasElement {
           if (s === 0) g.moveTo(x, y); else g.lineTo(x, y);
         }
         g.stroke();
+        if (region && ++drawn % 40 === 0) yield;
       }
       g.globalAlpha = 1;
     }

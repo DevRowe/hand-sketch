@@ -3,8 +3,9 @@
  * makes (view, style, selection, names, trail lengths) and the animation loop that draws.
  *
  * Drawing follows the hand-drawn cadence: twelve drawings a second ("on twos") at gentle paces, rising to thirty as
- * the pace quickens so a fast planet still moves in readable steps. While paused it draws only when
- * something changes (a control, the camera, the trails easing), so an idle page costs nothing.
+ * the pace quickens so a fast planet still moves in readable steps. Camera moves and controls draw at no more than
+ * `HAND_FPS`, and while paused it draws only when something changes (a control, the camera, the trails easing), so an
+ * idle page costs nothing. Animation frames that draw nothing sharpen the zoomed paper textures a slice at a time.
  */
 import { toFrames } from '../core/scene';
 import type { View } from '../core/stage';
@@ -33,6 +34,10 @@ const MERCURY_DAYS = 87.97;
 const STEP_DEG = 8;
 /** The cadence tops out at film rate: past it a faster planet only blurs, and resolution and battery matter more. */
 const MAX_FPS = 30;
+/** Most drawings a second for camera moves, drags and controls (the eye wants them quicker than twelve). */
+const HAND_FPS = 30;
+/** Milliseconds an animation frame that draws nothing may spend sharpening zoomed textures. */
+const REFINE_MS = 6;
 
 /** Something drawn over the scene in design units (a transfer orbit, sight lines). */
 export type Overlay = (ctx: CanvasRenderingContext2D, app: App) => void;
@@ -75,6 +80,8 @@ export class App {
   private intro: number;
   private dirty = true;
   private lastDraw = -1e9;
+  /** The interval the last drawing was meant to keep (for the resolution governor). */
+  private drawInterval = 1000 / 12;
   private last = 0;
   private marks: Marks | null = null;
   private readonly labelEls = new Map<BodyId, HTMLElement>();
@@ -86,6 +93,7 @@ export class App {
     this.view = o.view;
     this.style = o.style;
     this.renderer = new Renderer(o.canvas);
+    this.renderer.setHeavy(o.style.heavy);
     const { w, h } = this.renderer.logical;
     this.camera = new Camera(w, h);
     this.intro = o.skipIntro ? DONE : 0;
@@ -132,6 +140,7 @@ export class App {
   setStyle(style: Style): void {
     if (style === this.style) return;
     this.style = style;
+    this.renderer.setHeavy(style.heavy);
     this.changed();
   }
 
@@ -287,9 +296,9 @@ export class App {
     this.dirty = true;
   }
 
-  /** Milliseconds between drawings at the current pace. */
+  /** Milliseconds between drawings at the current pace (paused, between drawings for a control or the camera). */
   get interval(): number {
-    if (!this.sim.playing) return 1000 / 60;
+    if (!this.sim.playing) return 1000 / HAND_FPS;
     const degPerSecond = (this.sim.pace * 360) / MERCURY_DAYS;
     return 1000 / clamp(degPerSecond / STEP_DEG, 12, MAX_FPS);
   }
@@ -299,9 +308,11 @@ export class App {
   }
 
   private readonly frame = (now: number): void => {
+    // ask for the next frame first: nothing thrown below can stop the loop
+    requestAnimationFrame(this.frame);
     const dt = this.last ? Math.min(0.25, (now - this.last) / 1000) : 0;
     this.last = now;
-    if (this.renderer.settle(now, this.interval, dt)) this.dirty = true;
+    if (this.renderer.settle(now, this.drawInterval, dt)) this.dirty = true;
     if (this.sim.advance(dt)) this.onChange();
     if (this.stopAt !== null && this.sim.playing && this.sim.direction === 1 && this.sim.day >= this.stopAt) {
       this.sim.day = this.stopAt;
@@ -314,13 +325,14 @@ export class App {
     const rest = toFrames(this.scene.loopFrom ?? 0, 12), drawingOn = this.intro < rest;
     if (drawingOn) this.intro = Math.min(rest, this.intro + 12 * dt);
     else this.intro = DONE;
-    const due = this.sim.playing && now - this.lastDraw >= this.interval - 3;
-    if (this.dirty || due || settling || moving || drawingOn) {
+    // the sky keeps the pace's cadence; a control or the camera may draw sooner, but never above HAND_FPS
+    const interval = this.dirty || moving ? Math.min(this.interval, 1000 / HAND_FPS) : this.interval;
+    if ((this.dirty || this.sim.playing || settling || moving || drawingOn) && now - this.lastDraw >= interval - 3) {
+      this.drawInterval = interval;
       this.draw();
       this.lastDraw = now;
       this.dirty = false;
-    }
-    requestAnimationFrame(this.frame);
+    } else if (!moving && this.renderer.refine(REFINE_MS)) this.dirty = true;
   };
 
   private draw(): void {

@@ -12,10 +12,16 @@
  * Layers come in two kinds. A view layer (`layer`) holds pixels drawn through the view, so a view change wipes it. A
  * page layer (`pageLayer`) holds a page-locked texture (paper, tooth) drawn once over the whole page at the base scale,
  * whatever the view, and `lay` maps it through the view: moving the camera never re-rasterises it. With the view at
- * home (always, in renders) laying either kind is the same plain full-frame draw.
+ * home (always, in renders) laying either kind is the same plain full-frame draw. Zoomed in, a mapped texture is
+ * magnified and soft, so `refine` (called by the live explorer on idle animation frames) redraws the page layers in
+ * use exactly for the view, a slice at a time over a margin round the screen, and `lay` uses that sharp copy while the
+ * zoom holds and the view stays inside its margin.
  */
 
 export const SHORT_SIDE = 1080;
+
+/** Zoom from which `refine` draws sharp copies of page layers. */
+const SHARPEN_FROM = 1.25;
 
 export interface Format {
   /** Aspect ratio as "16:9", "1:1", "9:16". */
@@ -66,6 +72,39 @@ export function frameSize({ ar, width, height }: Format): FrameSize {
 
 export type Ctx = CanvasRenderingContext2D;
 
+/** A logical rectangle [x0, y0, x1, y1]. */
+export type Region = readonly [number, number, number, number];
+
+/**
+ * Draws a page layer into `g`, already set to logical units. With `region` null it draws the whole page in one go (a
+ * generator runs to its end). Given a region it draws what shows in it (marks wholly outside may be skipped) and may
+ * `yield` between slices of work, laying down what it has so far: a sharp copy is built a slice at a time.
+ */
+export type PageBuild = (g: Ctx, region: Region | null) => Iterator<void> | void;
+
+interface Sharp {
+  canvas: HTMLCanvasElement;
+  /** The view it is drawn for, and the margin (output pixels) it covers round the screen. */
+  view: View;
+  margin: number;
+  /** The unfinished build, stepped by `refine`; null once done. */
+  steps: Iterator<void> | null;
+}
+
+interface Page {
+  canvas: HTMLCanvasElement;
+  build: PageBuild;
+  sharp: Sharp | null;
+  /** When it was last laid through a magnified view (performance.now()). */
+  laidAt: number;
+}
+
+/** Run a page build to its end. */
+function runBuild(build: PageBuild, g: Ctx, region: Region | null): void {
+  const it = build(g, region);
+  if (it) while (!it.next().done);
+}
+
 /**
  * A view camera over the logical frame: magnified `zoom` times (1 shows the whole frame) about the logical point
  * (`x`, `y`), which lands on the centre of the output.
@@ -87,8 +126,10 @@ export class Stage implements FrameSize {
   /** Bumped by every view change: a layer drawn under an older view is wiped before it is handed out again. */
   private generation = 0;
   private readonly layers = new Map<string, { canvas: HTMLCanvasElement; generation: number }>();
-  private readonly pages = new Map<string, HTMLCanvasElement>();
-  private readonly pageSet = new WeakSet<HTMLCanvasElement>();
+  private readonly pages = new Map<string, Page>();
+  private readonly pageOf = new WeakMap<HTMLCanvasElement, Page>();
+  /** When the zoom last changed (performance.now()): sharp copies wait for it to hold. */
+  private zoomedAt = -1e9;
   /** Counts canvases created and page layers drawn: a frame that moved it paid for building caches. */
   builds = 0;
 
@@ -119,6 +160,7 @@ export class Stage implements FrameSize {
     if (!(v.zoom > 0 && Number.isFinite(v.zoom) && Number.isFinite(v.x) && Number.isFinite(v.y))) throw new Error(`bad view ${JSON.stringify(v)}`);
     const c = this.camera;
     if (v.zoom === c.zoom && v.x === c.x && v.y === c.y) return;
+    if (v.zoom !== c.zoom) this.zoomedAt = performance.now();
     this.camera = { zoom: v.zoom, x: v.x, y: v.y };
     this.generation++;
   }
@@ -160,29 +202,78 @@ export class Stage implements FrameSize {
 
   /**
    * A page layer: `build` draws it once, in logical units over the whole page as the home view shows it, and it is
-   * kept whatever the view does. Lay it with `lay` (or `blit`), which maps it through the view. `build` must only
-   * draw page-locked marks and use page layers, never view layers, since it runs under the home view.
+   * kept whatever the view does. Lay it with `lay` (or `blit`), which maps it through the view. `build` must only draw
+   * page-locked marks and never lay other layers, since it also runs into sharp copies under a shifted transform.
    */
-  pageLayer(key: string, build: (g: Ctx) => void): HTMLCanvasElement {
+  pageLayer(key: string, build: PageBuild): HTMLCanvasElement {
     const id = `${key}@${this.outW}x${this.outH}`;
-    let canvas = this.pages.get(id);
-    if (canvas) return canvas;
-    canvas = document.createElement('canvas');
+    const found = this.pages.get(id);
+    if (found) return found.canvas;
+    const canvas = document.createElement('canvas');
     canvas.width = this.outW;
     canvas.height = this.outH;
-    this.pages.set(id, canvas);
-    this.pageSet.add(canvas);
+    const page: Page = { canvas, build, sharp: null, laidAt: -1e9 };
+    this.pages.set(id, page);
+    this.pageOf.set(canvas, page);
     this.builds++;
-    const camera = this.camera;
-    this.camera = { zoom: 1, x: this.w / 2, y: this.h / 2 };
-    try {
-      const g = this.context(canvas);
-      this.reset(g);
-      build(g);
-    } finally {
-      this.camera = camera;
-    }
+    const g = this.context(canvas), k = this.base;
+    g.setTransform(k, 0, 0, k, 0, 0);
+    runBuild(build, g, null);
     return canvas;
+  }
+
+  /** Whether a sharp copy (finished or not) is drawn for the current zoom and covers the current view. */
+  private covers(sh: Sharp): boolean {
+    const v = this.camera, k = this.base * v.zoom;
+    return sh.view.zoom === v.zoom && Math.abs((sh.view.x - v.x) * k) <= sh.margin && Math.abs((sh.view.y - v.y) * k) <= sh.margin;
+  }
+
+  /** A page layer's sharp copy, when it is finished and covers the current view; null otherwise. */
+  private sharpFor(page: Page): Sharp | null {
+    const sh = page.sharp;
+    return sh && !sh.steps && this.covers(sh) ? sh : null;
+  }
+
+  /**
+   * Work towards sharp copies of the page layers laid through the view lately, for `ms` milliseconds at most, once the
+   * zoom has held for a moment. Returns true when a copy was finished (the frame is worth drawing again). Barely
+   * magnified, it frees the copies.
+   */
+  refine(ms: number): boolean {
+    const now = performance.now();
+    if (now - this.zoomedAt < 250) return false;
+    const used = [...this.pages.values()].filter(p => now - p.laidAt < 1000);
+    // barely magnified, the mapped layer is as good (and zoomed out it is only ever reduced)
+    if (this.camera.zoom < SHARPEN_FROM) {
+      for (const p of this.pages.values()) p.sharp = null;
+      return false;
+    }
+    const end = now + ms, v = this.camera;
+    let finished = false;
+    for (const page of used) {
+      if (this.sharpFor(page)) continue;
+      let sh = page.sharp;
+      if (!sh || !this.covers(sh)) {
+        // start over for the view as it is now, with a margin so a slow pan or a follow stays covered for a while
+        const margin = Math.round(0.12 * Math.max(this.outW, this.outH)), k = this.base * v.zoom;
+        const canvas = sh?.canvas ?? document.createElement('canvas');
+        canvas.width = this.outW + 2 * margin;
+        canvas.height = this.outH + 2 * margin;
+        const g = this.context(canvas), ox = this.base * (this.w / 2 - v.zoom * v.x) + margin, oy = this.base * (this.h / 2 - v.zoom * v.y) + margin;
+        g.setTransform(k, 0, 0, k, ox, oy);
+        const region: Region = [-ox / k, -oy / k, (canvas.width - ox) / k, (canvas.height - oy) / k];
+        sh = page.sharp = { canvas, view: { ...v }, margin, steps: page.build(g, region) ?? null };
+        if (!sh.steps) finished = true;
+      }
+      while (sh.steps && performance.now() < end) {
+        if (sh.steps.next().done) {
+          sh.steps = null;
+          finished = true;
+        }
+      }
+      if (performance.now() >= end) break;
+    }
+    return finished;
   }
 
   context(canvas: HTMLCanvasElement): Ctx {
@@ -210,7 +301,15 @@ export class Stage implements FrameSize {
    */
   lay(ctx: Ctx, layer: HTMLCanvasElement, dx = 0, dy = 0): void {
     ctx.save();
-    if (this.pageSet.has(layer) && !this.home) {
+    const page = this.home ? undefined : this.pageOf.get(layer);
+    const sharp = page && this.sharpFor(page);
+    if (page) page.laidAt = performance.now();
+    if (sharp) {
+      // drawn for this zoom: only shifted, by whole pixels so it stays crisp
+      const k = this.base * this.camera.zoom, v = sharp.view;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(sharp.canvas, Math.round((v.x - this.camera.x) * k) - sharp.margin + dx, Math.round((v.y - this.camera.y) * k) - sharp.margin + dy);
+    } else if (page) {
       const { zoom, x, y } = this.camera;
       ctx.setTransform(zoom, 0, 0, zoom, this.base * (this.w / 2 - zoom * x) + dx, this.base * (this.h / 2 - zoom * y) + dy);
       ctx.drawImage(layer, 0, 0, this.outW, this.outH);

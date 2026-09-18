@@ -5,7 +5,13 @@
  * - The backing store matches the canvas's device pixels (up to 2 per CSS pixel), so lines stay crisp at any size.
  * - A governor watches how long frames really take (the gap from starting a draw to the next animation frame, which
  *   includes rasterising) and steps the resolution down while the device cannot keep the pace, back up when it has
- *   room. It remembers the level each scene settled on, since the ten styles differ tenfold in cost.
+ *   room. It remembers the level each scene settled on, since the ten styles differ tenfold in cost; a scene it has
+ *   not seen starts at full resolution. Frames that paid for building caches (a new style, size or level) say nothing
+ *   about the steady cost, so it ignores them.
+ * - Stages are kept per backing size, with their caches: stepping the resolution and back, or returning to a style,
+ *   costs no rebuild.
+ * - The heaviest styles draw to a smaller pixel budget on dense screens and let the browser scale up: hand-drawn marks
+ *   bear it far better than the governor's deeper steps.
  */
 import { DEFAULT_SETTINGS, drawScene, ON_TWOS, toFrames, type Scene } from '../core/scene';
 import { Stage, type View } from '../core/stage';
@@ -16,6 +22,10 @@ import { enter, frameFit, type Frame } from '../scenes/solar/common';
 const LEVELS = [1, 0.84, 0.7, 0.58, 0.48, 0.4];
 /** Most device pixels per CSS pixel worth drawing. */
 const MAX_DPR = 2;
+/** Most backing pixels for the heaviest styles (about a 1440-wide screen at 1.5 device pixels per CSS pixel). */
+const HEAVY_PIXELS = 2.5e6;
+/** Stages (with their caches) kept for recent backing sizes. */
+const KEEP_STAGES = 3;
 /** What lies round the page when it is zoomed out. */
 const DESK = '#0b0d12';
 
@@ -39,17 +49,17 @@ class Governor {
   private failedAt = new Map<number, number>();
   private clock = 0;
 
-  /** Start a scene at the level it last settled on. */
+  /** Start a scene at the level it last settled on, or at full resolution. */
   enter(scene: string): void {
-    this.level = this.remembered.get(scene) ?? this.level;
+    this.level = this.remembered.get(scene) ?? 0;
     this.recent = [];
     this.cooldown = 0.6;
   }
 
   /**
    * A frame meant to last `interval` ms really took `cost` ms (draw start to the next animation frame, rasterising
-   * included), `js` of it in script. Returns true when the level changed, so the stage must be rebuilt. `dt` is the
-   * wall time since the last observation.
+   * included), `js` of it in script. Returns true when the level changed. `dt` is the wall time since the last
+   * observation.
    */
   observe(scene: string, cost: number, js: number, interval: number, dt: number): boolean {
     this.clock += dt;
@@ -77,6 +87,12 @@ class Governor {
 export class Renderer {
   readonly ctx: CanvasRenderingContext2D;
   private stage: Stage | null = null;
+  /** Stages by backing size, most recent last. */
+  private readonly stages = new Map<string, Stage>();
+  /** Backing pixels the current style may use at most. */
+  private budget = Infinity;
+  /** The last draw built caches (its cost is no guide to the steady one). */
+  private built = false;
   private size: Size = { cssW: 1, cssH: 1, devW: 1, devH: 1 };
   private readonly governor = new Governor();
   private drawStart = -1;
@@ -95,14 +111,30 @@ export class Renderer {
     if (s.cssW === size.cssW && s.cssH === size.cssH && s.devW === size.devW && s.devH === size.devH) return;
     this.size = { ...size };
     this.stage = null;
+    // a new shape of screen: the old stages will not come back
+    this.stages.clear();
   }
 
-  /** The stage for the current size and resolution level. */
+  /** Whether the style drawn is one of the heaviest, which draw to a smaller pixel budget. */
+  setHeavy(on: boolean): void {
+    const budget = on ? HEAVY_PIXELS : Infinity;
+    if (budget === this.budget) return;
+    this.budget = budget;
+    this.stage = null;
+  }
+
+  /** The stage for the current size, budget and resolution level. */
   get current(): Stage {
     if (!this.stage) {
-      const { devW, devH, cssW } = this.size, k = Math.min(1, (MAX_DPR * cssW) / devW) * LEVELS[this.governor.level]!;
-      const width = Math.max(2, Math.round(devW * k)), height = Math.max(2, Math.round(devH * k));
-      this.stage = new Stage({ ar: `${devW}:${devH}`, width, height });
+      const { devW, devH, cssW } = this.size;
+      const full = Math.min(1, (MAX_DPR * cssW) / devW, Math.sqrt(this.budget / (devW * devH))), k = full * LEVELS[this.governor.level]!;
+      const width = Math.max(2, Math.round(devW * k)), height = Math.max(2, Math.round(devH * k)), id = `${width}x${height}`;
+      let stage = this.stages.get(id);
+      if (stage) this.stages.delete(id);
+      else stage = new Stage({ ar: `${devW}:${devH}`, width, height });
+      this.stages.set(id, stage);
+      for (const old of this.stages.keys()) if (this.stages.size > KEEP_STAGES) this.stages.delete(old);
+      this.stage = stage;
       this.canvas.width = width;
       this.canvas.height = height;
     }
@@ -156,7 +188,7 @@ export class Renderer {
       this.governor.enter(scene.name);
       if (this.governor.level !== before) this.stage = null;
     }
-    const stage = this.current, ctx = this.ctx;
+    const stage = this.current, ctx = this.ctx, builds = stage.builds;
     this.drawStart = performance.now();
     stage.setView(view);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -185,6 +217,15 @@ export class Renderer {
       ctx.restore();
     }
     this.drawJs = performance.now() - this.drawStart;
+    this.built = stage.builds !== builds;
+  }
+
+  /**
+   * Spend up to `ms` on sharpening the zoomed textures (call on animation frames that draw nothing). True when a sharp
+   * copy is ready and the frame is worth drawing again.
+   */
+  refine(ms: number): boolean {
+    return this.stage?.refine(ms) ?? false;
   }
 
   /**
@@ -195,6 +236,7 @@ export class Renderer {
     if (this.drawStart < 0) return false;
     const cost = now - this.drawStart;
     this.drawStart = -1;
+    if (this.built) return false;
     if (this.governor.observe(this.sceneName, cost, this.drawJs, interval, dt)) {
       this.stage = null;
       return true;
