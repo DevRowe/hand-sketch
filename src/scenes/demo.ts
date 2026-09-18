@@ -1,4 +1,4 @@
-/** The programs: the vertical-slice scene, a two-scene storyboard joined by a drawn transition, the Keystone, poetic and gallery sets. */
+/** The programs: the vertical-slice scene, a two-scene storyboard joined by a drawn transition, the Keystone, poetic and gallery sets, and the Requiem montage. */
 import { PALETTES } from '../art/palette';
 import type { Program, Scene, Sequence } from '../core/scene';
 import { galleryScenes } from './gallery';
@@ -6,6 +6,7 @@ import { houseScene } from './house';
 import { keystoneScenes } from './keystone';
 import { nightScene } from './night';
 import { poeticScenes } from './poetic';
+import { requiemSequence } from './requiem';
 
 export const demoSequence: Sequence = {
   name: 'day-to-night',
@@ -17,10 +18,13 @@ export const demoSequence: Sequence = {
 
 export const scenes: Readonly<Record<string, Scene>> = { house: houseScene, night: nightScene, ...keystoneScenes, ...poeticScenes, ...galleryScenes };
 
-/** Program ids accepted by the preview and the renderer: `sequence`, `scene:<name>` (one pass), `loop:<name>`. */
+export const sequences: Readonly<Record<string, Sequence>> = { requiem: requiemSequence };
+
+/** Program ids accepted by the preview and the renderer: `sequence`, `sequence:<name>`, `scene:<name>` (one pass), `loop:<name>`. */
 export function programById(id: string): Program {
   if (id === 'sequence') return { kind: 'sequence', sequence: demoSequence };
   const [kind, name] = id.split(':');
+  if (kind === 'sequence' && name !== undefined && Object.hasOwn(sequences, name)) return { kind: 'sequence', sequence: sequences[name]! };
   const scene = name !== undefined && Object.hasOwn(scenes, name) ? scenes[name] : undefined;
   if (!scene) throw new Error(`unknown program "${id}"`);
   if (kind === 'loop') return { kind: 'loop', scene };
@@ -30,6 +34,7 @@ export function programById(id: string): Program {
 
 export const PROGRAM_IDS: readonly string[] = [
   'sequence', 'scene:house', 'scene:night', 'loop:house', 'loop:night',
+  ...Object.keys(sequences).map(name => `sequence:${name}`),
   ...Object.keys(keystoneScenes).map(name => `loop:${name}`),
   ...Object.keys(poeticScenes).map(name => `loop:${name}`),
   ...Object.keys(galleryScenes).map(name => `loop:${name}`),

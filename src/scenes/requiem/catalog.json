@@ -1,0 +1,15 @@
+{
+  "title": "Requiem",
+  "line": "The same small rituals, cut faster and faster, until the plate goes black.",
+  "style": "Etching",
+  "ar": "16:9",
+  "width": 1920,
+  "poster": 33.5,
+  "end": 47.72,
+  "filmCuts": [1.84, 2.56, 2.96, 3.16, 3.48, 3.92, 4.4, 4.84, 5.32, 5.76, 5.8, 6.24, 6.68, 8.08, 9.0, 9.88, 10.4, 10.88, 11.4, 11.88, 12.4, 12.88, 12.96, 13.88, 14.32, 14.72, 15.56, 16.0, 16.4, 16.84, 17.24, 17.28, 17.68, 18.08, 18.48, 18.92, 19.36, 19.76, 20.16, 20.96, 21.36, 21.8, 22.2, 23.04, 23.48, 23.88, 24.28, 24.72, 25.12, 25.56, 25.96, 26.4, 26.8, 27.04, 27.64, 28.04, 28.16, 29.72, 30.64, 31.16, 31.64, 32.16, 32.64, 33.16, 33.56, 34.08, 34.56, 35.08, 35.56, 36.48, 36.92, 37.36, 37.76, 38.2, 38.6, 39.04, 39.84, 40.28, 40.68, 41.12, 41.52, 41.76, 42.16, 42.6, 43.0, 44.28, 45.52, 45.64, 45.92, 46.36, 46.76],
+  "addedCuts": [6.76, 7.8, 9.44, 13.4, 14.84, 15.16, 20.6, 22.64, 28.48, 28.88, 36.08, 39.4, 43.84, 44.68],
+  "idea": "An etched homage to the 48-second addiction montage of Requiem for a Dream. Its iconic close-ups (the dilating pupil, the pill on the tongue, the powder racked into a line on a mirror and drawn up a rolled bill, the lighter's flame, the amber pill bottle and the bottle-cap macro, the dissolving cell, the note's engraved portrait, VISUAL POWER, Sara in her red curls and round glasses) are redrawn as original etchings, not traced from the footage, and cut on the film's own rhythm.",
+  "rhythm": "Every cut sits at its film time: the 91 hard cuts detected in the source plus 14 the detector missed (frame-difference peaks inside long segments, each confirmed by eye). Each cut is snapped to the nearest 12 fps drawn frame from its own time, so rounding never drifts; the one flash shorter than a drawn frame drops out. Shots run mostly 0.4 to 0.5 s with one- and two-frame flashes, and the split screens double up in the second half as the rituals repeat.",
+  "etching": "Bone paper, one lamp black and two colours wiped a la poupee, sanguine and Prussian blue. Each shot paints a tone map; five page-locked hatch layers come in one after another as it deepens, hairlines that swell and cross and never swim as the camera pushes in, and aquatint grain and a solid plate black take the deepest darks. Form-following burin curves engrave skin, fingers, metal and the portrait. The needle line and burnished glints go on top, and the plate is printed with paper tooth.",
+  "alt": "Sketch in etching style: a rapid montage of cross-hatched close-ups on bone paper, an eye whose pupil dilates, a pill on a tongue, powder racked into a line and drawn up a rolled bill, a lighter flame, an amber pill bottle and a fluted bottle cap, a dissolving cell, an engraved banknote portrait, a thumb on a VISUAL POWER button and a red-haired woman in round glasses, cut faster and faster until the plate goes black."
+}

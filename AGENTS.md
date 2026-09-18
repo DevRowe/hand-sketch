@@ -22,7 +22,7 @@ There is no CI pipeline; run `npm run check` before opening a PR.
 | `npm run render` | build, then render the demo sequence to `output/sequence/sequence-16x9.mp4` and a contact sheet |
 | `npm run render -- --grid 24` | 24 evenly spaced frames tiled into `output/sequence/<name>-grid.jpg`; the fastest look at a whole program |
 | `npm run render -- --only 0,40,90` | spot frames as PNGs in `output/sequence/<name>-frames/` |
-| `npm run render -- --program loop:house --ar 9:16 --width 1080` | other programs (`sequence`, `scene:<name>`, `loop:<name>`) and formats |
+| `npm run render -- --program loop:house --ar 9:16 --width 1080` | other programs (`sequence`, `sequence:<name>`, `scene:<name>`, `loop:<name>`) and formats; `--poster` adds a poster to a full mp4 render, `--frames <dir under output/>` moves the frame PNGs |
 | `npm run render -- --strokes legacy` | the reviewed skill's constant-width stroke look, for comparison |
 | `npm run render -- --verify` | render twice in independent page loads and fail if any frame differs |
 | `npm run render -- --program loop:gate --seam` | fail unless a looped scene's phase 1 (local frame `duration`) draws pixel-identical to `loopFrom`; reports the differing region |
@@ -30,6 +30,7 @@ There is no CI pipeline; run `npm run check` before opening a PR.
 | `npm run keystone` | web-render the ten Keystone scenes from `src/scenes/keystone/catalog.json` into `output/keystone/` plus `manifest.json` and `board.html` (`-- --only K01,K08`, `-- --verify`, `-- --board-only`) |
 | `npm run poetic` | the same for the ten poetic scenes (`src/scenes/poetic/catalog.json`) into `output/poetic/`, with a gallery board; same flags (`-- --only P01,P08`) |
 | `npm run gallery` | the same for the twenty "Many Hands" pieces (`src/scenes/gallery/catalog.json`) into `output/gallery/`, board grouped by visual style; same flags (`-- --only G01,G08`) |
+| `npm run requiem` | render the etched "Requiem" montage (`sequence:requiem`, about 48 s) to `output/requiem/requiem.mp4` plus poster, contact sheet and `requiem.json` cut list (`-- --verify`); about 3 min per pass (its hatching is dense); a local artifact, never force-added |
 
 `scripts/render.mjs` finds Chrome on PATH; otherwise set `CHROME=/path/to/chrome` (on this machine `~/.local/chrome-for-testing/chrome-linux64/chrome`).
 It fails fast on any page error, console error or failed request.
@@ -59,6 +60,7 @@ Preview query string (also what the renderer uses): `program`, `ar` (any `W:H`; 
   `src/scenes/poetic/` holds the ten poetic scenes (`p01-wishes.ts` .. `p10-small-light.ts`, shared `common.ts` with stock, light-as-print `glow`, `lit` reveal-by-light and rising wisps) and `catalog.json` (title, line, arc, loop, poster policy, alt text); delivery in `output/poetic/`, regenerated with `npm run poetic`.
   `src/scenes/gallery/` holds the twenty gallery pieces (`g01-rolling-sea.ts` .. `g20-koi.ts`), each in its own visual language with its palette in `palettes.ts`; `common.ts` is the technique kit (cached `still` layers, per-frame `scratch` layers and `ink` plates printed with registration offsets and tooth, page-locked `screen` halftone, `hatchLines` and `stipple`, `wash`, `scissor`); delivery in `output/gallery/`, regenerated with `npm run gallery`.
   The set renderers share `scripts/lib/web-set.mjs` (render loop, sidecars, board player).
+  `src/scenes/requiem/` is one long hard-cut sequence rather than a set of loops: `etch.ts` is its plate kit (shots paint a two-channel tone map; red drives five page-locked hatch layers plus aquatint, green drives `engraveCurves` form-following burin lines), `montage.ts` snaps film-time cuts to the drawn grid without drift, `storyboard.ts` lists every cut against `catalog.json`'s film cut times (a test holds them equal), and `shots/` holds the subjects, each designed in a 1600x900 box and cover-fitted into full-frame or split-screen panels.
 - `src/preview/` and `src/runtime/player.ts`: the preview UI and the `window.__handSketch` hooks the renderer calls.
 
 ## Invariants
