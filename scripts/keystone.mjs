@@ -7,16 +7,16 @@
 // shows every other animation as its poster, playing on tap; prefers-reduced-motion gets posters only.
 //
 // Usage (after `npm run build`, or via `npm run keystone`):
-//   node scripts/keystone.mjs                 render all ten into keystone/ and write the board
+//   node scripts/keystone.mjs                 render all ten into output/keystone/ and write the board
 //   node scripts/keystone.mjs --only K01,K08  re-render some, rewrite the board from every sidecar present
 //   node scripts/keystone.mjs --verify        also render each twice in independent page loads and fail on any difference
-//   node scripts/keystone.mjs --out dir       output directory (default keystone/)
+//   node scripts/keystone.mjs --out dir       output directory (default output/keystone/)
 //   node scripts/keystone.mjs --board-only    just rewrite board.html and manifest.json from existing sidecars
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { BOARD_SCRIPT, esc, loadEntries, readCatalog, renderSet, setOptions } from './lib/web-set.mjs';
 
-const opts = setOptions(process.argv.slice(2), 'keystone');
+const opts = setOptions(process.argv.slice(2), 'output/keystone');
 const { outDir } = opts;
 const catalog = readCatalog('src/scenes/keystone/catalog.json');
 

@@ -19,20 +19,21 @@ There is no CI pipeline; run `npm run check` before opening a PR.
 | `npm install` | install dependencies |
 | `npm run dev` | interactive preview at http://localhost:5173 (play, scrub, program, strokes engine/legacy, aspect, on twos) |
 | `npm run check` | typecheck + unit tests + production build; run before every PR |
-| `npm run render` | build, then render the demo sequence to `out/sequence-16x9.mp4` and a contact sheet |
-| `npm run render -- --grid 24` | 24 evenly spaced frames tiled into `out/<name>-grid.jpg`; the fastest look at a whole program |
-| `npm run render -- --only 0,40,90` | spot frames as PNGs in `out/<name>-frames/` |
+| `npm run render` | build, then render the demo sequence to `output/sequence/sequence-16x9.mp4` and a contact sheet |
+| `npm run render -- --grid 24` | 24 evenly spaced frames tiled into `output/sequence/<name>-grid.jpg`; the fastest look at a whole program |
+| `npm run render -- --only 0,40,90` | spot frames as PNGs in `output/sequence/<name>-frames/` |
 | `npm run render -- --program loop:house --ar 9:16 --width 1080` | other programs (`sequence`, `scene:<name>`, `loop:<name>`) and formats |
 | `npm run render -- --strokes legacy` | the reviewed skill's constant-width stroke look, for comparison |
 | `npm run render -- --verify` | render twice in independent page loads and fail if any frame differs |
 | `npm run render -- --program loop:gate --seam` | fail unless a looped scene's phase 1 (local frame `duration`) draws pixel-identical to `loopFrom`; reports the differing region |
 | `npm run render -- --program loop:untangle --ar 1:1 --width 1080 --web --out dir` | web delivery: 12 fps H.264 + VP9 with a keyframe at `loopFrom`, poster PNG/JPEG at `Scene.poster`, JSON sidecar; implies `--seam` |
-| `npm run keystone` | web-render the ten Keystone scenes from `src/scenes/keystone/catalog.json` into `keystone/` plus `manifest.json` and `board.html` (`-- --only K01,K08`, `-- --verify`, `-- --board-only`) |
-| `npm run poetic` | the same for the ten poetic scenes (`src/scenes/poetic/catalog.json`) into `poetic/`, with a gallery board; same flags (`-- --only P01,P08`) |
-| `npm run gallery` | the same for the twenty "Many Hands" pieces (`src/scenes/gallery/catalog.json`) into `gallery/`, board grouped by visual style; same flags (`-- --only G01,G08`) |
+| `npm run keystone` | web-render the ten Keystone scenes from `src/scenes/keystone/catalog.json` into `output/keystone/` plus `manifest.json` and `board.html` (`-- --only K01,K08`, `-- --verify`, `-- --board-only`) |
+| `npm run poetic` | the same for the ten poetic scenes (`src/scenes/poetic/catalog.json`) into `output/poetic/`, with a gallery board; same flags (`-- --only P01,P08`) |
+| `npm run gallery` | the same for the twenty "Many Hands" pieces (`src/scenes/gallery/catalog.json`) into `output/gallery/`, board grouped by visual style; same flags (`-- --only G01,G08`) |
 
 `scripts/render.mjs` finds Chrome on PATH; otherwise set `CHROME=/path/to/chrome` (on this machine `~/.local/chrome-for-testing/chrome-linux64/chrome`).
 It fails fast on any page error, console error or failed request.
+Produced renders live under `output/`, which is gitignored. The published sets under `output/keystone/`, `output/poetic/`, and `output/gallery/` are a force-committed snapshot; new renders stay ignored unless deliberately force-added.
 To check a board in a real browser here, serve its folder with `python3 -m http.server`; chrome-devtools-axi cannot launch its own Chrome on this machine, so start that Chrome with `--headless=new --remote-debugging-port=<port>` and set `CHROME_DEVTOOLS_AXI_BROWSER_URL=http://127.0.0.1:<port>` (plus a `CHROME_DEVTOOLS_AXI_SESSION` name).
 Canvas 2D rendering here is CPU-bound; a 12 s 1080p sequence renders in about 8 s.
 
@@ -54,9 +55,9 @@ Preview query string (also what the renderer uses): `program`, `ar` (any `W:H`; 
 - `src/art/`: colour maths, palette schema and presets, finishes (hatch, grain, halftone), riso plates (`plate` + `printPlate`), cached paper stock.
 - `src/art/roles.ts` (colour by role: pencil = manual, key ink = the client's tools, accent = automation, with stroke presets), `src/art/glyphs.ts` (the office glyph kit, local units centred on the origin, including `squiggle` and `cursive` handwriting) and `src/art/moods.ts` (mood palettes for the poetic set; `inks[0]` is the feeling colour).
 - `src/scenes/`: the demo `house` scene (the vertical slice), `night`, `demo.ts` with the two-scene sequence and program ids, and `kit.ts` (design-box `fit`, `perSize` layout caches, fills, 12 fps `nf`/`loopClock` clocks) shared by the sets.
-  `src/scenes/keystone/` holds the ten Keystone Systems scenes (`k01-untangle.ts` .. `k10-keystone.ts`, shared `common.ts`) and `catalog.json` (format, poster policy, alt text); the rendered delivery lives in `keystone/` and is regenerated with `npm run keystone`.
-  `src/scenes/poetic/` holds the ten poetic scenes (`p01-wishes.ts` .. `p10-small-light.ts`, shared `common.ts` with stock, light-as-print `glow`, `lit` reveal-by-light and rising wisps) and `catalog.json` (title, line, arc, loop, poster policy, alt text); delivery in `poetic/`, regenerated with `npm run poetic`.
-  `src/scenes/gallery/` holds the twenty gallery pieces (`g01-rolling-sea.ts` .. `g20-koi.ts`), each in its own visual language with its palette in `palettes.ts`; `common.ts` is the technique kit (cached `still` layers, per-frame `scratch` layers and `ink` plates printed with registration offsets and tooth, page-locked `screen` halftone, `hatchLines` and `stipple`, `wash`, `scissor`); delivery in `gallery/`, regenerated with `npm run gallery`.
+  `src/scenes/keystone/` holds the ten Keystone Systems scenes (`k01-untangle.ts` .. `k10-keystone.ts`, shared `common.ts`) and `catalog.json` (format, poster policy, alt text); the rendered delivery lives in `output/keystone/` and is regenerated with `npm run keystone`.
+  `src/scenes/poetic/` holds the ten poetic scenes (`p01-wishes.ts` .. `p10-small-light.ts`, shared `common.ts` with stock, light-as-print `glow`, `lit` reveal-by-light and rising wisps) and `catalog.json` (title, line, arc, loop, poster policy, alt text); delivery in `output/poetic/`, regenerated with `npm run poetic`.
+  `src/scenes/gallery/` holds the twenty gallery pieces (`g01-rolling-sea.ts` .. `g20-koi.ts`), each in its own visual language with its palette in `palettes.ts`; `common.ts` is the technique kit (cached `still` layers, per-frame `scratch` layers and `ink` plates printed with registration offsets and tooth, page-locked `screen` halftone, `hatchLines` and `stipple`, `wash`, `scissor`); delivery in `output/gallery/`, regenerated with `npm run gallery`.
   The set renderers share `scripts/lib/web-set.mjs` (render loop, sidecars, board player).
 - `src/preview/` and `src/runtime/player.ts`: the preview UI and the `window.__handSketch` hooks the renderer calls.
 

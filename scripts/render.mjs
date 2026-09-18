@@ -5,7 +5,7 @@
 // Modelled on scripts/render.mjs of alesha-pro/tools hand-drawn-canvas-animation (MIT), see NOTICE.
 //
 // Usage (after `npm run build`, or via `npm run render -- <flags>`):
-//   node scripts/render.mjs                          whole demo sequence -> out/<name>.mp4 + contact sheet
+//   node scripts/render.mjs                          whole demo sequence -> output/sequence/<name>.mp4 + contact sheet
 //   node scripts/render.mjs --program scene:house    one scene; also loop:<name> (intro + one loop period)
 //   node scripts/render.mjs --grid 24                24 evenly spaced frames tiled into one image, no mp4
 //   node scripts/render.mjs --only 0,40,90           just these frames as PNGs
@@ -13,7 +13,7 @@
 //   node scripts/render.mjs --strokes legacy         the reviewed skill's stroke look, for comparison
 //   node scripts/render.mjs --ones                   draw every frame (24 fps) instead of on twos
 //   node scripts/render.mjs --verify                 render the selected frames twice and fail if any pixel differs
-//   node scripts/render.mjs --out renders            output directory (default out/)
+//   node scripts/render.mjs --out renders            output directory (default output/sequence/)
 //   node scripts/render.mjs --seam                   looped programs: fail unless phase 1 draws exactly like loopFrom
 //   node scripts/render.mjs --web                    web delivery for a loop:<name> program: 12 fps H.264 (CRF 28) + VP9
 //                                                    with a keyframe at loopFrom, plus <name>-poster.png/.jpg; implies --seam
@@ -42,7 +42,7 @@ const only = flag('--only')?.split(',').map(Number).filter(Number.isInteger);
 const verify = has('--verify');
 const web = has('--web');
 const seam = web || has('--seam');
-const outRoot = path.resolve(root, flag('--out') ?? 'out');
+const outRoot = path.resolve(root, flag('--out') ?? 'output/sequence');
 const name = flag('--name') ?? [program.replace(':', '-'), strokes === 'legacy' ? 'legacy' : null, ar.replace(':', 'x'), twos ? null : 'ones'].filter(Boolean).join('-');
 
 const fail = msg => { console.error(`render: ${msg}`); process.exit(1); };
@@ -103,7 +103,7 @@ async function openPage() {
 const save = (file, dataUrl) => writeFileSync(file, Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64'));
 const pad = i => String(i).padStart(5, '0');
 // web deliveries keep their frames out of the delivery folder
-const frameDir = web ? path.join(root, 'out', 'web-frames', name) : path.join(outRoot, `${name}-frames`);
+const frameDir = web ? path.join(root, 'output', 'sequence', 'web-frames', name) : path.join(outRoot, `${name}-frames`);
 let code = 0;
 
 try {

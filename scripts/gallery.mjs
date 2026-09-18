@@ -7,16 +7,16 @@
 // poster, grouped under its style with a note on the technique, playing on tap; prefers-reduced-motion gets posters.
 //
 // Usage (after `npm run build`, or via `npm run gallery`):
-//   node scripts/gallery.mjs                 render all twenty into gallery/ and write the board
+//   node scripts/gallery.mjs                 render all twenty into output/gallery/ and write the board
 //   node scripts/gallery.mjs --only G01,G08  re-render some, rewrite the board from every sidecar present
 //   node scripts/gallery.mjs --verify        also render each twice in independent page loads and fail on any difference
-//   node scripts/gallery.mjs --out dir       output directory (default gallery/)
+//   node scripts/gallery.mjs --out dir       output directory (default output/gallery/)
 //   node scripts/gallery.mjs --board-only    just rewrite board.html and manifest.json from existing sidecars
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { BOARD_SCRIPT, esc, loadEntries, readCatalog, renderSet, setOptions } from './lib/web-set.mjs';
 
-const opts = setOptions(process.argv.slice(2), 'gallery');
+const opts = setOptions(process.argv.slice(2), 'output/gallery');
 const { outDir } = opts;
 const catalog = readCatalog('src/scenes/gallery/catalog.json');
 
