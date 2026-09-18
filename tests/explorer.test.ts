@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { pick, sceneMarks } from '../src/explorer/bodies';
 import { Camera, ZOOM_MAX, ZOOM_MIN } from '../src/explorer/camera';
+import { LabelLayout } from '../src/explorer/labels';
+import { distance, lightTime, speed, SPIN_KM_S, travelled } from '../src/explorer/travel';
 import { dateLabel, isoDate, paceFromSlider, paceLabel, paceToSlider, parseIsoDate, spanLabel } from '../src/explorer/format';
 import { DAY_MAX, MONTH, Sim, WEEK, YEAR } from '../src/explorer/sim';
 import { STYLES } from '../src/explorer/styles';
@@ -142,5 +144,74 @@ describe('explorer words', () => {
       expect(s.scenes.sky.name).toBe(`solar-${s.key}`);
       expect(s.scenes.wake.name).toBe(`spiral-${s.key}`);
     }
+  });
+});
+
+describe('explorer names', () => {
+  const at = (x: number, y = 100) => ({ id: 'a', x, y, r: 10, w: 60, h: 18 });
+
+  it('keeps a name steady while its body grazes a more important one, and fades it only after a moment', () => {
+    const layout = new LabelLayout(), sun = { ...at(100), id: 'sun' }, moon = (y: number) => ({ ...at(100, y), id: 'moon' });
+    // apart: both show
+    let out = layout.place([sun, moon(160)], 1000, 0).labels;
+    expect(out.map(l => l.shown)).toEqual([true, true]);
+    // a brush of a few pixels does not hide a name on show
+    out = layout.place([sun, moon(100 + 18 - 3)], 1000, 50).labels;
+    expect(out[1]!.shown).toBe(true);
+    // a real overlap hides it, but only once it has lasted
+    const over = layout.place([sun, moon(104)], 1000, 100);
+    expect(over.labels[1]!.shown).toBe(true);
+    expect(over.pending).toBe(true);
+    expect(layout.place([sun, moon(104)], 1000, 400).labels[1]!.shown).toBe(false);
+    // clear again for a moment only: it waits, faded, rather than blinking back
+    expect(layout.place([sun, moon(125)], 1000, 450).labels[1]!.shown).toBe(false);
+    expect(layout.place([sun, moon(104)], 1000, 500).labels[1]!.shown).toBe(false);
+    // clear for long enough: it returns
+    layout.place([sun, moon(160)], 1000, 600);
+    expect(layout.place([sun, moon(160)], 1000, 1400).labels[1]!.shown).toBe(true);
+  });
+
+  it('puts a name on the left only at the screen edge, and brings it back once it clearly fits', () => {
+    const layout = new LabelLayout();
+    expect(layout.place([at(500)], 600, 0).labels[0]!.left).toBe(516);
+    const edge = layout.place([at(560)], 600, 10).labels[0]!;
+    expect(edge.left).toBe(560 - 10 - 6 - 60);
+    // a pixel back from the edge is not enough to flip again
+    expect(layout.place([at(522)], 600, 20).labels[0]!.left).toBe(522 - 10 - 6 - 60);
+    expect(layout.place([at(500)], 600, 30).labels[0]!.left).toBe(516);
+  });
+});
+
+describe('explorer travels', () => {
+  const YEAR_S = 365.25 * 86_400;
+
+  it('measures a lifetime four ways, at the speeds the card states', () => {
+    const t = travelled(36.5 * YEAR_S);
+    const [spin, orbit, galaxy, cmb] = t.frames;
+    // a point on the equator: 40,075 km a sidereal day, ~1,674 km/h
+    expect(SPIN_KM_S * 3600).toBeCloseTo(1674.4, 0);
+    expect(spin!.km).toBeCloseTo(SPIN_KM_S * 36.5 * YEAR_S, 3);
+    expect(orbit!.km / 1e9).toBeCloseTo(34.3, 1);
+    expect(galaxy!.km / 1e9).toBeCloseTo(264.9, 0);
+    expect(cmb!.km / 1e9).toBeCloseTo(426.0, 0);
+    expect(t.laps).toBeCloseTo(36.5 * 365.25 / 365.256, 3);
+    expect(cmb!.compare).toBe('as far as light travels in ~16.4 days');
+    expect(galaxy!.compare).toMatch(/ of one lap$/);
+  });
+
+  it('shrinks the spin with latitude and never runs backwards', () => {
+    expect(travelled(YEAR_S, 60).frames[0]!.speed).toBeCloseTo(SPIN_KM_S / 2, 9);
+    expect(travelled(-5).frames.every(f => f.km === 0)).toBe(true);
+  });
+
+  it('reads distances and speeds plainly', () => {
+    expect(distance(5.388e8)).toBe('539 million km');
+    expect(distance(3.45e10)).toBe('34.5 billion km');
+    expect(distance(1.2e12)).toBe('1.2 trillion km');
+    expect(speed(SPIN_KM_S)).toBe('1,674 km/h');
+    expect(speed(29.78)).toBe('29.8 km/s');
+    expect(speed(369.82)).toBe('370 km/s');
+    expect(lightTime(2.59e10 * 3)).toBe('3 days');
+    expect(lightTime(9.461e12 * 1.5)).toBe('1.5 years');
   });
 });

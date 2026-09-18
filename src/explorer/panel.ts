@@ -8,15 +8,54 @@ import { BODY_NAMES, type App, type Selection } from './app';
 import type { BodyId } from './bodies';
 import { BODIES } from './content/bodies';
 import { GUIDE, SOURCES } from './content/guide';
-import { dateLong, today } from './format';
+import { dateLong, isoDate, parseIsoDate, today } from './format';
+import type { Journey } from './journey';
 import { AU_KM, fromEarthKm, fromSunAu, km, lightTime, moonPhase } from './live';
 import { PRESETS, presetById, type Preset } from './presets';
+import { clamp, MONTH, PACE_MAX } from './sim';
+import { CMB_KM_S, count, distance, GALAXY_KM_S, lapCount, ORBIT_KM_S, speed, travelled } from './travel';
 
 export interface PanelHooks {
   toast(text: string): void;
+  /** Play a journey with its own bar. */
+  startJourney(j: Journey): void;
+  /** Show the first visit's welcome again. */
+  showWelcome(): void;
 }
 
-type Mode = { kind: 'body'; id: NonNullable<Selection> } | { kind: 'guide' } | { kind: 'jump' } | { kind: 'preset'; id: string };
+type Mode = { kind: 'body'; id: NonNullable<Selection> } | { kind: 'guide' } | { kind: 'jump' } | { kind: 'preset'; id: string } | { kind: 'travel' };
+
+/** Where the travel card keeps the viewer's birthday and latitude: in this browser only. */
+const BIRTHDAY_KEY = 'explorer.birthday';
+const LATITUDE_KEY = 'explorer.latitude';
+const stored = (key: string): string | null => {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+const store = (key: string, value: string): void => {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* storage refused (a private window): the card still works for this visit */
+  }
+};
+
+/** Latitudes to choose from, with places near each (Earth's spin carries you round a smaller circle further north or south). */
+const LATITUDES: readonly [number, string][] = [
+  [0, 'Near the equator (Singapore, Quito, Nairobi)'],
+  [20, '~20° (Mumbai, Mexico City, Honolulu)'],
+  [30, '~30° (Cairo, Shanghai, New Orleans)'],
+  [35, '~35° (Tokyo, Los Angeles, Sydney)'],
+  [40, '~40° (New York, Madrid, Beijing)'],
+  [50, '~50° (London, Paris, Vancouver)'],
+  [60, '~60° (Oslo, Helsinki, Anchorage)'],
+];
+
+/** Seconds a flight through a lifetime takes at most. */
+const LIFE_FLIGHT_S = 24;
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
@@ -28,7 +67,7 @@ const PLANET_IDS: readonly BodyId[] = ['mercury', 'venus', 'earth', 'mars', 'jup
 const KEYS: readonly [string, string][] = [
   ['Space', 'play or pause'], ['← →', 'slower, faster'], ['R', 'run time backwards'], ['T', 'today'],
   ['V', 'from above / in motion'], ['1 … 0', 'the ten styles ([ ] step through)'], ['W', 'trails on or off'],
-  ['L', 'names on or off'], ['+ −', 'zoom'], ['Z', 'reset the view'], ['J', 'jump to…'], ['G', 'guide'],
+  ['L', 'names on or off'], ['+ −', 'zoom'], ['Z', 'reset the view'], ['J', 'jump to…'], ['G', 'guide'], ['Y', 'your travels'],
   ['H', 'hide the controls'], ['F', 'full screen'], ['Esc', 'close, deselect'],
 ];
 
@@ -41,6 +80,11 @@ export class Panel {
   private readonly pillText = document.getElementById('pill-text') as HTMLElement;
   private mode: Mode | null = null;
   private liveAt = 0;
+  /** While the travel card is open: when it opened (ms since 1970), and its once-a-second ticker. */
+  private travelOpenedAt = 0;
+  private travelTimer = 0;
+  /** Where the focus was when the panel opened: it goes back there when the panel closes. */
+  private returnFocus: HTMLElement | null = null;
   /** The preset whose geometry is drawn, for the address bar. */
   preset: string | null = null;
 
@@ -49,17 +93,23 @@ export class Panel {
     document.getElementById('pill-open')!.addEventListener('click', () => this.preset && this.openPreset(this.preset, false));
     document.getElementById('pill-clear')!.addEventListener('click', () => this.clearPreset());
     this.body.addEventListener('click', e => this.onClick(e));
+    this.body.addEventListener('change', e => this.onInput(e));
   }
 
   /* ---------- showing ---------- */
 
   private show(mode: Mode, eyebrow: string, title: string, html: string): void {
     this.mode = mode;
+    clearInterval(this.travelTimer);
     this.eyebrow.textContent = eyebrow;
     this.title.textContent = title;
     this.body.innerHTML = html;
     this.body.scrollTop = 0;
     const opening = this.el.hidden;
+    if (opening) {
+      const active = document.activeElement;
+      this.returnFocus = active instanceof HTMLElement && active !== document.body && !this.el.contains(active) ? active : null;
+    }
     this.el.hidden = false;
     document.body.classList.add('panel-open');
     document.getElementById('jump-btn')!.setAttribute('aria-expanded', String(mode.kind === 'jump' || mode.kind === 'preset'));
@@ -93,15 +143,97 @@ export class Panel {
         ${s.items.map(i => `<p><b>${esc(i.title)}.</b> ${esc(i.text)}</p>`).join('')}
       </details>`).join('');
     const keys = `<details class="guide"><summary><h3>Keys and gestures</h3></summary>
-        <p>Drag to pan, scroll or pinch to zoom, tap a planet for its card, double-tap to fly in and follow it.</p>
+        <p>Drag to pan, scroll or pinch to zoom, tap a planet for its card, double-tap to fly in and follow it. While a journey plays, its bar replaces the controls; Esc or × ends it.</p>
         <dl class="keys">${KEYS.map(([k, v]) => `<div><dt><kbd>${esc(k)}</kbd></dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
       </details>`;
+    const sourcesIntro = `<p><button type="button" class="link" data-act="welcome">Show the welcome tips again</button></p>`;
     const sources = `<details class="guide"><summary><h3>Sources</h3></summary>
         <p>Figures come from NASA, ESA and JPL; each is rounded, "~" marks approximations, and counts that keep changing (moons, satellites) carry their date.</p>
         <ul class="sources">${SOURCES.map(s => `<li><a href="${esc(s.href)}" target="_blank" rel="noopener">${esc(s.label)}</a></li>`).join('')}</ul>
         <p class="small">The drawings are hand-sketch, deterministic Canvas 2D scenes drawn live in your browser. <a href="../">See the recorded pieces</a>.</p>
       </details>`;
-    this.show({ kind: 'guide' }, 'Guide', 'The solar system', `<p class="intro">Tap any body for its card:</p>${bodies}${sections}${keys}${sources}`);
+    this.show({ kind: 'guide' }, 'Guide', 'The solar system', `<p class="intro">Tap any body for its card:</p>${bodies}${sections}${keys}${sources}${sourcesIntro}`);
+  }
+
+  /** How far you have travelled through space since your birthday, measured four ways. */
+  openTravel(): void {
+    const bday = stored(BIRTHDAY_KEY) ?? '', lat = Number(stored(LATITUDE_KEY) ?? 0);
+    const options = LATITUDES.map(([v, label]) => `<option value="${v}"${v === lat ? ' selected' : ''}>${esc(label)}</option>`).join('');
+    const html = `<p class="intro">You have never once sat still. Enter your birthday to see how far you have been carried through space since.</p>
+      <div class="bday">
+        <label>Your birthday<input type="date" id="bday-in" min="1900-01-01" max="${isoDate(today())}" value="${esc(bday)}"></label>
+        <label>Where you have mostly lived<select id="lat-in">${options}</select></label>
+      </div>
+      <div data-live="travel"></div>
+      <h3>Why the numbers don’t add up</h3>
+      <p>Speed only means something against a reference, and each figure above uses a different one. The motions also point in different directions, so they never simply add: your ~${Math.round(CMB_KM_S)} km/s against the microwave background already includes the Sun’s ~${GALAXY_KM_S} km/s round the galaxy, Earth’s ~${ORBIT_KM_S} km/s round the Sun and the Milky Way’s own drift. Against the chair you are sitting in, you have hardly moved at all.</p>
+      <ul class="fun">
+        <li><b>Spin</b>: a point on the equator circles Earth’s axis once a sidereal day (23 h 56 min), 40,075 km at ~1,674 km/h; nearer the poles the circle, and the speed, shrink with the cosine of the latitude (~71% at 45°).</li>
+        <li><b>Round the Sun</b>: Earth averages 29.78 km/s, ~940 million km a lap, a little faster in January (closest) than in July.</li>
+        <li><b>Round the Milky Way</b>: the Sun circles the galaxy’s centre at ~230 km/s (estimates run from ~220 to ~250), one lap every ~230 million years.</li>
+        <li><b>Through the cosmos</b>: against the cosmic microwave background, the afterglow of the Big Bang, the Solar System moves at ~370 km/s towards the constellations Leo and Crater (Planck 2018: 369.8 km/s).</li>
+      </ul>
+      <p class="small">Figures: NASA’s Earth fact sheet, WGS 84, Reid et al. 2019 and the Planck 2018 results; see Sources in the guide. Your birthday stays in this browser.</p>`;
+    this.show({ kind: 'travel' }, 'Your travels', 'How far have you come?', html);
+    this.travelOpenedAt = Date.now();
+    this.renderTravel();
+    this.travelTimer = window.setInterval(() => this.tickTravel(), 1000);
+  }
+
+  /** The viewer's birthday as a day count (noon UTC of that date), or null when none is set or it lies ahead. */
+  private birthday(): number | null {
+    const v = this.body.querySelector<HTMLInputElement>('#bday-in')?.value ?? '', day = parseIsoDate(v);
+    return day !== null && day <= today() ? day : null;
+  }
+
+  /** Seconds lived: from the start of the birthday, local time, to now. */
+  private static secondsSince(iso: string): number {
+    const [y, m, d] = iso.split('-').map(Number) as [number, number, number], start = new Date(y, m - 1, d);
+    start.setFullYear(y);
+    return (Date.now() - start.getTime()) / 1000;
+  }
+
+  private renderTravel(): void {
+    const box = this.body.querySelector('[data-live="travel"]');
+    if (!box) return;
+    const input = this.body.querySelector<HTMLInputElement>('#bday-in')!, day = this.birthday();
+    if (day === null) {
+      box.innerHTML = input.value
+        ? '<p class="ticker">That date is still to come. Pick the day you were born.</p>'
+        : `<p class="ticker">Even without a birthday: since you opened this card, you have moved <b data-live="since">0 km</b> round the Sun.</p>`;
+      return;
+    }
+    const lat = Number(this.body.querySelector<HTMLSelectElement>('#lat-in')?.value ?? 0);
+    const t = travelled(Panel.secondsSince(input.value), lat);
+    box.innerHTML = `<p class="age">You are <b>${count(t.days)} days</b> old: <b>${lapCount(t.laps)}</b> trips round the Sun.</p>
+      <ul class="frames">${t.frames.map(f => `<li><div class="f-head"><span class="f-title">${esc(f.title)}</span><span class="f-speed">~${esc(speed(f.speed))}${f.id === 'spin' ? (lat ? ` at ~${lat}°` : ' at the equator') : ''}</span></div>
+        <span class="f-km">~${esc(distance(f.km))}</span><span class="f-note">${esc(f.compare)} · measured against ${esc(f.against)}</span></li>`).join('')}</ul>
+      <p class="ticker">Since you opened this card: <b data-live="since">0 km</b> round the Sun, <b data-live="since-cmb">0 km</b> through the cosmos.</p>
+      <div class="card-actions">
+        <button type="button" class="act primary" data-act="life"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>Fly your years, in motion</button>
+        <button type="button" class="act" data-act="birth-sky">The sky on your birthday</button>
+      </div>`;
+    this.tickTravel();
+  }
+
+  /** The since-you-opened-this counters. */
+  private tickTravel(): void {
+    const s = (Date.now() - this.travelOpenedAt) / 1000;
+    const since = this.body.querySelector('[data-live="since"]'), cmb = this.body.querySelector('[data-live="since-cmb"]');
+    if (since) since.textContent = `${count(ORBIT_KM_S * s)} km`;
+    if (cmb) cmb.textContent = `${count(CMB_KM_S * s)} km`;
+  }
+
+  private onInput(e: Event): void {
+    const t = e.target as HTMLElement;
+    if (t.id === 'bday-in') {
+      const v = (t as HTMLInputElement).value;
+      if (this.birthday() !== null) store(BIRTHDAY_KEY, v);
+      this.renderTravel();
+    } else if (t.id === 'lat-in') {
+      store(LATITUDE_KEY, (t as HTMLSelectElement).value);
+      this.renderTravel();
+    }
   }
 
   openJump(): void {
@@ -168,8 +300,17 @@ export class Panel {
   /** Close the panel; false when it was not open. */
   close(): boolean {
     if (this.el.hidden) return false;
+    // the focus must not stay behind in a hidden card (a date field there would swallow the keyboard shortcuts)
+    const hadFocus = this.el.contains(document.activeElement);
     this.el.hidden = true;
+    if (hadFocus) {
+      const back = this.returnFocus;
+      if (back?.isConnected && back.offsetParent !== null) back.focus({ preventScroll: true });
+      else (document.activeElement as HTMLElement | null)?.blur();
+    }
+    this.returnFocus = null;
     this.mode = null;
+    clearInterval(this.travelTimer);
     document.body.classList.remove('panel-open');
     for (const id of ['jump-btn', 'guide-btn']) document.getElementById(id)!.setAttribute('aria-expanded', 'false');
     return true;
@@ -214,11 +355,28 @@ export class Panel {
       else app.focusSelected(Math.max(2.5, app.camera.zoom));
     } else if (t.dataset.act === 'journey' && this.preset) {
       const j = presetById(this.preset)?.journey?.();
-      if (!j) return;
-      app.journey(j.from, j.to, j.pace);
-      // on a phone the sheet would hide the journey: step aside and let it play
-      if (matchMedia('(max-width: 720px)').matches) this.close();
-      this.hooks.toast(`${j.label}: ${dateLong(j.from)} to ${dateLong(j.to)}`);
+      if (j) this.hooks.startJourney(j);
+    } else if (t.dataset.act === 'life') {
+      const from = this.birthday();
+      if (from === null) return;
+      // the Sun carrying you through space reads best in motion, from the day you were born to today
+      this.clearPreset();
+      app.setView('wake');
+      app.select(null, false);
+      app.resetView();
+      const to = today();
+      this.hooks.startJourney({ from, to, pace: clamp((to - from) / LIFE_FLIGHT_S, MONTH, PACE_MAX), label: 'Your years so far' });
+    } else if (t.dataset.act === 'birth-sky') {
+      const day = this.birthday();
+      if (day === null) return;
+      this.clearPreset();
+      app.play(false);
+      app.jump(day);
+      if (!app.atHome) app.resetView();
+      this.hooks.toast(`The sky on ${dateLong(day)}`);
+    } else if (t.dataset.act === 'welcome') {
+      this.close();
+      this.hooks.showWelcome();
     } else if (t.dataset.act === 'moment' && this.preset) {
       const p = presetById(this.preset);
       if (p) this.apply(p);

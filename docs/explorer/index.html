@@ -14,8 +14,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,300&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="./assets/index-BBiwlkUl.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-DMUcPnBl.css">
+  <script type="module" crossorigin src="./assets/index-CPXElihy.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-YZxH-C6E.css">
 </head>
 <body>
   <canvas id="sky" role="img" aria-label="The solar system, drawn live"></canvas>
@@ -27,8 +27,8 @@
       <span class="brand-text"><b>Solar System Explorer</b><small>hand-sketched live · One Sun, Ten Hands</small></span>
     </a>
     <div class="views seg" role="radiogroup" aria-label="View">
-      <button type="button" role="radio" data-view="sky" aria-checked="true"><span>From above</span><small>One Sky</small></button>
-      <button type="button" role="radio" data-view="wake" aria-checked="false"><span>In motion</span><small>One Wake</small></button>
+      <button type="button" role="radio" data-view="wake" aria-checked="true"><span>In motion</span><small>One Wake</small></button>
+      <button type="button" role="radio" data-view="sky" aria-checked="false"><span>From above</span><small>One Sky</small></button>
     </div>
     <div class="style-pick" id="style-pick">
       <button type="button" class="btn style-btn" id="style-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="style-menu" title="Visual style ([ ] or 1 … 0)">
@@ -39,8 +39,9 @@
       <div class="style-menu" id="style-menu" role="menu" aria-label="Visual styles" hidden></div>
     </div>
     <nav class="actions" aria-label="Explore">
-      <button type="button" class="btn" id="jump-btn" aria-haspopup="dialog" aria-controls="panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12M13 6l6 6-6 6"/></svg><span>Jump to</span></button>
-      <button type="button" class="btn" id="guide-btn" aria-haspopup="dialog" aria-controls="panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5C6.5 4 9.5 4 12 5.5 14.5 4 17.5 4 20 5.5V19c-2.5-1.5-5.5-1.5-8 0-2.5-1.5-5.5-1.5-8 0z"/><path d="M12 5.5V19"/></svg><span>Guide</span></button>
+      <button type="button" class="btn" id="jump-btn" aria-haspopup="dialog" aria-controls="panel" aria-label="Jump to a key moment" title="Jump to a key moment (J)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12M13 6l6 6-6 6"/></svg><span>Jump to</span></button>
+      <button type="button" class="btn" id="travel-btn" aria-haspopup="dialog" aria-controls="panel" aria-label="How far have you travelled?" title="How far have you travelled since you were born? (Y)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="17.5" cy="6.5" r="2.6"/><path d="M3.5 20.5c2.5-6 6-9.6 10.6-11.6" stroke-dasharray="2.2 2.6"/></svg><span>Your travels</span></button>
+      <button type="button" class="btn" id="guide-btn" aria-haspopup="dialog" aria-controls="panel" aria-label="Guide" title="Guide (G)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5C6.5 4 9.5 4 12 5.5 14.5 4 17.5 4 20 5.5V19c-2.5-1.5-5.5-1.5-8 0-2.5-1.5-5.5-1.5-8 0z"/><path d="M12 5.5V19"/></svg><span>Guide</span></button>
       <button type="button" class="btn icon" id="hide-btn" aria-pressed="false" title="Hide the controls (H)" aria-label="Hide the controls"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
       <button type="button" class="btn icon" id="fs-btn" title="Full screen (F)" aria-label="Full screen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
     </nav>
@@ -55,33 +56,28 @@
   </nav>
 
   <section class="dock chrome" id="dock" aria-label="Time, speed and trails">
-    <div class="row time-row">
-      <button type="button" class="round primary" id="play" aria-label="Pause" title="Play or pause (Space)">
-        <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
-        <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>
-      </button>
-      <div class="when">
-        <label class="date-pick" title="Go to a date">
-          <span class="sr">Date</span>
-          <output id="date-out" aria-live="off">…</output>
-          <input type="date" id="date-in" min="1000-01-01" max="2999-12-31">
-        </label>
-        <div class="when-actions">
-          <button type="button" class="link" id="today-btn" title="Back to today (T)">Today</button>
-          <button type="button" class="link" id="reset-btn" title="Reset time, speed and view (Home)">Reset</button>
-        </div>
-      </div>
-      <div class="pace">
-        <div class="pace-line">
-          <button type="button" class="round small" id="reverse" aria-pressed="false" title="Run time backwards (R)" aria-label="Run time backwards"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6l-6 6 6 6M19 6l-6 6 6 6"/></svg></button>
-          <input type="range" id="pace" min="0" max="1000" step="1" aria-label="Speed" title="Speed (arrow keys)">
-          <output id="pace-out" class="pace-out">…</output>
-        </div>
-        <div class="chips" id="pace-chips" role="group" aria-label="Speed presets"></div>
+    <button type="button" class="round primary" id="play" aria-label="Pause" title="Play or pause (Space)">
+      <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
+      <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>
+    </button>
+    <div class="when">
+      <label class="date-pick" title="Go to a date">
+        <span class="sr">Date</span>
+        <output id="date-out" aria-live="off">…</output>
+        <input type="date" id="date-in" min="1000-01-01" max="2999-12-31">
+      </label>
+      <div class="when-actions">
+        <button type="button" class="link" id="today-btn" title="Back to today (T)">Today</button>
+        <button type="button" class="link" id="reset-btn" title="Reset time, speed and view (Home)">Reset</button>
       </div>
     </div>
-    <div class="row style-row" id="style-slot"></div>
-    <div class="row extra-row" id="extras">
+    <button type="button" class="round small" id="reverse" aria-pressed="false" title="Run time backwards (R)" aria-label="Run time backwards"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6l-6 6 6 6M19 6l-6 6 6 6"/></svg></button>
+    <input type="range" id="pace" min="0" max="1000" step="1" aria-label="Speed" title="Speed (arrow keys)">
+    <output id="pace-out" class="pace-out">…</output>
+    <div class="chips" id="pace-chips" role="group" aria-label="Speed presets"></div>
+    <div class="look" id="style-slot"></div>
+    <button type="button" class="more" id="more-btn" aria-expanded="false" aria-controls="extras" title="Trails, zoom, names and the year"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>More</span></button>
+    <div class="extras" id="extras">
       <div class="group trails" role="group" aria-labelledby="trails-label">
         <button type="button" class="toggle" id="trails-btn" aria-pressed="true" title="Trails on or off (W)"><span class="dot" aria-hidden="true"></span><span id="trails-label">Trails</span></button>
         <label class="mini"><span>Length</span><input type="range" id="span" min="0" max="1000" step="1" aria-label="Trail length"><output id="span-out">…</output></label>
@@ -96,8 +92,22 @@
       </div>
       <button type="button" class="toggle" id="labels-btn" aria-pressed="true" title="Names on or off (L)"><span class="dot" aria-hidden="true"></span>Names</button>
     </div>
-    <button type="button" class="more" id="more-btn" aria-expanded="false" aria-controls="extras">More controls</button>
   </section>
+
+  <section class="journey-bar" id="journey-bar" aria-label="Journey" hidden>
+    <button type="button" class="round primary" id="jb-play" aria-label="Pause the journey" title="Play or pause (Space)">
+      <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
+      <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>
+      <svg class="i-replay" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.4-5.5"/><path d="M4 4.5v4h4"/></svg>
+    </button>
+    <div class="jb-main">
+      <div class="jb-line"><b id="jb-title"></b><output id="jb-date"></output></div>
+      <div class="jb-track" aria-hidden="true"><i id="jb-fill"></i></div>
+      <div class="jb-ends" aria-hidden="true"><span id="jb-from"></span><span id="jb-to"></span></div>
+    </div>
+    <button type="button" class="btn icon" id="jb-exit" aria-label="End the journey" title="End the journey (Esc)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+  </section>
+
 
   <div class="pill chrome" id="preset-pill" hidden>
     <button type="button" class="pill-open" id="pill-open" title="Show this moment's card"><span class="pill-dot" aria-hidden="true"></span><span id="pill-text"></span></button>
@@ -116,6 +126,18 @@
   </aside>
 
   <button type="button" class="btn icon show-ui" id="show-btn" aria-label="Show the controls" title="Show the controls (H)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+  <div class="welcome" id="welcome" hidden>
+    <div class="welcome-card" role="dialog" aria-modal="true" aria-labelledby="welcome-title" tabindex="-1">
+      <p class="eyebrow">Welcome</p>
+      <h2 id="welcome-title">The solar system, drawn live</h2>
+      <p class="welcome-lede">Every planet sits where it really is today. A few ways in:</p>
+      <ul class="tips" id="welcome-tips"></ul>
+      <div class="welcome-actions">
+        <button type="button" class="act primary" id="welcome-go">Start exploring</button>
+        <button type="button" class="link" id="welcome-guide">Open the guide</button>
+      </div>
+    </div>
+  </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <noscript><p class="noscript">The explorer draws the solar system live with JavaScript. <a href="../">Watch the recorded pieces instead.</a></p></noscript>
 </body>

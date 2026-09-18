@@ -197,7 +197,8 @@ export const risoSpiral: Scene = {
     }, plateOpts(2502, [0, 0]));
 
     // pink: the Sun's heart and corona, the wakes, the planets' pink
-    ink(f, 'sp05-pink', g => {
+    // the camera travels with the Sun, so its corona never moves: screened once, as a still, and laid first
+    const corona = cached(f, 'sp05-corona', g => {
       const c = g.ctx;
       enter(c, fr);
       clipArea(c);
@@ -206,12 +207,19 @@ export const risoSpiral: Scene = {
         cell: CELL, angle: ANGLE.pink, color: PINK,
         density: (x, y) => { const d = Math.hypot(x - X, y - Y); return d < SUN_R ? 1 : Math.max(0, 0.8 - (d - SUN_R) / 60); },
       });
+    });
+    ink(f, 'sp05-pink', g => {
+      const c = g.ctx;
+      g.stage.blit(c, corona);
+      enter(c, fr);
+      clipArea(c);
       wakes(c, 'pink');
       for (const b of S.bodies) bodyOn(c, 'pink', S, b);
     }, plateOpts(2503, [2.6, -1.8]));
 
     // yellow: the Sun, the Sun's wake, stars and dust, the wakes, the planets' yellow
-    ink(f, 'sp05-yellow', g => {
+    // the Sun and its screen hold their place too: a still, laid first
+    const sun = cached(f, 'sp05-sun', g => {
       const c = g.ctx;
       enter(c, fr);
       clipArea(c);
@@ -222,6 +230,12 @@ export const risoSpiral: Scene = {
         cell: CELL, angle: ANGLE.yellow, color: YELLOW,
         density: (x, y) => Math.max(0, 0.9 - (Math.hypot(x - X, y - Y) - SUN_R - 6) / 34),
       });
+    });
+    ink(f, 'sp05-yellow', g => {
+      const c = g.ctx;
+      g.stage.blit(c, sun);
+      enter(c, fr);
+      clipArea(c);
       wakeOn(c, 'yellow', S.sunTrail, 7, 0.75 * S.plan.alpha);
       c.fillStyle = YELLOW;
       c.beginPath();
