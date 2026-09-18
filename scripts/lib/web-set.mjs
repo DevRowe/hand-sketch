@@ -1,5 +1,6 @@
-// Shared pieces of the web-delivery sets (keystone, poetic, gallery, solar under scripts/): command-line options, rendering
-// every catalogue entry with `scripts/render.mjs --web`, reading the sidecars back, and the review board's player.
+// Shared pieces of the web-delivery sets (keystone, poetic, gallery, solar, solar-spiral under scripts/): command-line
+// options, rendering every catalogue entry with `scripts/render.mjs --web`, reading the sidecars back, and the review
+// board's player.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';

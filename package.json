@@ -17,6 +17,7 @@
     "gallery": "vite build && node scripts/gallery.mjs",
     "solar": "vite build && node scripts/solar.mjs",
     "solar:site": "node scripts/solar-site.mjs",
+    "spiral": "vite build && node scripts/solar-spiral.mjs",
     "requiem": "vite build && node scripts/requiem.mjs"
   },
   "devDependencies": {

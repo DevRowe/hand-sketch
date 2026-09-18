@@ -1,4 +1,4 @@
-/** The programs: the vertical-slice scene, a two-scene storyboard joined by a drawn transition, the Keystone, poetic, gallery and solar sets, and the Requiem montage. */
+/** The programs: the vertical-slice scene, a two-scene storyboard joined by a drawn transition, the Keystone, poetic, gallery, solar and spiral sets, and the Requiem montage. */
 import { PALETTES } from '../art/palette';
 import type { Program, Scene, Sequence } from '../core/scene';
 import { galleryScenes } from './gallery';
@@ -8,6 +8,7 @@ import { nightScene } from './night';
 import { poeticScenes } from './poetic';
 import { requiemSequence } from './requiem';
 import { solarScenes } from './solar';
+import { spiralScenes } from './solar-spiral';
 
 export const demoSequence: Sequence = {
   name: 'day-to-night',
@@ -17,7 +18,7 @@ export const demoSequence: Sequence = {
   ],
 };
 
-export const scenes: Readonly<Record<string, Scene>> = { house: houseScene, night: nightScene, ...keystoneScenes, ...poeticScenes, ...galleryScenes, ...solarScenes };
+export const scenes: Readonly<Record<string, Scene>> = { house: houseScene, night: nightScene, ...keystoneScenes, ...poeticScenes, ...galleryScenes, ...solarScenes, ...spiralScenes };
 
 export const sequences: Readonly<Record<string, Sequence>> = { requiem: requiemSequence };
 
@@ -40,4 +41,5 @@ export const PROGRAM_IDS: readonly string[] = [
   ...Object.keys(poeticScenes).map(name => `loop:${name}`),
   ...Object.keys(galleryScenes).map(name => `loop:${name}`),
   ...Object.keys(solarScenes).map(name => `loop:${name}`),
+  ...Object.keys(spiralScenes).map(name => `loop:${name}`),
 ];
