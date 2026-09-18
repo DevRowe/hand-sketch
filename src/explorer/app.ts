@@ -21,6 +21,9 @@ export const BODY_NAMES: Readonly<Record<BodyId | 'belt', string>> = {
   jupiter: 'Jupiter', saturn: 'Saturn', uranus: 'Uranus', neptune: 'Neptune', belt: 'Asteroid belt',
 };
 
+/** The draw-on has played. */
+const DONE = 1e9;
+
 /** Whose name wins when two would overlap. */
 const RANK: readonly BodyId[] = ['sun', 'earth', 'jupiter', 'saturn', 'mars', 'venus', 'uranus', 'neptune', 'mercury', 'moon'];
 
@@ -68,6 +71,7 @@ export class App {
   onDraw: () => void = () => {};
   onChange: () => void = () => {};
 
+  /** Drawn frames into the scene's draw-on; `DONE` once it has played (on load or Reset), so a new style starts whole. */
   private intro: number;
   private dirty = true;
   private lastDraw = -1e9;
@@ -84,7 +88,7 @@ export class App {
     this.renderer = new Renderer(o.canvas);
     const { w, h } = this.renderer.logical;
     this.camera = new Camera(w, h);
-    this.intro = o.skipIntro ? 1e9 : 0;
+    this.intro = o.skipIntro ? DONE : 0;
     this.sim.trails.span = this.spans[this.view];
     // names are measured once, in the page's own font once it has loaded
     void document.fonts?.ready.then(() => {
@@ -309,6 +313,7 @@ export class App {
     this.camera.step(dt);
     const rest = toFrames(this.scene.loopFrom ?? 0, 12), drawingOn = this.intro < rest;
     if (drawingOn) this.intro = Math.min(rest, this.intro + 12 * dt);
+    else this.intro = DONE;
     const due = this.sim.playing && now - this.lastDraw >= this.interval - 3;
     if (this.dirty || due || settling || moving || drawingOn) {
       this.draw();
