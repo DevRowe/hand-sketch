@@ -12,7 +12,9 @@ import { noise1, rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { drawStroke, prepareStroke, type PreparedStroke, type StrokeStyle } from '../../core/stroke';
 import { circle, composite, ground, ink, knockOut, polyPath, still, toothMask } from '../gallery/common';
-import { annulus, brushChar, C, dayHalf, disc, enter, frameFit, LOOP, MOON, moonOffset, once, orbitClock, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type PlanetName } from './common';
+import { annulus, brushChar, C, dayHalf, disc, enter, frameFit, LOOP, MOON, moonOffset, once, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type PlanetName } from './common';
+import { skyOf } from './sky';
+import { orbitTrail } from './trails';
 import { SOLAR } from './palettes';
 
 const PAL = SOLAR.woodblock;
@@ -119,7 +121,7 @@ export const woodblockScene: Scene = {
   poster: POSTER_M / 12,
   draw(f) {
     const { stage } = f;
-    const fr = frameFit(stage.w, stage.h), L = layout(), m = orbitClock(f, 0);
+    const fr = frameFit(stage.w, stage.h), L = layout(), sky = skyOf(f, 0);
     ground(f, WASHI, { seed: 1200, texture: 1.3 });
     still(f, 's02-blue', g => blueBlock(g, fr), { blend: 'multiply', offset: REG_BLUE });
 
@@ -139,8 +141,10 @@ export const woodblockScene: Scene = {
       c.restore();
       c.fillStyle = VERMILION;
       c.fill(disc(C[0], C[1], SUN_R));
+      // a viewer's trails: bands of each planet's colour, carved back along its orbit
+      for (const p of PLANETS) orbitTrail(c, p, sky, { color: COLOR[p.name], width: Math.max(4, p.r * 0.9), tail: 0.35, cap: 'butt' });
       for (const p of PLANETS) {
-        const [x, y] = planetAt(p, m), toSun = sunward([x, y]);
+        const [x, y] = planetAt(p, sky), toSun = sunward([x, y]);
         c.save();
         c.translate(x, y);
         if (p.name === 'saturn') {
@@ -167,7 +171,7 @@ export const woodblockScene: Scene = {
           c.fill(polyPath([[-8, -6], [-1, -9], [3, -3], [-2, 2], [-6, 1]]));
           c.fill(polyPath([[3, 3], [9, 1], [8, 8], [4, 9]]));
           c.restore();
-          const [mx, my] = moonOffset(m);
+          const [mx, my] = moonOffset(sky);
           c.fillStyle = WASHI;
           c.fill(disc(mx, my, MOON.r));
         }
@@ -198,20 +202,20 @@ export const woodblockScene: Scene = {
       c.fillStyle = KEY;
       c.beginPath();
       for (const rk of ROCKS) {
-        const [x, y] = rockAt(rk, m), s = 0.6 + rk.size * 0.7;
+        const [x, y] = rockAt(rk, sky), s = 0.6 + rk.size * 0.7;
         c.moveTo(x + s, y);
         c.arc(x, y, s, 0, TAU);
       }
       c.fill();
       PLANETS.forEach((p, k) => {
-        const [x, y] = planetAt(p, m);
+        const [x, y] = planetAt(p, sky);
         c.save();
         c.translate(x, y);
         if (p.name === 'saturn') for (const s of L.rings) drawStroke(c, s, 1);
         if (p.name === 'uranus') drawStroke(c, L.uranusRing, 1);
         drawStroke(c, L.rims[k]!, 1);
         if (p.name === 'earth') {
-          const [mx, my] = moonOffset(m);
+          const [mx, my] = moonOffset(sky);
           c.translate(mx, my);
           drawStroke(c, L.moon, 1);
         }

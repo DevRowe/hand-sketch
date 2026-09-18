@@ -11,7 +11,9 @@ import { TAU, type Vec2 } from '../../core/math';
 import { rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { circle, composite, ground, polyPath, scissor, still, toothMask } from '../gallery/common';
-import { BOX, C, enter, frameFit, LOOP, MOON, moonOffset, once, orbitAngle, orbitClock, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, URANUS_RING, type Frame, type PlanetName } from './common';
+import { BOX, C, enter, frameFit, LOOP, MOON, moonOffset, once, orbitAngle, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, URANUS_RING, type Frame, type PlanetName } from './common';
+import { skyOf } from './sky';
+import { orbitTrail } from './trails';
 import { SOLAR } from './palettes';
 
 const PAL = SOLAR.cutPaper;
@@ -85,7 +87,7 @@ export const cutPaperScene: Scene = {
   poster: POSTER_M / 12,
   draw(f) {
     const { ctx, stage } = f;
-    const fr = frameFit(stage.w, stage.h), m = orbitClock(f, 0), k = stage.scale * fr.s, L = cut();
+    const fr = frameFit(stage.w, stage.h), sky = skyOf(f, 0), k = stage.scale * fr.s, L = cut();
     ground(f, GROUND, { seed: 1800, texture: 1.2, vignette: 0.35 });
     still(f, 's08-stack', g => stack(g, fr));
 
@@ -96,7 +98,7 @@ export const cutPaperScene: Scene = {
     lifted(ctx, k, 1);
     ROCKS.forEach((rk, j) => {
       if (j % 2) return;
-      const [x, y] = rockAt(rk, m), s = 1.2 + rk.size * 0.9;
+      const [x, y] = rockAt(rk, sky), s = 1.2 + rk.size * 0.9;
       ctx.fillStyle = rk.tone < 0.5 ? SAND : GREY;
       ctx.beginPath();
       ctx.moveTo(x + s, y);
@@ -109,7 +111,7 @@ export const cutPaperScene: Scene = {
     ctx.save();
     ctx.translate(C[0], C[1]);
     ctx.save();
-    ctx.rotate(orbitAngle(1, 0, m));
+    ctx.rotate(orbitAngle(1, 0, sky.beat));
     lifted(ctx, k, 3);
     ctx.fillStyle = SUN_O;
     ctx.fill(polyPath(L.star));
@@ -122,9 +124,15 @@ export const cutPaperScene: Scene = {
     ctx.fill(polyPath(L.sunHeart));
     ctx.restore();
 
+    // a viewer's trails: strips of each planet's paper, lifted with their shadow
+    ctx.save();
+    lifted(ctx, k, 1.2);
+    for (const p of PLANETS) orbitTrail(ctx, p, sky, { color: COLOR[p.name], width: Math.max(3, p.r * 0.8), tail: 0.3, cap: 'butt' });
+    ctx.restore();
+
     // planets: discs lifted off the stack, pieces pasted on top
     PLANETS.forEach((p, j) => {
-      const [x, y] = planetAt(p, m);
+      const [x, y] = planetAt(p, sky);
       ctx.save();
       ctx.translate(x, y);
       if (p.name === 'saturn') {
@@ -162,7 +170,7 @@ export const cutPaperScene: Scene = {
         ctx.fillStyle = LEAF;
         for (const piece of L.land) ctx.fill(polyPath(piece));
         ctx.restore();
-        const [mx, my] = moonOffset(m);
+        const [mx, my] = moonOffset(sky);
         ctx.save();
         ctx.translate(mx, my);
         lifted(ctx, k, 2);

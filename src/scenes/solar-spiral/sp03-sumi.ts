@@ -17,7 +17,7 @@ import { mix } from '../../art/color';
 import { ground, ink, polyPath, smooth, still, wash } from '../gallery/common';
 import { brushChar } from '../solar/common';
 import { SOLAR } from '../solar/palettes';
-import { along, bodyRing, disc, dust, E1, E2, enter, frameFit, INTRO, litShape, LOOP, MOTION, once, paint, PLANETS, POSTER_M, project, RINGS, snapshot, spiralClock, strokeRun, SUN_R, tangent, URANUS_RING, type Body, type Sample, type Snapshot } from './common';
+import { along, bodyRing, disc, drawnFrame, dust, E1, E2, enter, frameFit, INTRO, litShape, LOOP, MOTION, once, orbitRings, paint, PLANETS, POSTER_M, project, RINGS, snapshot, spiralSky, strokeRun, SUN_R, tangent, URANUS_RING, type Body, type Sample, type Snapshot } from './common';
 
 const PAL = SOLAR.sumi;
 const SOOT = PAL.ink, PAPER = PAL.paper, SEAL = PAL.accents[0]!;
@@ -149,7 +149,7 @@ export const sumiSpiral: Scene = {
   poster: (INTRO + POSTER_M) / 12,
   draw(f) {
     const { stage } = f;
-    const fr = frameFit(stage.w, stage.h), L = layout(), m = spiralClock(f), n = m + INTRO, S = snapshot(m);
+    const fr = frameFit(stage.w, stage.h), L = layout(), S = snapshot(spiralSky(f)), n = drawnFrame(f);
     ground(f, PAPER, { seed: 2300, texture: 1.5, vignette: 0.12, vignetteColor: '#6b5a3a' });
     still(f, 'sp03-sun-wash', g => {
       enter(g.ctx, fr);
@@ -161,7 +161,7 @@ export const sumiSpiral: Scene = {
       enter(c, fr);
       // dust the system flies through: fine grey specks, as if flicked from the brush
       c.fillStyle = GREY;
-      for (const d of dust(m)) {
+      for (const d of dust(S)) {
         if (d.tone > 0.6) continue;
         c.globalAlpha = d.alpha * 0.55;
         const s = (0.5 + d.tone * 1.4) * d.s;
@@ -172,9 +172,11 @@ export const sumiSpiral: Scene = {
       c.globalAlpha = 1;
       paint(S, {
         run(t, run) {
-          if (t.k === 8) brushRun(c, run, 1.1, 0.8, 2390);
-          else brushRun(c, run, WIDTH[t.k]!, 0.96, 2370 + t.k * 3);
+          // a fading wake is thinner ink, not a paler layer: the bristles stay opaque so they never stripe
+          if (t.k === 8) brushRun(c, run, 1.1, 0.8 * S.plan.alpha, 2390);
+          else brushRun(c, run, WIDTH[t.k]!, 0.96 * S.plan.alpha, 2370 + t.k * 3);
         },
+        orbit: (_pl, half, near) => orbitRings(c, S, half, near, SOOT, 1.1),
         rocks(rocks) {
           c.fillStyle = GREY;
           c.beginPath();
@@ -187,7 +189,7 @@ export const sumiSpiral: Scene = {
         },
         sunTrail(st) {
           // the Sun's own path: a wide, pale wash dragged back into the distance
-          brushRun(c, st, 9, 0.22, 2395);
+          brushRun(c, st, 9, 0.22 * S.plan.alpha, 2395);
         },
         sun() { drawStroke(c, L.enso, clamp((n + 12) / 12, 0, 1)); },
         body: b => drawBody(c, fr.s * stage.scale, L, S, b),

@@ -15,7 +15,7 @@ import { rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { cached, ground, hatchLines, ink, still } from '../gallery/common';
 import { SOLAR } from '../solar/palettes';
-import { along, bodyBand, bodyRing, BOX, disc, dust, E1, E2, enter, frameFit, INTRO, litShape, LOOP, MOTION, paint, POSTER_M, project, RINGS, snapshot, spiralClock, SUN_R, tangent, trace, URANUS_RING, type Body, type Frame, type Sample, type Snapshot } from './common';
+import { along, bodyBand, bodyRing, BOX, disc, dust, E1, E2, enter, frameFit, INTRO, inWake, litShape, LOOP, MOTION, paint, POSTER_M, project, RINGS, snapshot, spiralSky, SUN_R, tangent, trace, URANUS_RING, type Body, type Frame, type Sample, type Snapshot } from './common';
 
 const PAL = SOLAR.etching;
 const COLD = PAL.inks[0]!, WARM = PAL.inks[1]!, PAPER = PAL.paper;
@@ -302,7 +302,7 @@ export const etchingSpiral: Scene = {
   poster: (INTRO + POSTER_M) / 12,
   draw(f) {
     const { stage } = f;
-    const fr = frameFit(stage.w, stage.h), m = spiralClock(f), S = snapshot(m);
+    const fr = frameFit(stage.w, stage.h), S = snapshot(spiralSky(f));
     ground(f, PAPER, { seed: 2400, texture: 0.9 });
     still(f, 'sp04-platemark', g => {
       const c = g.ctx;
@@ -330,8 +330,10 @@ export const etchingSpiral: Scene = {
       enter(c, fr);
       c.globalCompositeOperation = 'destination-out';
       c.fillStyle = '#000';
-      for (const t of S.trails) burnish(c, t.samples, t.k);
-      burnish(c, S.sunTrail, -1);
+      inWake(c, S, () => {
+        for (const t of S.trails) burnish(c, t.samples, t.k);
+        burnish(c, S.sunTrail, -1);
+      });
       c.fill(disc(S.sun.x, S.sun.y, SUN_R + 44));
       for (const b of S.bodies) {
         c.fill(disc(b.x, b.y, b.R + 2));
@@ -342,7 +344,7 @@ export const etchingSpiral: Scene = {
       c.globalCompositeOperation = 'source-over';
       c.strokeStyle = COLD;
       c.lineWidth = 0.7;
-      for (const d of dust(m)) {
+      for (const d of dust(S)) {
         if (d.tone < 0.45) continue;
         c.globalAlpha = d.alpha;
         const s = (1.2 + d.tone * 2) * d.s;
@@ -359,7 +361,7 @@ export const etchingSpiral: Scene = {
       enter(c, fr);
       c.clip(plateInside(12));
       paint(S, {
-        run: (t, run, near) => engrave(c, run, t.k, near),
+        run: (t, run, near) => inWake(c, S, () => engrave(c, run, t.k, near)),
         orbit(_pl, half, near) {
           c.strokeStyle = COLD;
           c.lineWidth = 0.7;
@@ -377,7 +379,7 @@ export const etchingSpiral: Scene = {
           for (const rk of rocks) { const s = (0.4 + rk.rock.size * 0.5) * rk.s; c.moveTo(rk.x + s, rk.y); c.arc(rk.x, rk.y, s, 0, TAU); }
           c.fill();
         },
-        sunTrail: st => engrave(c, st, -1, false),
+        sunTrail: st => inWake(c, S, () => engrave(c, st, -1, false)),
         sun: () => sunPlate(c, S),
         body: b => drawBody(c, S, b),
       });

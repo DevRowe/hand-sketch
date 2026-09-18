@@ -16,7 +16,7 @@ import { TAU, type Vec2 } from '../../core/math';
 import type { Scene } from '../../core/scene';
 import { composite, ground, knockOut, polyPath, scratch, toothMask } from '../gallery/common';
 import { SOLAR } from '../solar/palettes';
-import { angleAt, bodyBand, bodyRing, BOX, disc, dust, E1, E2, enter, frameFit, INTRO, litShape, LOOP, MOTION, paint, PLANETS, POSTER_M, ribbon, RINGS, snapshot, spiralClock, SUB, SUN_R, trace, URANUS_RING, type Body, type Frame, type PlanetName, type Sample, type Snapshot } from './common';
+import { bodyBand, bodyRing, BOX, disc, dust, E1, E2, enter, frameFit, INTRO, litShape, LOOP, MOTION, paint, PLANETS, POSTER_M, ribbon, RINGS, snapshot, spiralSky, SUN_R, SUN_W, trace, URANUS_RING, type Body, type Frame, type PlanetName, type Sample, type Snapshot } from './common';
 
 const PAL = SOLAR.bauhaus;
 const [RED, YELLOW, BLUE] = PAL.fills as [string, string, string, string];
@@ -147,18 +147,27 @@ export const bauhausSpiral: Scene = {
   poster: (INTRO + POSTER_M) / 12,
   draw(f) {
     const { stage } = f;
-    const fr: Frame = frameFit(stage.w, stage.h), m = spiralClock(f), S = snapshot(m);
+    const fr: Frame = frameFit(stage.w, stage.h), S = snapshot(spiralSky(f));
     ground(f, BONE, { seed: 2900, texture: 0.9 });
     let blkLayer: HTMLCanvasElement | null = null;
     const colLayer = scratch(f, 'sp09-colour', gc => {
       blkLayer = scratch(f, 'sp09-black', gb => {
         const sc: Screens = { col: gc.ctx, blk: gb.ctx };
+        // both screens fade together at the wakes' strength
+        const faded = (draw: () => void): void => {
+          const a = S.plan.alpha;
+          if (a >= 1) return draw();
+          if (a <= 0) return;
+          for (const c of [sc.col, sc.blk]) { c.save(); c.globalAlpha *= a; }
+          draw();
+          for (const c of [sc.col, sc.blk]) c.restore();
+        };
         enter(sc.col, fr);
         enter(sc.blk, fr);
         sheet(sc);
         // dust: small black squares drifting past, squared to the path
         const a = Math.atan2(MOTION[1], MOTION[0]);
-        for (const d of dust(m)) {
+        for (const d of dust(S)) {
           if (d.alpha < 0.3 || d.tone > 0.55) continue;
           const s = (1.4 + d.tone * 2.4) * d.s, p = new Path2D();
           const c = Math.cos(a), n = Math.sin(a);
@@ -170,17 +179,17 @@ export const bauhausSpiral: Scene = {
           black(sc, p);
         }
         paint(S, {
-          run(t, run, near) {
+          run: (t, run, near) => faded(() => {
             if (t.k === 8) { if (near) wake(sc, run, BLACK, 0.9, near); return; }
             wake(sc, run, WAKE[PLANETS[t.k]!.name], WIDTH[t.k]!, near);
-          },
+          }),
           orbit(pl, half, near) {
             black(sc, lineOf(half, pl.name === 'neptune' ? (near ? 4 : 2.5) : near ? 1.4 : 0.9));
           },
           rocks(rocks) {
             const p = new Path2D();
             for (const r of rocks) {
-              const s = (1.2 + r.rock.size * 0.9) * r.s, a = angleAt(r.rock.turns, r.rock.at0, SUB * m);
+              const s = (1.2 + r.rock.size * 0.9) * r.s, a = r.angle;
               const c = Math.cos(a), n = Math.sin(a);
               p.moveTo(r.x + (-s * c + s * n) / 2, r.y + (-s * n - s * c) / 2);
               p.lineTo(r.x + (s * c + s * n) / 2, r.y + (s * n - s * c) / 2);
@@ -190,12 +199,12 @@ export const bauhausSpiral: Scene = {
             }
             black(sc, p);
           },
-          sunTrail(st) {
+          sunTrail: st => faded(() => {
             const young = st.filter(s => s.age < 0.8);
             if (young.length > 1) black(sc, polyPath(ribbon(young, s => 2.6 * s.s * step(s.age))));
-            // a circle for every year of Mercury's along the Sun's path
+            // a circle at every tick of the ruler (a year of Mercury's in the loop) along the Sun's path
             for (const s of st) {
-              if (s.q % (LOOP / PLANETS[0]!.turns * SUB) !== 0 || s.age < 0.02 || s.age > 0.8) continue;
+              if (s.q % S.plan.tick[SUN_W]! !== 0 || s.age < 0.02 || s.age > 0.8) continue;
               const r = 7 * s.s;
               colour(sc, disc(s.x, s.y, r), YELLOW);
               sc.blk.strokeStyle = BLACK;
@@ -204,7 +213,7 @@ export const bauhausSpiral: Scene = {
               sc.blk.arc(s.x, s.y, r, 0, TAU);
               sc.blk.stroke();
             }
-          },
+          }),
           sun() {
             colour(sc, disc(S.sun.x, S.sun.y, SUN_R + 16), YELLOW);
             colour(sc, disc(S.sun.x, S.sun.y, SUN_R), RED);

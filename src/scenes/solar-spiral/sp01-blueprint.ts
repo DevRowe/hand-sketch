@@ -14,7 +14,7 @@ import type { Scene } from '../../core/scene';
 import { drawStroke, prepareStroke, type PreparedStroke, type StrokeStyle } from '../../core/stroke';
 import { circle, composite, ground, group, knockOut, scratch, sec, still, toothMask } from '../gallery/common';
 import { SOLAR } from '../solar/palettes';
-import { behind, bodyRing, disc, dust, E1, E2, enter, frameFit, INTRO, litShape, LOOP, MOON, MOTION, once, paint, planet, PLANETS, POSTER_M, project, RINGS, snapshot, spiralClock, strokeRun, SUB, SUN_R, trace, URANUS_RING, type Body, type Snapshot } from './common';
+import { behind, bodyRing, disc, drawnFrame, dust, E1, E2, enter, frameFit, INTRO, inWake, litShape, LOOP, MOON, MOTION, once, paint, planet, PLANETS, POSTER_M, project, RINGS, snapshot, spiralSky, strokeRun, SUB, SUN_R, trace, URANUS_RING, type Body, type Snapshot } from './common';
 
 const PAL = SOLAR.blueprint;
 const CHALK = PAL.ink, DIM = PAL.accents[1]!, PENCIL = PAL.accents[0]!, BLUE = PAL.paper;
@@ -149,7 +149,7 @@ export const blueprintSpiral: Scene = {
   poster: (INTRO + POSTER_M) / 12,
   draw(f) {
     const { stage } = f;
-    const fr = frameFit(stage.w, stage.h), L = layout(), m = spiralClock(f), n = m + INTRO, S = snapshot(m);
+    const fr = frameFit(stage.w, stage.h), L = layout(), S = snapshot(spiralSky(f)), n = drawnFrame(f);
     ground(f, BLUE, { seed: 2100, texture: 1.4, vignette: 0.45, vignetteColor: '#06182c' });
     still(f, 'sp01-grid', g => {
       const c = g.ctx;
@@ -172,14 +172,14 @@ export const blueprintSpiral: Scene = {
       const fx = { ...g, ctx: c };
       // dust the system flies through: fine specks of chalk
       c.fillStyle = CHALK;
-      for (const d of dust(m)) {
+      for (const d of dust(S)) {
         c.globalAlpha = d.alpha * (0.25 + d.tone * 0.45);
         c.fill(disc(d.x, d.y, (0.6 + d.tone * 0.9) * d.s));
       }
       c.globalAlpha = 1;
       const intro = clamp(n / 12, 0, 1);
       paint(S, {
-        run(t, run, near) {
+        run: (t, run, near) => inWake(c, S, () => {
           const moon = t.k === 8, w = moon ? 1.2 : t.k < 4 ? 2.2 : 2.7;
           c.strokeStyle = CHALK;
           strokeRun(c, run, near ? 4 : DASH, s => {
@@ -190,7 +190,7 @@ export const blueprintSpiral: Scene = {
           // the newest stretch in pencil
           c.strokeStyle = PENCIL;
           strokeRun(c, run, 4, s => (s.age < 0.14 && (near || Math.floor(s.q / DASH) % 2 === 0) ? { width: (w + 1.4) * s.s, alpha: (1 - s.age / 0.14) * 0.95 } : null));
-        },
+        }),
         orbit(_pl, half, near) {
           c.strokeStyle = DIM;
           c.lineWidth = near ? 1.1 : 0.9;
@@ -210,7 +210,7 @@ export const blueprintSpiral: Scene = {
           c.fill();
           c.globalAlpha = 1;
         },
-        sunTrail(st) {
+        sunTrail: st => inWake(c, S, () => {
           // the axis: a chain line, long dash and short, riding back with the path
           c.strokeStyle = CHALK;
           const period = 24 * SUB;
@@ -219,7 +219,7 @@ export const blueprintSpiral: Scene = {
             if (!(ph < 30 || (ph >= 36 && ph < 40))) return null;
             return { width: 1.2 * s.s, alpha: Math.pow(1 - s.age, 1.2) * 0.8 };
           });
-        },
+        }),
         sun() {
           const sx = S.sun.x, sy = S.sun.y;
           const glow = c.createRadialGradient(sx, sy, 0, sx, sy, SUN_R * 2.8);

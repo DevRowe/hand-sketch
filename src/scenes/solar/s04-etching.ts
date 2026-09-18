@@ -12,7 +12,9 @@ import { TAU, type Vec2 } from '../../core/math';
 import { rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { cached, ground, hatchLines, ink, still } from '../gallery/common';
-import { annulus, BELT, BOX, C, disc, enter, frameFit, LOOP, MOON, moonOffset, orbitClock, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type Planet } from './common';
+import { annulus, BELT, BOX, C, disc, enter, frameFit, LOOP, MOON, moonOffset, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type Planet } from './common';
+import { skyOf, type Sky } from './sky';
+import { orbitTrail } from './trails';
 import { SOLAR } from './palettes';
 
 const PAL = SOLAR.etching;
@@ -164,8 +166,8 @@ function sunPlate(c: CanvasRenderingContext2D): void {
 }
 
 /** A planet modelled by line: day-side contours, night-side cross-hatching turned to the Sun. */
-function planetPlate(c: CanvasRenderingContext2D, p: Planet, m: number): void {
-  const [x, y] = planetAt(p, m), toSun = sunward([x, y]), r = p.r;
+function planetPlate(c: CanvasRenderingContext2D, p: Planet, sky: Sky): void {
+  const [x, y] = planetAt(p, sky), toSun = sunward([x, y]), r = p.r;
   c.save();
   c.translate(x, y);
   if (p.name === 'saturn') {
@@ -260,7 +262,7 @@ function planetPlate(c: CanvasRenderingContext2D, p: Planet, m: number): void {
     c.stroke();
   }
   if (p.name === 'earth') {
-    const [mx, my] = moonOffset(m);
+    const [mx, my] = moonOffset(sky);
     c.setLineDash([1.2, 3]);
     c.lineWidth = 0.7;
     c.beginPath();
@@ -292,7 +294,7 @@ export const etchingScene: Scene = {
   poster: POSTER_M / 12,
   draw(f) {
     const { stage } = f;
-    const fr = frameFit(stage.w, stage.h), m = orbitClock(f, 0);
+    const fr = frameFit(stage.w, stage.h), sky = skyOf(f, 0);
     ground(f, PAPER, { seed: 1400, texture: 0.9 });
     // the platemark: a film of plate tone inside, the bevel pressed into the paper
     still(f, 's04-platemark', g => {
@@ -313,18 +315,18 @@ export const etchingScene: Scene = {
       c.stroke();
     }, { blend: 'multiply' });
     // the cold plate, wiped clean where a planet stands (its sky lines must not show through the sphere)
-    const sky = cached(f, 's04-cold', g => coldPlate(g, fr));
+    const cold = cached(f, 's04-cold', g => coldPlate(g, fr));
     ink(f, 's04-cold', g => {
       const c = g.ctx;
-      g.stage.blit(c, sky);
+      g.stage.blit(c, cold);
       enter(c, fr);
       c.globalCompositeOperation = 'destination-out';
       for (const p of PLANETS) {
-        const [x, y] = planetAt(p, m);
+        const [x, y] = planetAt(p, sky);
         c.fill(disc(x, y, p.r + 1.5));
         if (p.name === 'saturn') c.fill(annulus(x, y, RINGS.inner - 2, RINGS.outer + 2, RINGS.squash, RINGS.angle));
         if (p.name === 'earth') {
-          const [mx, my] = moonOffset(m);
+          const [mx, my] = moonOffset(sky);
           c.fill(disc(x + mx, y + my, MOON.r + 1));
         }
       }
@@ -337,12 +339,14 @@ export const etchingScene: Scene = {
       c.fillStyle = WARM;
       c.beginPath();
       for (const rk of ROCKS) {
-        const [x, y] = rockAt(rk, m), s = 0.5 + rk.size * 0.55;
+        const [x, y] = rockAt(rk, sky), s = 0.5 + rk.size * 0.55;
         c.moveTo(x + s, y);
         c.arc(x, y, s, 0, TAU);
       }
       c.fill();
-      for (const p of PLANETS) planetPlate(c, p, m);
+      // a viewer's trails: a fine engraved line back along each orbit
+      for (const p of PLANETS) orbitTrail(c, p, sky, { color: WARM, width: 1.6, tail: 0.4 });
+      for (const p of PLANETS) planetPlate(c, p, sky);
     }, { offset: [0.8, 0.6] satisfies Vec2 });
   },
 };

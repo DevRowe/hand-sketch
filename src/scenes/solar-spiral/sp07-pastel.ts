@@ -14,7 +14,7 @@ import { rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { cached, ground, knockOut, polyPath, scratch, still, toothMask } from '../gallery/common';
 import { SOLAR } from '../solar/palettes';
-import { bodyBand, bodyRing, BOX, cyclePhase, disc, dust, E1, E2, enter, frameFit, INTRO, litShape, LOOP, MOTION, once, paint, POSTER_M, project, RINGS, snapshot, spiralClock, strokeRun, SUN_R, trace, URANUS_RING, type Body, type Frame, type PlanetName, type Sample, type Snapshot } from './common';
+import { bodyBand, bodyRing, BOX, cyclePhase, disc, dust, E1, E2, enter, frameFit, INTRO, inWake, litShape, LOOP, MOTION, once, orbitRings, paint, POSTER_M, project, RINGS, snapshot, spiralSky, strokeRun, SUN_R, trace, URANUS_RING, type Body, type Frame, type PlanetName, type Sample, type Snapshot } from './common';
 
 const PAL = SOLAR.pastel;
 const [SUN_Y, SUN_O, ROSE, ICE, ULTRA, GREEN, CREAM, LILAC, PEACH] = PAL.fills as [string, string, string, string, string, string, string, string, string];
@@ -134,13 +134,13 @@ export const pastelSpiral: Scene = {
   poster: (INTRO + POSTER_M) / 12,
   draw(f) {
     const { ctx, stage } = f;
-    const fr = frameFit(stage.w, stage.h), m = spiralClock(f), S = snapshot(m);
+    const fr = frameFit(stage.w, stage.h), S = snapshot(spiralSky(f));
     ground(f, PAPER, { seed: 2700, texture: 1.7, vignette: 0.55 });
     ctx.save();
     enter(ctx, fr);
     ctx.fillStyle = CREAM;
     for (const s of STARS()) {
-      const tw = s.cycles ? 0.5 + 0.5 * Math.sin(TAU * (cyclePhase(s.cycles, m) + s.off)) : 1;
+      const tw = s.cycles ? 0.5 + 0.5 * Math.sin(TAU * (cyclePhase(s.cycles, S.beat) + s.off)) : 1;
       ctx.globalAlpha = 0.25 + 0.6 * tw * (0.4 + s.s / 3.4);
       ctx.fill(disc(s.x, s.y, s.s));
     }
@@ -153,7 +153,7 @@ export const pastelSpiral: Scene = {
       c.lineCap = 'round';
       // flecks of chalk dust streaming past, drawn out a little along the path
       const dx = MOTION[0], dy = MOTION[1];
-      for (const d of dust(m)) {
+      for (const d of dust(S)) {
         const len = (2 + d.tone * 7) * d.s;
         c.strokeStyle = rgba(d.tone < 0.3 ? ICE : CREAM, 0.5 * d.alpha);
         c.lineWidth = (0.8 + d.tone * 1.2) * d.s;
@@ -163,17 +163,18 @@ export const pastelSpiral: Scene = {
         c.stroke();
       }
       paint(S, {
-        run(t, run, near) {
+        run: (t, run, near) => inWake(c, S, () => {
           if (t.k === 8) smudge(c, run, CREAM, 0.9, near);
           else smudge(c, run, WAKE[S.bodies[t.k]!.planet.name], WIDTH[t.k]!, near);
-        },
+        }),
+        orbit: (_pl, half, near) => orbitRings(c, S, half, near, LILAC, 1.3),
         rocks(rocks) {
           c.fillStyle = rgba(LILAC, 0.7);
           c.beginPath();
           for (const r of rocks) { const s = (0.6 + r.rock.size * 0.6) * r.s; c.moveTo(r.x + s, r.y); c.arc(r.x, r.y, s, 0, TAU); }
           c.fill();
         },
-        sunTrail: st => smudge(c, st, SUN_O, 4, true),
+        sunTrail: st => inWake(c, S, () => smudge(c, st, SUN_O, 4, true)),
         sun() { g.stage.blit(c, sun); },
         body: b => drawBody(c, S, b),
       });

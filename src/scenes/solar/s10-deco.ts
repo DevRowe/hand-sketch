@@ -13,7 +13,9 @@ import { clamp, TAU, type Vec2 } from '../../core/math';
 import { rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { composite, ground, knockOut, polyPath, scratch, still, toothMask } from '../gallery/common';
-import { BOX, C, cyclePhase, dayHalf, disc, enter, frameFit, LOOP, MOON, moonOffset, once, orbitClock, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type Planet } from './common';
+import { BOX, C, cyclePhase, dayHalf, disc, drawnFrame, enter, frameFit, LOOP, MOON, moonOffset, once, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type Planet } from './common';
+import { skyOf, type Sky } from './sky';
+import { orbitTrail } from './trails';
 import { SOLAR } from './palettes';
 
 const PAL = SOLAR.deco;
@@ -92,8 +94,8 @@ function background(g: SceneFrame, fr: Frame): void {
   c.fill('evenodd');
 }
 
-function drawPlanet(c: CanvasRenderingContext2D, p: Planet, m: number): void {
-  const [x, y] = planetAt(p, m), toSun = sunward([x, y]), r = p.r;
+function drawPlanet(c: CanvasRenderingContext2D, p: Planet, sky: Sky): void {
+  const [x, y] = planetAt(p, sky), toSun = sunward([x, y]), r = p.r;
   if (p.name === 'saturn') {
     c.lineWidth = 1;
     c.beginPath();
@@ -131,7 +133,7 @@ function drawPlanet(c: CanvasRenderingContext2D, p: Planet, m: number): void {
   c.arc(x, y, r, 0, TAU);
   c.stroke();
   if (p.name === 'earth') {
-    const [mx, my] = moonOffset(m);
+    const [mx, my] = moonOffset(sky);
     c.fill(disc(x + mx, y + my, MOON.r));
   }
 }
@@ -143,7 +145,7 @@ export const decoScene: Scene = {
   poster: (LOOP_FROM + POSTER_M) / 12,
   draw(f) {
     const { stage } = f;
-    const fr = frameFit(stage.w, stage.h), m = orbitClock(f, LOOP_FROM), n = m + LOOP_FROM;
+    const fr = frameFit(stage.w, stage.h), sky = skyOf(f, LOOP_FROM), n = drawnFrame(f);
     ground(f, LACQUER, { seed: 2000, texture: 0.7, vignette: 0.5 });
     const burst = clamp((n - F.burst[0]) / (F.burst[1] - F.burst[0]), 0, 1), ease = 1 - (1 - burst) ** 3;
     still(f, 's10-wedges', g => background(g, fr), { alpha: ease });
@@ -236,23 +238,25 @@ export const decoScene: Scene = {
       if (n >= F.orbits + 4 * F.every) {
         c.beginPath();
         for (const rk of ROCKS) {
-          const [x, y] = rockAt(rk, m), s = 0.5 + rk.size * 0.5;
+          const [x, y] = rockAt(rk, sky), s = 0.5 + rk.size * 0.5;
           c.moveTo(x + s, y);
           c.arc(x, y, s, 0, TAU);
         }
         c.fill();
       }
+      // a viewer's trails: a gold rule back along each orbit
+      if (n >= F.orbits + 8 * F.every + F.sweep) for (const p of PLANETS) orbitTrail(c, p, sky, { color: GOLD, width: 2.2, tail: 0.3 });
       PLANETS.forEach((p, k) => {
         const on = clamp((n - F.orbits - k * F.every - F.sweep) / 3, 0, 1);
         if (on <= 0) return;
         c.save();
         c.globalAlpha = on;
-        drawPlanet(c, p, m);
+        drawPlanet(c, p, sky);
         c.restore();
       });
       // sparkles: four-point stars flashing in turn
       for (const s of SPARKLES()) {
-        const flash = Math.max(0, Math.sin(TAU * (cyclePhase(s.cycles, m) + s.off))) ** 3 * ease;
+        const flash = Math.max(0, Math.sin(TAU * (cyclePhase(s.cycles, sky.beat) + s.off))) ** 3 * ease;
         if (flash < 0.02) continue;
         const L = s.s * (0.4 + 0.6 * flash);
         c.globalAlpha = flash;
@@ -260,7 +264,7 @@ export const decoScene: Scene = {
       }
       c.globalAlpha = 1;
       // the sheen: a band of pale light crossing the gold once a loop, laid only where there is gold
-      const u = cyclePhase(1, m) * 1.6 - 0.3, sx = u * BOX * 2;
+      const u = cyclePhase(1, sky.beat) * 1.6 - 0.3, sx = u * BOX * 2;
       const sheen = c.createLinearGradient(sx - 160, 0, sx + 160, 0);
       sheen.addColorStop(0, 'rgba(243,226,174,0)');
       sheen.addColorStop(0.5, 'rgba(255,246,214,0.85)');
@@ -284,7 +288,7 @@ export const decoScene: Scene = {
     PLANETS.forEach((p, k) => {
       const on = clamp((n - F.orbits - k * F.every - F.sweep) / 3, 0, 1);
       if (on <= 0) return;
-      const [x, y] = planetAt(p, m);
+      const [x, y] = planetAt(p, sky);
       f.ctx.globalAlpha = on;
       f.ctx.fill(disc(x, y, p.r));
     });
