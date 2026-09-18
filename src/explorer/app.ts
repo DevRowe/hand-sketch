@@ -21,6 +21,9 @@ export const BODY_NAMES: Readonly<Record<BodyId | 'belt', string>> = {
   jupiter: 'Jupiter', saturn: 'Saturn', uranus: 'Uranus', neptune: 'Neptune', belt: 'Asteroid belt',
 };
 
+/** Whose name wins when two would overlap. */
+const RANK: readonly BodyId[] = ['sun', 'earth', 'jupiter', 'saturn', 'mars', 'venus', 'uranus', 'neptune', 'mercury', 'moon'];
+
 /** Mercury's sidereal period, days: the fastest planet sets the drawing cadence. */
 const MERCURY_DAYS = 87.97;
 /** Most degrees Mercury may move between drawings before the cadence rises. */
@@ -50,9 +53,13 @@ export class App {
   following = false;
   names = true;
   /** Each view keeps its own trail length: short sweeps read best from above, long wakes in motion. */
-  readonly spans: Record<ViewId, number> = { sky: 2 * 30.44, wake: 3 * YEAR };
+  readonly spans: Record<ViewId, number> = { sky: 2 * 30.44, wake: 12 * YEAR };
   /** Extra drawing over the scene (the jump-to presets' geometry). */
   overlay: Overlay | null = null;
+  /** A journey under way stops (and pauses) on this day. */
+  private stopAt: number | null = null;
+  /** The part of the screen the controls leave free (CSS pixels): framing centres things there. */
+  freeRect: () => { x: number; y: number; w: number; h: number } = () => ({ x: 0, y: 0, w: innerWidth, h: innerHeight });
   /** Called after every drawing (readouts) and on every state change (controls). */
   onDraw: () => void = () => {};
   onChange: () => void = () => {};
@@ -63,6 +70,8 @@ export class App {
   private last = 0;
   private marks: Marks | null = null;
   private readonly labelEls = new Map<BodyId, HTMLElement>();
+  /** Each name's width on screen, measured once. */
+  private readonly labelWidth = new Map<BodyId, number>();
 
   constructor(private readonly o: AppOptions) {
     this.sim = o.sim;
@@ -73,6 +82,11 @@ export class App {
     this.camera = new Camera(w, h);
     this.intro = o.skipIntro ? 1e9 : 0;
     this.sim.trails.span = this.spans[this.view];
+    // names are measured once, in the page's own font once it has loaded
+    void document.fonts?.ready.then(() => {
+      this.labelWidth.clear();
+      this.dirty = true;
+    });
     for (const id of Object.keys(BODY_NAMES) as (BodyId | 'belt')[]) {
       if (id === 'belt') continue;
       const el = document.createElement('span');
@@ -139,13 +153,28 @@ export class App {
 
   setDirection(dir: 1 | -1): void {
     this.sim.direction = dir;
+    this.stopAt = null;
     this.changed();
   }
 
   jump(day: number): void {
     this.sim.jump(day);
+    this.stopAt = null;
     this.changed();
   }
+
+  /** Play forwards from `from` to `to` at `pace` days a second, then pause there. */
+  journey(from: number, to: number, pace: number): void {
+    this.sim.jump(from);
+    this.sim.direction = 1;
+    this.sim.pace = pace;
+    this.sim.playing = true;
+    this.stopAt = to;
+    this.changed();
+  }
+
+  /** Whether a journey is under way. */
+  get journeying(): boolean { return this.stopAt !== null; }
 
   setTrails(on: boolean): void {
     this.sim.trails.on = on;
@@ -195,21 +224,41 @@ export class App {
     this.changed();
   }
 
+  /**
+   * Where the camera must centre (logical units) at `zoom` so the logical point (lx, ly) shows in the middle of the
+   * free part of the screen rather than the middle of the screen.
+   */
+  private centreFor(lx: number, ly: number, zoom: number): [number, number] {
+    const r = this.freeRect(), k = this.renderer.logicalScale * zoom;
+    return [lx - (r.x + r.w / 2 - innerWidth / 2) / k, ly - (r.y + r.h / 2 - innerHeight / 2) / k];
+  }
+
+  /** Glide to fit a circle of `radius` design units round the design point `at` into the free part of the screen. */
+  frameDesign(radius: number, [x, y]: readonly [number, number]): void {
+    const r = this.freeRect(), perDesign = this.renderer.designScale / this.camera.zoom;
+    const zoom = clamp(Math.min(r.w, r.h) / (2 * radius * perDesign), ZOOM_MIN, ZOOM_MAX);
+    const [lx, ly] = this.renderer.designToLogical(x, y), [cx, cy] = this.centreFor(lx, ly, zoom);
+    this.following = false;
+    this.camera.glideTo({ zoom, x: cx, y: cy });
+    this.changed();
+  }
+
   /** Glide in on the selected body and keep it centred. */
   focusSelected(zoom = 4): void {
-    const m = this.markOf(this.selected);
+    const m = this.markOf(this.selected, true);
     if (!m) return;
-    const [lx, ly] = this.renderer.designToLogical(m.x, m.y);
+    const z = clamp(Math.max(zoom, this.camera.zoom), ZOOM_MIN, ZOOM_MAX), [lx, ly] = this.renderer.designToLogical(m.x, m.y), [cx, cy] = this.centreFor(lx, ly, z);
     this.following = true;
-    this.camera.glideTo({ zoom: clamp(Math.max(zoom, this.camera.zoom), ZOOM_MIN, ZOOM_MAX), x: lx, y: ly });
+    this.camera.glideTo({ zoom: z, x: cx, y: cy });
     this.changed();
   }
 
   /* ---------- picking ---------- */
 
-  private markOf(id: Selection): { x: number; y: number } | null {
+  /** Where a body is drawn: as last drawn, or `fresh` for the sky as it stands now (after a jump). */
+  private markOf(id: Selection, fresh = false): { x: number; y: number } | null {
     if (!id || id === 'belt') return null;
-    const marks = this.marks ?? sceneMarks(this.view, this.sim.sky());
+    const marks = (!fresh && this.marks) || sceneMarks(this.view, this.sim.sky());
     return marks.bodies.find(b => b.id === id) ?? null;
   }
 
@@ -244,6 +293,12 @@ export class App {
     this.last = now;
     if (this.renderer.settle(now, this.interval, dt)) this.dirty = true;
     if (this.sim.advance(dt)) this.onChange();
+    if (this.stopAt !== null && this.sim.playing && this.sim.direction === 1 && this.sim.day >= this.stopAt) {
+      this.sim.day = this.stopAt;
+      this.sim.playing = false;
+      this.stopAt = null;
+      this.changed();
+    }
     const settling = this.sim.settling, moving = this.camera.moving;
     this.camera.step(dt);
     const rest = toFrames(this.scene.loopFrom ?? 0, 12), drawingOn = this.intro < rest;
@@ -261,10 +316,12 @@ export class App {
     const sky = this.sim.sky();
     this.marks = sceneMarks(this.view, sky);
     if (this.following) {
-      const m = this.markOf(this.selected);
-      if (m && !this.camera.moving) {
+      const m = this.marks.bodies.find(b => b.id === this.selected);
+      if (m) {
         const [lx, ly] = this.renderer.designToLogical(m.x, m.y);
-        this.camera.centre(lx, ly);
+        // a glide in progress lands on the body where it is now, not where it was when the glide began
+        if (this.camera.moving) this.camera.retarget(...this.centreFor(lx, ly, this.camera.target.zoom));
+        else this.camera.centre(...this.centreFor(lx, ly, this.camera.zoom));
       }
     }
     const view: View = this.camera.view;
@@ -299,22 +356,30 @@ export class App {
     ctx.restore();
   }
 
-  /** Names beside the bodies, where they were drawn. */
+  /**
+   * Names beside the bodies, where they were drawn. Where names would overlap, the more important one wins (the
+   * selected body, then the Sun, then the bigger planets) and the other waits until zooming in parts them.
+   */
   private placeLabels(): void {
     const marks = this.marks;
     if (!marks) return;
-    const s = this.renderer.designScale;
-    let earth: [number, number] | null = null;
-    for (const m of marks.bodies) {
+    const s = this.renderer.designScale, placed: [number, number, number, number][] = [];
+    const rank = (id: BodyId): number => (id === this.selected ? -1 : RANK.indexOf(id));
+    for (const m of [...marks.bodies].sort((a, b) => rank(a.id) - rank(b.id))) {
       const el = this.labelEls.get(m.id);
       if (!el) continue;
       const [x, y] = this.renderer.toScreen(m.x, m.y), r = Math.max(m.id === 'sun' ? m.r : m.reach, m.r) * s;
-      if (m.id === 'earth') earth = [x, y];
-      // the Moon's name only once it stands clear of the Earth's
-      const crowded = m.id === 'moon' && earth !== null && Math.hypot(x - earth[0], y - earth[1]) < 34 && this.selected !== 'moon';
-      el.style.transform = `translate(${Math.round(x + r + 6)}px, ${Math.round(y - 9)}px)`;
-      el.style.visibility = crowded ? 'hidden' : 'visible';
+      let w = this.labelWidth.get(m.id);
+      if (!w) {
+        w = el.offsetWidth || 60;
+        this.labelWidth.set(m.id, w);
+      }
+      const left = Math.round(x + r + 6), top = Math.round(y - 9), h = 18;
+      const clash = placed.some(([a, b, c, d]) => left < c && left + w > a && top < d && top + h > b);
+      el.style.transform = `translate(${left}px, ${top}px)`;
+      el.style.visibility = clash ? 'hidden' : 'visible';
       el.classList.toggle('selected', m.id === this.selected);
+      if (!clash) placed.push([left - 2, top - 2, left + w + 2, top + h + 2]);
     }
   }
 }

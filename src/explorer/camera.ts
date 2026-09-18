@@ -2,11 +2,12 @@
  * The explorer's view camera: a uniform zoom and a pan over the drawn frame, in the stage's logical units, and nothing
  * else (no turning, no tilting: the sky keeps its angle). It is separate from the sky and the style, so it never
  * changes what is drawn, only which part of the frame fills the screen. Zoom goes towards a point (the cursor, a
- * pinch's centre); the view never leaves the page; moves can be eased, and the view can follow a moving body.
+ * pinch's centre). Zoomed in, the screen stays on the page; zoomed out below 1, the whole page shows as a sheet that
+ * can slide about but never off the screen. Moves can be eased, and the view can follow a moving body.
  */
 import type { View } from '../core/stage';
 
-export const ZOOM_MIN = 1;
+export const ZOOM_MIN = 0.7;
 export const ZOOM_MAX = 16;
 
 const clamp = (x: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, x));
@@ -33,11 +34,14 @@ export class Camera {
 
   get view(): View { return { zoom: this.zoom, x: this.x, y: this.y }; }
 
+  /** Where the camera is heading (its own view when at rest). */
+  get target(): View { return this.glide?.to ?? this.view; }
+
   /** Whether an eased move is under way. */
   get moving(): boolean { return this.glide !== null; }
 
   /** At rest on the whole frame. */
-  get home(): boolean { return this.zoom === 1 && !this.glide; }
+  get home(): boolean { return this.zoom === 1 && this.x === this.w / 2 && this.y === this.h / 2 && !this.glide; }
 
   /** A new logical frame size: keep the same part of the page in view. */
   resize(w: number, h: number): void {
@@ -50,12 +54,12 @@ export class Camera {
     this.settle();
   }
 
-  /** Keep the view on the page. */
+  /** Keep the screen on the page (zoomed in), or the page on the screen (zoomed out). */
   private settle(): void {
     this.zoom = clamp(this.zoom, ZOOM_MIN, ZOOM_MAX);
     const hw = this.w / 2 / this.zoom, hh = this.h / 2 / this.zoom;
-    this.x = clamp(this.x, hw, this.w - hw);
-    this.y = clamp(this.y, hh, this.h - hh);
+    this.x = clamp(this.x, Math.min(hw, this.w - hw), Math.max(hw, this.w - hw));
+    this.y = clamp(this.y, Math.min(hh, this.h - hh), Math.max(hh, this.h - hh));
   }
 
   /** Zoom by `factor` keeping the logical point (`lx`, `ly`) where it is on the screen. */
@@ -93,6 +97,11 @@ export class Camera {
       return;
     }
     this.glide = { from: this.view, to: target, t: 0, duration };
+  }
+
+  /** Move an eased move's destination (a body it is gliding towards has moved on). */
+  retarget(x: number, y: number): void {
+    if (this.glide) this.glide.to = { ...this.glide.to, x, y };
   }
 
   /** Back to the whole frame. */

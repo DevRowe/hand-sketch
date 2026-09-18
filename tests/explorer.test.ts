@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { pick, sceneMarks } from '../src/explorer/bodies';
-import { Camera, ZOOM_MAX } from '../src/explorer/camera';
+import { Camera, ZOOM_MAX, ZOOM_MIN } from '../src/explorer/camera';
 import { dateLabel, isoDate, paceFromSlider, paceLabel, paceToSlider, parseIsoDate, spanLabel } from '../src/explorer/format';
 import { DAY_MAX, MONTH, Sim, WEEK, YEAR } from '../src/explorer/sim';
 import { STYLES } from '../src/explorer/styles';
@@ -71,6 +71,18 @@ describe('explorer camera', () => {
     expect(cam.y).toBeCloseTo(1080 - 1080 / 2 / ZOOM_MAX, 9);
     cam.reset(0);
     expect(cam.view).toEqual({ zoom: 1, x: 960, y: 540 });
+  });
+
+  it('lets the page sit back as a sheet when zoomed out, never off the screen', () => {
+    const cam = new Camera(1920, 1080);
+    cam.zoomAt(0.5, 960, 540);
+    expect(cam.zoom).toBe(ZOOM_MIN);
+    const hw = 960 / ZOOM_MIN;
+    cam.panBy(1e6, 0);
+    // the page's right edge may reach the screen's right edge but no farther
+    expect(cam.x).toBeCloseTo(1920 - hw, 9);
+    cam.panBy(-2e6, 0);
+    expect(cam.x).toBeCloseTo(hw, 9);
   });
 
   it('glides to a view', () => {

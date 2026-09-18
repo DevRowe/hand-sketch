@@ -4,8 +4,9 @@
  * - Planets: the mean Keplerian elements and rates of E. M. Standish, "Approximate Positions of the Planets" (JPL
  *   Solar System Dynamics, Tables 2a and 2b, fitted to 3000 BC .. 3000 AD; nominal errors under about 0.6 degrees of
  *   heliocentric longitude), solved on Kepler's equation. "earth" is the Earth-Moon barycentre.
- * - The Moon: its geocentric ecliptic longitude from the mean arguments and the ten largest periodic terms of Meeus,
- *   "Astronomical Algorithms" (2nd ed., ch. 47), good to a few tenths of a degree.
+ * - The Moon: its geocentric ecliptic longitude from the mean arguments and the thirteen largest periodic terms of
+ *   Meeus, "Astronomical Algorithms" (2nd ed., ch. 47), good to about a tenth of a degree, carried back from the
+ *   equinox of date to J2000 so it shares the planets' frame.
  *
  * Time is counted in days from J2000.0 (2000-01-01 12:00 TT); the minute or so between TT and UTC is far below
  * anything a sketch can show. Longitudes are radians in [0, 2 pi), measured from the J2000 equinox, counter-clockwise
@@ -60,6 +61,12 @@ const ELEMENTS: Readonly<Record<PlanetName, Elements>> = {
 /** The first and last days (from J2000.0) the elements were fitted over: 3000 BC and AD 3000. */
 export const VALID_DAYS: readonly [number, number] = [dayOf(Date.UTC(-2999, 0, 1)), dayOf(Date.UTC(3000, 0, 1))];
 
+/**
+ * Pluto, which the JPL page has since dropped: the elements of the earlier Table 1 (1800 .. 2050, no published
+ * accuracy), for placing it on a date near New Horizons' visit.
+ */
+const PLUTO: Elements = { a: [39.48211675, -0.00031596], e: [0.24882730, 0.00005170], I: [17.14001206, 0.00004818], L: [238.92903833, 145.20780515], peri: [224.06891629, -0.04062942], node: [110.30393684, -0.01183482] };
+
 /** Sidereal period of a planet in days, from the rate of its mean longitude. */
 export const periodDays = (name: PlanetName): number => (36525 * 360) / ELEMENTS[name].L[1];
 
@@ -86,9 +93,9 @@ export interface Helio {
   r: number;
 }
 
-/** Heliocentric ecliptic position of a planet `day` days from J2000.0. */
-export function heliocentric(name: PlanetName, day: number): Helio {
-  const el = ELEMENTS[name], T = day / 36525, at = (x: Elem): number => x[0] + x[1] * T;
+/** Heliocentric ecliptic position of a planet (or Pluto) `day` days from J2000.0. */
+export function heliocentric(name: PlanetName | 'pluto', day: number): Helio {
+  const el = name === 'pluto' ? PLUTO : ELEMENTS[name], T = day / 36525, at = (x: Elem): number => x[0] + x[1] * T;
   const a = at(el.a), e = at(el.e), I = at(el.I) * RAD, peri = at(el.peri), node = at(el.node);
   let M = at(el.L) - peri;
   if (el.extra) {
@@ -104,6 +111,9 @@ export function heliocentric(name: PlanetName, day: number): Helio {
   const z = sw * sI * xp + cw * sI * yp;
   return { lon: wrapTau(Math.atan2(y, x)), lat: Math.atan2(z, Math.hypot(x, y)), r: Math.hypot(x, y, z) };
 }
+
+/** General precession in longitude, degrees per Julian century (5,028.83 arcseconds, JPL astrodynamic parameters). */
+const PRECESSION = 5028.83 / 3600;
 
 /** Geocentric ecliptic longitude of the Moon `day` days from J2000.0, radians in [0, 2 pi) (Meeus ch. 47). */
 export function moonLongitude(day: number): number {
@@ -126,8 +136,12 @@ export function moonLongitude(day: number): number {
     0.058793 * Math.sin(2 * D - 2 * Mp) +
     0.057066 * E * Math.sin(2 * D - M - Mp) +
     0.053322 * Math.sin(2 * D + Mp) +
-    0.045758 * E * Math.sin(2 * D - M);
-  return wrapTau((Lp + sum) * RAD);
+    0.045758 * E * Math.sin(2 * D - M) -
+    0.040923 * E * Math.sin(M - Mp) -
+    0.034720 * Math.sin(D) -
+    0.030383 * E * Math.sin(M + Mp);
+  // Meeus measures from the equinox of date; the planets' elements from J2000's
+  return wrapTau((Lp + sum - PRECESSION * T) * RAD);
 }
 
 /** The Sun's geocentric longitude: the Earth's heliocentric one turned half round. */

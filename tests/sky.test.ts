@@ -40,8 +40,9 @@ describe('ephemeris', () => {
   it('follows the Moon through its phases', () => {
     // new Moon at the total solar eclipse of 8 April 2024, full Moon of 18 September 2024
     const nm = day(2024, 4, 8, 18.35), fm = day(2024, 9, 18, 2.57);
-    expect(Math.abs(diff(moonLongitude(nm), sunLongitude(nm)))).toBeLessThan(1);
-    expect(Math.abs(diff(moonLongitude(fm), sunLongitude(fm) + Math.PI))).toBeLessThan(1);
+    // with the Moon carried to the J2000 frame the planets use, both land within a quarter of a degree
+    expect(Math.abs(diff(moonLongitude(nm), sunLongitude(nm)))).toBeLessThan(0.25);
+    expect(Math.abs(diff(moonLongitude(fm), sunLongitude(fm) + Math.PI))).toBeLessThan(0.25);
     // Apollo 11 landed under a waxing crescent, about 70 degrees from the Sun
     const a11 = day(1969, 7, 20, 20.28);
     expect(diff(moonLongitude(a11), sunLongitude(a11))).toBeGreaterThan(55);

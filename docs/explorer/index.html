@@ -14,8 +14,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,300&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="./assets/index-BGDDVzvJ.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-kHwsgV1r.css">
+  <script type="module" crossorigin src="./assets/index-CxFHS1KV.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-Da2IkkUB.css">
 </head>
 <body>
   <canvas id="sky" role="img" aria-label="The solar system, drawn live"></canvas>
@@ -86,7 +86,12 @@
     <button type="button" class="more" id="more-btn" aria-expanded="false" aria-controls="extras">More controls</button>
   </section>
 
-  <aside class="panel" id="panel" role="dialog" aria-modal="false" aria-labelledby="panel-title" hidden>
+  <div class="pill chrome" id="preset-pill" hidden>
+    <button type="button" class="pill-open" id="pill-open" title="Show this moment's card"><span class="pill-dot" aria-hidden="true"></span><span id="pill-text"></span></button>
+    <button type="button" class="pill-clear" id="pill-clear" aria-label="Stop showing this moment" title="Stop showing this moment"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+  </div>
+
+  <aside class="panel" id="panel" role="dialog" aria-modal="false" aria-labelledby="panel-title" tabindex="-1" hidden>
     <div class="panel-head">
       <div class="panel-titles">
         <p class="eyebrow" id="panel-eyebrow"></p>

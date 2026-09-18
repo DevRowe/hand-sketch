@@ -66,7 +66,7 @@ function reset(): void {
   if (!reduceMotion) app.redrawIntro();
 }
 
-const refresh = wireControls(app, {
+const controls = wireControls(app, {
   openJump: () => panel.openJump(),
   openGuide: () => panel.openGuide(),
   openBody: id => panel.openBody(id),
@@ -96,9 +96,38 @@ function syncUrl(): void {
 }
 
 app.onChange = () => {
-  refresh();
+  controls.refresh();
   panel.refresh();
   syncUrl();
+};
+app.onDraw = () => {
+  controls.onDraw();
+  panel.tick();
+};
+
+/* ---------- the room the controls leave ---------- */
+
+app.freeRect = () => {
+  const W = innerWidth, H = innerHeight, gap = 12, hidden = document.body.classList.contains('hide-ui');
+  let top = 0, bottom = H, left = 0, right = W;
+  const box = (id: string): DOMRect | null => {
+    const el = document.getElementById(id);
+    if (!el || el.hidden || getComputedStyle(el).display === 'none' || getComputedStyle(el).visibility === 'hidden') return null;
+    return el.getBoundingClientRect();
+  };
+  if (!hidden) {
+    const t = box('top'), d = box('dock'), r = box('rail');
+    if (t) top = t.bottom + gap;
+    if (d) bottom = Math.min(bottom, d.top - gap);
+    if (r && r.width < W / 3) left = r.right + gap;
+  }
+  const p = box('panel');
+  if (p) {
+    // a side panel on a wide screen, a sheet along the bottom on a phone
+    if (p.width < W * 0.7) right = p.left - gap;
+    else bottom = Math.min(bottom, p.top - gap);
+  }
+  return { x: left, y: top, w: Math.max(80, right - left), h: Math.max(80, bottom - top) };
 };
 
 /* ---------- size ---------- */
@@ -125,7 +154,7 @@ if (url.preset) panel.openPreset(url.preset);
 if (reduceMotion) toast('Paused, as your device asks for reduced motion. Press play to set the planets moving.', 6500);
 
 app.start();
-refresh();
+controls.refresh();
 
 declare global {
   interface Window {

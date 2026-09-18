@@ -16,6 +16,8 @@ import { enter, frameFit, type Frame } from '../scenes/solar/common';
 const LEVELS = [1, 0.84, 0.7, 0.58, 0.48, 0.4];
 /** Most device pixels per CSS pixel worth drawing. */
 const MAX_DPR = 2;
+/** What lies round the page when it is zoomed out. */
+const DESK = '#0b0d12';
 
 export interface Size {
   /** CSS pixels. */
@@ -160,8 +162,19 @@ export class Renderer {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = '#0d0f15';
+    ctx.fillStyle = DESK;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    // zoomed out, the page lies on the desk as a sheet: give it a soft shadow to sit on
+    const [x0, y0] = stage.toPixel(0, 0), [x1, y1] = stage.toPixel(stage.w, stage.h);
+    if (x0 > 0.5 || y0 > 0.5 || x1 < this.canvas.width - 0.5 || y1 < this.canvas.height - 0.5) {
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.7)';
+      ctx.shadowBlur = 40 * stage.base;
+      ctx.shadowOffsetY = 10 * stage.base;
+      ctx.fillStyle = '#000';
+      ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+      ctx.restore();
+    }
     const rest = toFrames(scene.loopFrom ?? 0, ON_TWOS.fps);
     drawScene(ctx, stage, scene, Math.min(rest, Math.max(0, intro)), ON_TWOS, DEFAULT_SETTINGS, { sky });
     if (overlay) {

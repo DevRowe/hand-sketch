@@ -34,7 +34,14 @@ const fill = (el: HTMLInputElement): void => {
   el.style.setProperty('--fill', `${(u * 100).toFixed(2)}%`);
 };
 
-export function wireControls(app: App, hooks: ControlHooks): () => void {
+export interface Controls {
+  /** Bring every control in step with the app. */
+  refresh(): void;
+  /** Keep the readouts that change as the date runs in step (after every drawing). */
+  onDraw(): void;
+}
+
+export function wireControls(app: App, hooks: ControlHooks): Controls {
   const ui = {
     play: $<HTMLButtonElement>('play'),
     dateOut: $<HTMLOutputElement>('date-out'),
@@ -340,7 +347,6 @@ export function wireControls(app: App, hooks: ControlHooks): () => void {
     ui.names.setAttribute('aria-pressed', String(app.names));
     onDraw();
   };
-  app.onDraw = onDraw;
   refresh();
-  return refresh;
+  return { refresh, onDraw };
 }
