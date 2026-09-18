@@ -102,12 +102,19 @@ export function drawSight(ctx: CanvasRenderingContext2D, app: App, from: Vec2, t
   haloStroke(ctx, px(app), 1.3, () => polyline(ctx, [from, end]), GOLD, [2, 5]);
 }
 
-/** A small caption in the explorer's type, haloed. */
+/** Screen pixels a caption keeps from the screen's sides. */
+const EDGE = 6;
+
+/** A small caption in the explorer's type, haloed; slid sideways as needed to stay on the screen. */
 export function text(ctx: CanvasRenderingContext2D, app: App, [x, y]: Vec2, s: string, align: CanvasTextAlign, alpha = 1, bold = false): void {
   const k = px(app);
   ctx.save();
   ctx.globalAlpha *= alpha;
   ctx.font = `${bold ? 600 : 500} ${12 * k}px Inter, system-ui, sans-serif`;
+  const w = ctx.measureText(s).width / k, [sx] = app.renderer.toScreen(x, y);
+  const left = align === 'left' ? sx : align === 'right' ? sx - w : sx - w / 2;
+  if (left < EDGE) x += (EDGE - left) * k;
+  else if (left + w > innerWidth - EDGE) x -= (left + w - innerWidth + EDGE) * k;
   ctx.textAlign = align;
   ctx.textBaseline = 'alphabetic';
   ctx.lineJoin = 'round';

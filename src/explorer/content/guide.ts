@@ -116,4 +116,6 @@ export const SOURCES: readonly Source[] = [
   { label: 'NASA Mars trajectory handbook (TM-2010-216764)', href: 'https://ntrs.nasa.gov/citations/20100037210' },
   { label: 'ESA Space Science', href: 'https://www.esa.int/Science_Exploration/Space_Science' },
   { label: 'Jonathan McDowell’s satellite statistics', href: 'https://planet4589.org/space/stats/active.html' },
+  { label: 'Reid et al. 2019: the Milky Way’s rotation (the Sun’s galactic speed)', href: 'https://arxiv.org/abs/1910.03357' },
+  { label: 'Planck 2018 results I: our motion against the cosmic microwave background', href: 'https://arxiv.org/abs/1807.06205' },
 ];

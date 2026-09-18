@@ -11,6 +11,7 @@ import { toFrames } from '../core/scene';
 import type { View } from '../core/stage';
 import { sceneMarks, pick, type BodyId, type Pick, type Scene as Marks, type ViewId } from './bodies';
 import { Camera, ZOOM_MAX, ZOOM_MIN } from './camera';
+import { LabelLayout } from './labels';
 import { Renderer, type Size } from './renderer';
 import { clamp, Sim, YEAR } from './sim';
 import { STYLES, type Style } from './styles';
@@ -38,11 +39,26 @@ const MAX_FPS = 30;
 const HAND_FPS = 30;
 /** Milliseconds an animation frame that draws nothing may spend sharpening zoomed textures. */
 const REFINE_MS = 6;
-/** Screens this narrow (CSS pixels) frame the system into the room the controls leave. */
-const PHONE = 720;
-/** Design units from the Sun to the far side of Neptune; and CSS pixels kept clear round it. */
-const HOME_REACH = 502;
+/**
+ * What home must show of each view, design units [x0, y0, x1, y1]: from above, the plan out to Neptune; in motion, the
+ * tilted orbits round the Sun (which sits right of centre), a little of the wake behind them and room for names.
+ */
+const HOME_EXTENT: Readonly<Record<ViewId, readonly [number, number, number, number]>> = {
+  sky: [38, 38, 1042, 1042],
+  wake: [440, 330, 960, 880],
+};
+/** CSS pixels kept clear round it, and round a framed moment (whose marks carry names outside the circle). */
 const HOME_MARGIN = 10;
+const FRAME_MARGIN = 16;
+/** On a compact screen home may zoom in this far to fill the room; within `HOME_SNAP` of 1 it rests on the whole page. */
+const HOME_ZOOM_MAX = 1.6;
+const HOME_SNAP = 0.07;
+/** Screens where the controls take a large share of the room: home is fitted to it (elsewhere the page fills the screen). */
+const COMPACT = matchMedia('(max-width: 980px), (max-height: 540px)');
+
+/** Trails the explorer starts with: short sweeps read best from above, longer wakes in motion; both at a light touch. */
+export const DEFAULT_SPANS: Readonly<Record<ViewId, number>> = { sky: YEAR / 8, wake: 4 * YEAR };
+export const DEFAULT_OPACITY = 0.6;
 
 /** Something drawn over the scene in design units (a transfer orbit, sight lines). */
 export type Overlay = (ctx: CanvasRenderingContext2D, app: App) => void;
@@ -70,7 +86,7 @@ export class App {
   /** Camera moves jump instead of gliding (reduced motion). */
   reducedMotion = false;
   /** Each view keeps its own trail length: short sweeps read best from above, long wakes in motion. */
-  readonly spans: Record<ViewId, number> = { sky: 2 * 30.44, wake: 12 * YEAR };
+  readonly spans: Record<ViewId, number> = { ...DEFAULT_SPANS };
   /** Extra drawing over the scene (the jump-to presets' geometry). */
   overlay: Overlay | null = null;
   /** A journey under way stops (and pauses) on this day. */
@@ -86,6 +102,8 @@ export class App {
   private dirty = true;
   /** The camera rests on (or glides to) the home view. */
   private homed = true;
+  /** The design circle the camera was last framed on (a moment's geometry), until the viewer moves it. */
+  private framed: { radius: number; at: readonly [number, number] } | null = null;
   private lastDraw = -1e9;
   /** The interval the last drawing was meant to keep (for the resolution governor). */
   private drawInterval = 1000 / 12;
@@ -94,6 +112,9 @@ export class App {
   private readonly labelEls = new Map<BodyId, HTMLElement>();
   /** Each name's width on screen, measured once. */
   private readonly labelWidth = new Map<BodyId, number>();
+  private readonly labelLayout = new LabelLayout();
+  /** A name is waiting to fade in or out: place them again even if nothing is drawn. */
+  private labelsPending = false;
 
   constructor(private readonly o: AppOptions) {
     this.sim = o.sim;
@@ -141,6 +162,9 @@ export class App {
     this.view = view;
     this.sim.trails.span = this.spans[view];
     this.sim.trails.reveal = 0;
+    this.labelLayout.reset();
+    // home differs by view: glide to the new one's
+    if (this.homed) this.camera.glideTo(this.homeView(), this.glide);
     this.changed();
   }
 
@@ -232,6 +256,7 @@ export class App {
     const [lx, ly] = x === undefined || y === undefined ? [this.camera.x, this.camera.y] : this.renderer.toLogical(x, y);
     this.camera.zoomAt(factor, lx, ly);
     this.homed = false;
+    this.framed = null;
     if (this.camera.zoom <= ZOOM_MIN) this.following = false;
     this.changed();
   }
@@ -243,26 +268,32 @@ export class App {
     this.camera.panBy(dx / k, dy / k);
     this.following = false;
     this.homed = false;
+    this.framed = null;
     this.changed();
   }
 
   resetView(): void {
     this.following = false;
     this.homed = true;
+    this.framed = null;
     this.camera.glideTo(this.homeView(), this.glide);
     this.changed();
   }
 
   /**
-   * The view to rest on: the whole frame, or on a phone, where the controls leave a narrower band free, the system out
-   * to Neptune fitted into that band (a little zoomed out, the page lying on the desk).
+   * The view to rest on. On a wide screen, the whole page. On a compact one, where the controls take a large share of
+   * the room, the view's own extent fitted into the room they leave: a phone held upright zooms in on the system in
+   * motion, a phone on its side sees the whole plan from above (a little zoomed out, the page lying on the desk).
    */
   homeView(): View {
     const { w, h } = this.renderer.logical, whole = { zoom: 1, x: w / 2, y: h / 2 };
-    if (innerWidth > PHONE) return whole;
-    const r = this.freeRect(), perDesign = this.renderer.designScale / this.camera.zoom;
-    const zoom = clamp((Math.min(r.w, r.h) / 2 - HOME_MARGIN) / (HOME_REACH * perDesign), ZOOM_MIN, 1);
-    const [lx, ly] = this.renderer.designToLogical(540, 540), [cx, cy] = this.centreFor(lx, ly, zoom);
+    const [x0, y0, x1, y1] = HOME_EXTENT[this.view], r = this.freeRect(), perDesign = this.renderer.designScale / this.camera.zoom;
+    const fit = Math.min((r.w - 2 * HOME_MARGIN) / ((x1 - x0) * perDesign), (r.h - 2 * HOME_MARGIN) / ((y1 - y0) * perDesign));
+    // a wide screen shows the whole page unless even its controls would hide much of the system (a very short window)
+    if (!COMPACT.matches && fit >= 0.75) return whole;
+    const zoom = clamp(fit, ZOOM_MIN, COMPACT.matches ? HOME_ZOOM_MAX : 1);
+    if (Math.abs(zoom - 1) < HOME_SNAP) return whole;
+    const [lx, ly] = this.renderer.designToLogical((x0 + x1) / 2, (y0 + y1) / 2), [cx, cy] = this.centreFor(lx, ly, zoom);
     return { zoom, x: cx, y: cy };
   }
 
@@ -273,6 +304,7 @@ export class App {
   goHome(): void {
     this.following = false;
     this.homed = true;
+    this.framed = null;
     this.camera.glideTo(this.homeView(), 0);
     this.changed();
   }
@@ -287,13 +319,41 @@ export class App {
   }
 
   /** Glide to fit a circle of `radius` design units round the design point `at` into the free part of the screen. */
-  frameDesign(radius: number, [x, y]: readonly [number, number]): void {
+  frameDesign(radius: number, at: readonly [number, number], glide = this.glide): void {
     const r = this.freeRect(), perDesign = this.renderer.designScale / this.camera.zoom;
-    const zoom = clamp(Math.min(r.w, r.h) / (2 * radius * perDesign), ZOOM_MIN, ZOOM_MAX);
-    const [lx, ly] = this.renderer.designToLogical(x, y), [cx, cy] = this.centreFor(lx, ly, zoom);
+    const zoom = clamp((Math.min(r.w, r.h) - 2 * FRAME_MARGIN) / (2 * radius * perDesign), ZOOM_MIN, ZOOM_MAX);
+    const [lx, ly] = this.renderer.designToLogical(at[0], at[1]), [cx, cy] = this.centreFor(lx, ly, zoom);
     this.following = false;
     this.homed = false;
-    this.camera.glideTo({ zoom, x: cx, y: cy }, this.glide);
+    this.framed = { radius, at };
+    this.camera.glideTo({ zoom, x: cx, y: cy }, glide);
+    this.changed();
+  }
+
+  /**
+   * The room the controls leave has changed (a turned phone, a journey's controls in place of the dock): home, or a
+   * framed moment, is fitted again into the new room (a followed body is re-centred by every drawing anyway); a view
+   * the viewer chose stays as it is.
+   */
+  refit(glide = this.glide): void {
+    if (this.homed) this.camera.glideTo(this.homeView(), glide);
+    else if (this.framed) this.frameDesign(this.framed.radius, this.framed.at, glide);
+    this.dirty = true;
+  }
+
+  /**
+   * Keep the selected body in sight: where a card has just covered it (a sheet on a phone, a side panel), glide it into
+   * the room the card leaves, at the same zoom. A body already in the clear stays where it is.
+   */
+  reveal(): void {
+    const m = this.markOf(this.selected);
+    if (!m) return;
+    const r = this.freeRect(), [sx, sy] = this.renderer.toScreen(m.x, m.y), pad = 24;
+    if (sx >= r.x + pad && sx <= r.x + r.w - pad && sy >= r.y + pad && sy <= r.y + r.h - pad) return;
+    const z = this.camera.target.zoom, [lx, ly] = this.renderer.designToLogical(m.x, m.y), [cx, cy] = this.centreFor(lx, ly, z);
+    this.homed = false;
+    this.framed = null;
+    this.camera.glideTo({ zoom: z, x: cx, y: cy }, this.glide);
     this.changed();
   }
 
@@ -304,6 +364,7 @@ export class App {
     const z = clamp(Math.max(zoom, this.camera.zoom), ZOOM_MIN, ZOOM_MAX), [lx, ly] = this.renderer.designToLogical(m.x, m.y), [cx, cy] = this.centreFor(lx, ly, z);
     this.following = true;
     this.homed = false;
+    this.framed = null;
     this.camera.glideTo({ zoom: z, x: cx, y: cy }, this.glide);
     this.changed();
   }
@@ -326,13 +387,11 @@ export class App {
   /* ---------- the loop ---------- */
 
   resize(size: Size): void {
-    const home = this.homed;
     this.renderer.resize(size);
     const { w, h } = this.renderer.logical;
     this.camera.resize(w, h);
-    // resting at home, stay at home for the new shape of screen
-    if (home) this.camera.glideTo(this.homeView(), 0);
-    this.dirty = true;
+    // resting at home, or on a moment, stay there for the new shape of screen
+    this.refit(0);
   }
 
   /** Milliseconds between drawings at the current pace (paused, between drawings for a control or the camera). */
@@ -373,7 +432,10 @@ export class App {
       this.draw();
       this.lastDraw = now;
       this.dirty = false;
-    } else if (!moving && this.renderer.refine(REFINE_MS)) this.dirty = true;
+    } else {
+      if (this.labelsPending) this.placeLabels();
+      if (!moving && this.renderer.refine(REFINE_MS)) this.dirty = true;
+    }
   };
 
   private draw(): void {
@@ -422,31 +484,32 @@ export class App {
 
   /**
    * Names beside the bodies, where they were drawn. Where names would overlap, the more important one wins (the
-   * selected body, then the Sun, then the bigger planets) and the other waits until zooming in parts them.
+   * selected body, then the Sun, then the bigger planets) and the other fades out until zooming in parts them; the
+   * layout's hysteresis keeps names from blinking as the bodies pass each other.
    */
   private placeLabels(): void {
     const marks = this.marks;
     if (!marks) return;
-    const s = this.renderer.designScale, placed: [number, number, number, number][] = [];
+    const s = this.renderer.designScale;
     const rank = (id: BodyId): number => (id === this.selected ? -1 : RANK.indexOf(id));
-    for (const m of [...marks.bodies].sort((a, b) => rank(a.id) - rank(b.id))) {
+    const inputs = [...marks.bodies].sort((a, b) => rank(a.id) - rank(b.id)).flatMap(m => {
       const el = this.labelEls.get(m.id);
-      if (!el) continue;
-      const [x, y] = this.renderer.toScreen(m.x, m.y), r = Math.max(m.id === 'sun' ? m.r : m.reach, m.r) * s;
+      if (!el) return [];
       let w = this.labelWidth.get(m.id);
       if (!w) {
         w = el.offsetWidth || 60;
         this.labelWidth.set(m.id, w);
       }
-      // a name that would run off the right of the screen goes on the body's other side
-      let left = Math.round(x + r + 6);
-      if (left + w > innerWidth - 4) left = Math.round(x - r - 6 - w);
-      const top = Math.round(y - 9), h = 18;
-      const clash = placed.some(([a, b, c, d]) => left < c && left + w > a && top < d && top + h > b);
-      el.style.transform = `translate(${left}px, ${top}px)`;
-      el.style.visibility = clash ? 'hidden' : 'visible';
-      el.classList.toggle('selected', m.id === this.selected);
-      if (!clash) placed.push([left - 2, top - 2, left + w + 2, top + h + 2]);
+      const [x, y] = this.renderer.toScreen(m.x, m.y);
+      return [{ id: m.id, x, y, r: Math.max(m.id === 'sun' ? m.r : m.reach, m.r) * s, w, h: 18 }];
+    });
+    const { labels, pending } = this.labelLayout.place(inputs, innerWidth, performance.now());
+    this.labelsPending = pending;
+    for (const l of labels) {
+      const el = this.labelEls.get(l.id as BodyId)!;
+      el.style.transform = `translate(${l.left}px, ${l.top}px)`;
+      el.classList.toggle('hid', !l.shown);
+      el.classList.toggle('selected', l.id === this.selected);
     }
   }
 }

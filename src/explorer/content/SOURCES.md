@@ -34,3 +34,11 @@ When updating a figure, check the primary source again rather than a secondary p
 - The great conjunction: https://www.nasa.gov/solar-system/the-great-conjunction-of-jupiter-and-saturn/
 - Transits of Venus: https://eclipse.gsfc.nasa.gov/transit/venus0412.html
 - Planet parades: https://science.nasa.gov/solar-system/skywatching/planetary-alignments-and-planet-parades/
+
+## How far you have travelled
+
+- Earth's spin: the WGS 84 equatorial radius, 6,378.137 km, and the sidereal day, 23 h 56 min 4.0905 s (86,164.0905 s), give ~0.465 km/s (~1,674 km/h) at the equator, scaled by the cosine of the latitude: https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html
+- Earth's orbit: mean orbital velocity 29.78 km/s and the sidereal year of 365.256 days, from the same NASA Earth fact sheet.
+- The Sun round the Milky Way: ~230 km/s, one lap every ~230 million years; estimates run from ~220 to ~250 km/s (Reid et al. 2019, https://arxiv.org/abs/1910.03357, give 236 km/s for the circular speed there plus the Sun's own motion).
+- Against the cosmic microwave background: 369.82 ± 0.11 km/s towards galactic longitude 264°, latitude 48° (Leo and Crater), from the Planck 2018 results I, https://arxiv.org/abs/1807.06205.
+- The card measures each motion against its own reference and never adds them: they point in different directions, and the motion against the microwave background already includes the others.

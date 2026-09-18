@@ -71,13 +71,31 @@ export interface DatedSkyOptions {
   trails?: TrailSpec;
 }
 
+/**
+ * Page angles on dated skies, remembered by body and time: the wakes sample a grid fixed in time, so drawing after
+ * drawing asks for the same moments again, and each answer is a Kepler solve. Pure in its key; cleared when large.
+ */
+const datedAngles = Array.from({ length: MOON_K + 1 }, () => new Map<number, number>());
+const DATED_ANGLES_MAX = 8000;
+
+function datedAngle(k: number, t: number): number {
+  const memo = datedAngles[k]!;
+  let a = memo.get(t);
+  if (a === undefined) {
+    a = -(k === MOON_K ? moonLongitude(t) : heliocentric(PLANETS[k]!.name, t).lon);
+    if (memo.size >= DATED_ANGLES_MAX) memo.clear();
+    memo.set(t, a);
+  }
+  return a;
+}
+
 /** The real sky on a date: the planets and the Moon where the ephemeris puts them. */
 export function datedSky({ day, beat, trails }: DatedSkyOptions): Sky {
   return {
     now: day,
     beat,
     ...(trails ? { trails } : {}),
-    angle: (k, t) => -(k === MOON_K ? moonLongitude(t) : heliocentric(PLANETS[k]!.name, t).lon),
+    angle: datedAngle,
     rock: (i, t) => ROCKS[i]!.at0 - (TAU * t) / ROCK_PERIOD[i]!,
     period: k => (k === MOON_K ? MOON_PERIOD_DAYS : periodDays(PLANETS[k]!.name)),
   };

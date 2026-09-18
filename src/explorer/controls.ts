@@ -15,17 +15,22 @@ const $ = <T extends HTMLElement>(id: string): T => {
 };
 
 export const PACE_PRESETS: readonly [number, string][] = [
-  [DAY, '1 day/s'], [WEEK, '1 week/s'], [MONTH, '1 month/s'], [YEAR, '1 year/s'], [10 * YEAR, '10 years/s'],
+  [DAY, '1 day/s'], [WEEK, '1 week/s'], [2 * WEEK, '2 weeks/s'], [MONTH, '1 month/s'], [YEAR, '1 year/s'], [10 * YEAR, '10 years/s'],
 ];
 
 /** Hooks the controls call that belong to other parts of the page. */
 export interface ControlHooks {
   openJump(): void;
   openGuide(): void;
+  openTravel(): void;
+  /** End a journey under way; false when none is. */
+  endJourney(): boolean;
   openBody(id: NonNullable<App['selected']>): void;
   closePanel(): boolean;
   reset(): void;
   toast(text: string): void;
+  /** The controls moved between the top bar and the dock: the room they leave has changed. */
+  relayout(): void;
 }
 
 /** Paint a range input's filled part (WebKit draws no progress of its own). */
@@ -75,6 +80,7 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     fs: $<HTMLButtonElement>('fs-btn'),
     jump: $<HTMLButtonElement>('jump-btn'),
     guide: $<HTMLButtonElement>('guide-btn'),
+    travel: $<HTMLButtonElement>('travel-btn'),
     canvas: $<HTMLCanvasElement>('sky'),
   };
 
@@ -163,7 +169,7 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     choose(next);
     buttons[next]!.focus();
   };
-  document.querySelector('.views')!.addEventListener('keydown', radioKeys(viewButtons, i => app.setView(i ? 'wake' : 'sky')) as EventListener);
+  document.querySelector('.views')!.addEventListener('keydown', radioKeys(viewButtons, i => app.setView(viewButtons[i]!.dataset.view === 'sky' ? 'sky' : 'wake')) as EventListener);
 
   /* ---------- time and pace ---------- */
 
@@ -213,8 +219,9 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     const open = !ui.dock.classList.contains('expanded');
     ui.dock.classList.toggle('expanded', open);
     ui.more.setAttribute('aria-expanded', String(open));
-    ui.more.textContent = open ? 'Fewer controls' : 'More controls';
+    ui.more.setAttribute('aria-label', open ? 'Fewer controls' : 'More controls: speed, trails, the year, zoom and names');
   });
+  ui.more.setAttribute('aria-label', 'More controls: speed, trails, the year, zoom and names');
 
   /* ---------- top bar ---------- */
 
@@ -226,15 +233,22 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
   ui.hide.addEventListener('click', () => setHidden(true));
   $<HTMLButtonElement>('show-btn').addEventListener('click', () => setHidden(false));
 
-  // the style menu: in the top bar on a wide screen, a row of the dock on a phone
-  const phone = matchMedia('(max-width: 720px)');
-  const placeStyles = (): void => {
+  // the view and the style: in the top bar on a wide screen, a row of the dock on a narrower one; and on a short screen
+  // (a phone on its side) the key moments ride in the top bar instead of a row of their own
+  const views = document.querySelector<HTMLElement>('.views')!, brand = document.querySelector<HTMLElement>('.brand')!;
+  const top = $('top'), moments = $('moments'), actions = document.querySelector<HTMLElement>('.actions')!;
+  const compact = matchMedia('(max-width: 980px), (max-height: 540px)'), short = matchMedia('(max-height: 540px) and (max-width: 1279px)');
+  const place = (): void => {
     closeStyles(false);
-    if (phone.matches) $('style-slot').append(ui.stylePick);
-    else document.querySelector('.views')!.after(ui.stylePick);
+    if (compact.matches) $('style-slot').append(views, ui.stylePick);
+    else brand.after(views, ui.stylePick);
+    if (short.matches) top.insertBefore(moments, actions);
+    else top.after(moments);
+    hooks.relayout();
   };
-  placeStyles();
-  phone.addEventListener('change', placeStyles);
+  place();
+  compact.addEventListener('change', place);
+  short.addEventListener('change', place);
 
   // on a desktop the controls fade while the sky plays untouched, and return as soon as the pointer moves
   const fine = matchMedia('(hover: hover) and (pointer: fine)');
@@ -255,11 +269,12 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
   if (!document.documentElement.requestFullscreen) ui.fs.hidden = true;
   ui.jump.addEventListener('click', () => hooks.openJump());
   ui.guide.addEventListener('click', () => hooks.openGuide());
+  ui.travel.addEventListener('click', () => hooks.openTravel());
 
   /* ---------- keyboard ---------- */
 
   document.addEventListener('keydown', e => {
-    if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || document.body.classList.contains('welcoming')) return;
     const t = e.target as HTMLElement;
     const typing = t instanceof HTMLInputElement && (t.type === 'date' || t.type === 'text');
     const onRange = t instanceof HTMLInputElement && t.type === 'range';
@@ -281,11 +296,12 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     else if (k === 'f' || k === 'F') ui.fs.click();
     else if (k === 'j' || k === 'J') hooks.openJump();
     else if (k === 'g' || k === 'G') hooks.openGuide();
+    else if (k === 'y' || k === 'Y') hooks.openTravel();
     else if (k === '[' || k === ']') app.nextStyle(k === ']' ? 1 : -1);
     else if (k === 'Home') hooks.reset();
     else if (/^[0-9]$/.test(k) && !onRange) app.setStyle(STYLES[(Number(k) + 9) % 10]!);
     else if (k === 'Escape') {
-      if (!hooks.closePanel()) {
+      if (!hooks.closePanel() && !hooks.endJourney()) {
         if (document.body.classList.contains('hide-ui')) setHidden(false);
         else app.select(null);
       }
@@ -297,11 +313,17 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
 
   const pointers = new Map<number, { x: number; y: number; x0: number; y0: number; t0: number }>();
   let pinch: { d: number } | null = null, dragged = false, lastTap = { t: -1e9, x: 0, y: 0 };
-  /** Fly in on the body under a point and follow it, or zoom in there. */
+  /** A touch's card waits out the double-tap window, so it cannot cover the body before a second tap lands on it. */
+  const DOUBLE_TAP_MS = 320;
+  let cardTimer = 0;
+  /** Fly in on the body under a point and follow it (with its card), or zoom in there. */
   const flyIn = (x: number, y: number): void => {
+    clearTimeout(cardTimer);
     const hit = app.pickAt(x, y);
     if (hit && hit.id !== 'belt') {
       app.select(hit.id);
+      // the card first: the flight centres the body in the room the card leaves
+      hooks.openBody(hit.id);
       app.focusSelected(Math.max(4, app.camera.zoom * 2));
     } else app.zoomBy(2, x, y);
   };
@@ -348,16 +370,23 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     const now = performance.now();
     if (now - p.t0 > 700) return;
     // a second tap on a touch screen, close by and soon after, flies in (touch screens send no reliable dblclick)
-    if (e.pointerType === 'touch' && now - lastTap.t < 320 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) {
+    if (e.pointerType === 'touch' && now - lastTap.t < DOUBLE_TAP_MS && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 30) {
       lastTap = { t: -1e9, x: 0, y: 0 };
       flyIn(e.clientX, e.clientY);
       return;
     }
     lastTap = { t: now, x: e.clientX, y: e.clientY };
     const hit = app.pickAt(e.clientX, e.clientY);
+    clearTimeout(cardTimer);
     if (hit) {
+      // the ring shows at once; on a touch screen the card follows once no second tap has come
       app.select(hit.id);
-      hooks.openBody(hit.id);
+      const open = (): void => {
+        hooks.openBody(hit.id);
+        app.reveal();
+      };
+      if (e.pointerType === 'touch') cardTimer = window.setTimeout(open, DOUBLE_TAP_MS);
+      else open();
     } else if (app.selected) app.select(null);
   };
   canvas.addEventListener('pointerup', release);
@@ -427,6 +456,13 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
       ui.pace.setAttribute('aria-valuetext', `${spanLabel(s.pace)} per second`);
       fill(ui.pace);
       for (const c of chips) c.b.setAttribute('aria-pressed', String(Math.abs(c.pace / s.pace - 1) < 0.005));
+      // where the chips scroll sideways, keep the one in use in view
+      const on = chips.find(c => c.b.getAttribute('aria-pressed') === 'true')?.b, row = ui.chips;
+      if (on && row.scrollWidth > row.clientWidth) {
+        const left = on.offsetLeft - row.offsetLeft, right = left + on.offsetWidth, pad = 28;
+        if (left < row.scrollLeft) row.scrollLeft = left - 4;
+        else if (right > row.scrollLeft + row.clientWidth - pad) row.scrollLeft = right - row.clientWidth + pad;
+      }
     }
     if (document.activeElement !== ui.dateIn) ui.dateIn.value = isoDate(s.day);
     ui.trails.setAttribute('aria-pressed', String(s.trails.on));
