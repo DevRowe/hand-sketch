@@ -49,17 +49,17 @@ export const smooth = (a: number, b: number, x: number): number => {
 
 /* ---------- layers ---------- */
 
-/** A static layer built once per frame size and key by `build` (which must not depend on the frame). */
+/**
+ * A static layer built once per frame size and key by `build` (which must not depend on the frame). It is page-locked
+ * content, so it is a page layer: a moving view camera maps it, and the live explorer sharpens it once the view holds.
+ */
 export function cached(f: SceneFrame, key: string, build: (g: SceneFrame) => void): HTMLCanvasElement {
-  const { stage } = f, id = `gallery-still:${key}`;
-  const fresh = !stage.hasLayer(id), layer = stage.layer(id);
-  if (fresh) {
-    const g = stage.context(layer);
+  const { stage } = f;
+  return stage.pageLayer(`gallery-still:${key}`, g => {
     stage.reset(g);
     build({ ...f, ctx: g });
     stage.reset(g);
-  }
-  return layer;
+  });
 }
 
 /** A static layer (see `cached`), laid onto the frame. */

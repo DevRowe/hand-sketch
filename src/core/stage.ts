@@ -20,8 +20,6 @@
 
 export const SHORT_SIDE = 1080;
 
-/** Zoom from which `refine` draws sharp copies of page layers. */
-const SHARPEN_FROM = 1.25;
 
 export interface Format {
   /** Aspect ratio as "16:9", "1:1", "9:16". */
@@ -94,7 +92,9 @@ interface Sharp {
 interface Page {
   canvas: HTMLCanvasElement;
   build: PageBuild;
+  /** The finished sharp copy, and the next one under way (built before the view leaves the finished one's margin). */
   sharp: Sharp | null;
+  next: Sharp | null;
   /** When it was last laid through a magnified view (performance.now()). */
   laidAt: number;
 }
@@ -128,6 +128,8 @@ export class Stage implements FrameSize {
   private readonly layers = new Map<string, { canvas: HTMLCanvasElement; generation: number }>();
   private readonly pages = new Map<string, Page>();
   private readonly pageOf = new WeakMap<HTMLCanvasElement, Page>();
+  /** Output pixels everything is shifted by while a sharp copy (drawn with a margin) is built. */
+  private shift = 0;
   /** When the zoom last changed (performance.now()): sharp copies wait for it to hold. */
   private zoomedAt = -1e9;
   /** Counts canvases created and page layers drawn: a frame that moved it paid for building caches. */
@@ -202,8 +204,9 @@ export class Stage implements FrameSize {
 
   /**
    * A page layer: `build` draws it once, in logical units over the whole page as the home view shows it, and it is
-   * kept whatever the view does. Lay it with `lay` (or `blit`), which maps it through the view. `build` must only draw
-   * page-locked marks and never lay other layers, since it also runs into sharp copies under a shifted transform.
+   * kept whatever the view does. Lay it with `lay` (or `blit`), which maps it through the view. `build` must draw only
+   * page-locked content, and set transforms only through `reset` (never to the identity): it also draws sharp copies,
+   * under the live view and shifted by a margin.
    */
   pageLayer(key: string, build: PageBuild): HTMLCanvasElement {
     const id = `${key}@${this.outW}x${this.outH}`;
@@ -212,64 +215,80 @@ export class Stage implements FrameSize {
     const canvas = document.createElement('canvas');
     canvas.width = this.outW;
     canvas.height = this.outH;
-    const page: Page = { canvas, build, sharp: null, laidAt: -1e9 };
+    const page: Page = { canvas, build, sharp: null, next: null, laidAt: -1e9 };
     this.pages.set(id, page);
     this.pageOf.set(canvas, page);
     this.builds++;
     const g = this.context(canvas), k = this.base;
     g.setTransform(k, 0, 0, k, 0, 0);
-    runBuild(build, g, null);
+    this.as({ zoom: 1, x: this.w / 2, y: this.h / 2 }, 0, () => runBuild(build, g, null));
     return canvas;
   }
 
-  /** Whether a sharp copy (finished or not) is drawn for the current zoom and covers the current view. */
-  private covers(sh: Sharp): boolean {
-    const v = this.camera, k = this.base * v.zoom;
-    return sh.view.zoom === v.zoom && Math.abs((sh.view.x - v.x) * k) <= sh.margin && Math.abs((sh.view.y - v.y) * k) <= sh.margin;
+  /** Run `fn` with the camera at `view` and everything shifted by `shift` output pixels (building a page layer). */
+  private as<T>(view: View, shift: number, fn: () => T): T {
+    const camera = this.camera, before = this.shift;
+    this.camera = view;
+    this.shift = shift;
+    try {
+      return fn();
+    } finally {
+      this.camera = camera;
+      this.shift = before;
+    }
   }
 
-  /** A page layer's sharp copy, when it is finished and covers the current view; null otherwise. */
+  /** Whether a sharp copy (finished or not) is drawn for the current zoom and its margin covers `slack` of the view's drift. */
+  private covers(sh: Sharp, slack = 1): boolean {
+    const v = this.camera, k = this.base * v.zoom, m = sh.margin * slack;
+    return sh.view.zoom === v.zoom && Math.abs((sh.view.x - v.x) * k) <= m && Math.abs((sh.view.y - v.y) * k) <= m;
+  }
+
+  /** A page layer's finished sharp copy, when it covers the current view; null otherwise. */
   private sharpFor(page: Page): Sharp | null {
-    const sh = page.sharp;
-    return sh && !sh.steps && this.covers(sh) ? sh : null;
+    return page.sharp && this.covers(page.sharp) ? page.sharp : null;
   }
 
   /**
    * Work towards sharp copies of the page layers laid through the view lately, for `ms` milliseconds at most, once the
-   * zoom has held for a moment. Returns true when a copy was finished (the frame is worth drawing again). Barely
-   * magnified, it frees the copies.
+   * zoom has held for a moment. A new copy is started once the view has used half the margin of the finished one, so
+   * a follow or a slow pan stays sharp. Returns true when a copy was finished (the frame is worth drawing again). At
+   * home it frees the copies.
    */
   refine(ms: number): boolean {
     const now = performance.now();
-    if (now - this.zoomedAt < 250) return false;
-    const used = [...this.pages.values()].filter(p => now - p.laidAt < 1000);
-    // barely magnified, the mapped layer is as good (and zoomed out it is only ever reduced)
-    if (this.camera.zoom < SHARPEN_FROM) {
-      for (const p of this.pages.values()) p.sharp = null;
+    if (this.home) {
+      for (const p of this.pages.values()) p.sharp = p.next = null;
       return false;
     }
+    if (now - this.zoomedAt < 250) return false;
     const end = now + ms, v = this.camera;
     let finished = false;
-    for (const page of used) {
-      if (this.sharpFor(page)) continue;
-      let sh = page.sharp;
-      if (!sh || !this.covers(sh)) {
-        // start over for the view as it is now, with a margin so a slow pan or a follow stays covered for a while
+    for (const page of this.pages.values()) {
+      if (now - page.laidAt > 1000) continue;
+      if (page.sharp && this.covers(page.sharp, 0.5)) continue;
+      let sh = page.next;
+      if (!sh || !this.covers(sh, 0.5)) {
+        // start over for the view as it is now, with a margin round the screen
         const margin = Math.round(0.12 * Math.max(this.outW, this.outH)), k = this.base * v.zoom;
-        const canvas = sh?.canvas ?? document.createElement('canvas');
+        const canvas = document.createElement('canvas');
         canvas.width = this.outW + 2 * margin;
         canvas.height = this.outH + 2 * margin;
         const g = this.context(canvas), ox = this.base * (this.w / 2 - v.zoom * v.x) + margin, oy = this.base * (this.h / 2 - v.zoom * v.y) + margin;
         g.setTransform(k, 0, 0, k, ox, oy);
-        const region: Region = [-ox / k, -oy / k, (canvas.width - ox) / k, (canvas.height - oy) / k];
-        sh = page.sharp = { canvas, view: { ...v }, margin, steps: page.build(g, region) ?? null };
-        if (!sh.steps) finished = true;
+        const region: Region = [-ox / k, -oy / k, (canvas.width - ox) / k, (canvas.height - oy) / k], view = { ...v };
+        sh = page.next = { canvas, view, margin, steps: null };
+        const steps = this.as(view, margin, () => page.build(g, region));
+        sh.steps = steps ?? null;
       }
-      while (sh.steps && performance.now() < end) {
-        if (sh.steps.next().done) {
-          sh.steps = null;
-          finished = true;
-        }
+      const next = sh;
+      while (next.steps && performance.now() < end) {
+        if (this.as(next.view, next.margin, () => next.steps!.next().done)) next.steps = null;
+      }
+      if (!next.steps) {
+        page.sharp = next;
+        page.next = null;
+        finished = true;
       }
       if (performance.now() >= end) break;
     }
@@ -285,7 +304,7 @@ export class Stage implements FrameSize {
   /** Reset `ctx` to logical units (through the view) with default compositing. */
   reset(ctx: Ctx): void {
     const { zoom, x, y } = this.camera, k = this.base * zoom;
-    ctx.setTransform(k, 0, 0, k, this.base * (this.w / 2 - zoom * x), this.base * (this.h / 2 - zoom * y));
+    ctx.setTransform(k, 0, 0, k, this.base * (this.w / 2 - zoom * x) + this.shift, this.base * (this.h / 2 - zoom * y) + this.shift);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
   }
@@ -300,10 +319,12 @@ export class Stage implements FrameSize {
    * (compositing and alpha are the caller's). A page layer goes through the view; a view layer is already in it.
    */
   lay(ctx: Ctx, layer: HTMLCanvasElement, dx = 0, dy = 0): void {
+    dx += this.shift;
+    dy += this.shift;
     ctx.save();
     const page = this.home ? undefined : this.pageOf.get(layer);
     const sharp = page && this.sharpFor(page);
-    if (page) page.laidAt = performance.now();
+    if (page && !this.shift) page.laidAt = performance.now();
     if (sharp) {
       // drawn for this zoom: only shifted, by whole pixels so it stays crisp
       const k = this.base * this.camera.zoom, v = sharp.view;
