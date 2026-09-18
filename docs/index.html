@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>One Sun, Ten Hands</title>
+  <meta name="description" content="The solar system seen from above, drawn in code in ten visual styles, from blueprint to art deco. Watch each one in the browser or download it.">
+  <meta property="og:title" content="One Sun, Ten Hands">
+  <meta property="og:description" content="The solar system seen from above, hand-sketched in ten visual styles.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="solar/media/s07-solar-pastel-poster.jpg">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='6' fill='%23e8a33d'/%3E%3Ccircle cx='16' cy='16' r='12.5' fill='none' stroke='%23efe6d4' stroke-width='1.5'/%3E%3Ccircle cx='28.5' cy='16' r='2.5' fill='%23efe6d4'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0d0f15;
+      --panel: #151822;
+      --rule: #272b38;
+      --ink: #efe6d4;
+      --muted: #a39d91;
+      --faint: #736f68;
+      --gold: #e8a33d;
+      --serif: 'Fraunces', Georgia, serif;
+      --sans: 'Inter', system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.55 var(--sans);
+      background-image: radial-gradient(ellipse 80% 50% at 50% -10%, #1d2130 0%, transparent 70%);
+    }
+    a { color: inherit; }
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+    header { padding: 72px 0 40px; }
+    .eyebrow { margin: 0 0 14px; color: var(--gold); font: 500 12px/1.4 var(--sans); letter-spacing: .18em; text-transform: uppercase; }
+    h1 { margin: 0; font: 300 clamp(40px, 7vw, 76px)/1.02 var(--serif); letter-spacing: -.02em; }
+    .lede { max-width: 640px; margin: 20px 0 0; color: var(--muted); font-size: 18px; }
+    .piece { display: grid; gap: 20px; }
+    .hero { grid-template-columns: minmax(0, min(620px, 72vh)) minmax(0, 1fr); align-items: center; gap: 40px; padding-bottom: 64px; border-bottom: 1px solid var(--rule); }
+    figure { position: relative; margin: 0; aspect-ratio: 1; overflow: hidden; border-radius: 4px; background: var(--panel); box-shadow: 0 20px 50px -24px #000; }
+    video { display: block; width: 100%; height: 100%; object-fit: cover; cursor: pointer; }
+    .control {
+      position: absolute; right: 12px; bottom: 12px; min-width: 76px; padding: 8px 14px; border: 0; border-radius: 999px;
+      background: rgb(13 15 21 / .72); color: var(--ink); font: 500 13px/1 var(--sans); cursor: pointer;
+      backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); transition: background .15s;
+    }
+    .control:hover { background: rgb(13 15 21 / .9); }
+    .control:focus-visible, .dl a:focus-visible, .still a:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+    .num { margin: 0; color: var(--faint); font: 500 12px/1 var(--sans); letter-spacing: .14em; }
+    h2, h3 { margin: 8px 0 0; font-family: var(--serif); font-weight: 500; letter-spacing: -.01em; }
+    h2 { font-size: clamp(32px, 4vw, 44px); line-height: 1.05; }
+    h3 { font-size: 24px; line-height: 1.15; }
+    .theme { margin: 4px 0 0; color: var(--gold); font-size: 14px; }
+    .line { margin: 10px 0 0; color: var(--muted); font-family: var(--serif); font-style: italic; font-weight: 300; font-size: 17px; }
+    .hero .line { font-size: 21px; }
+    .dl { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 0; }
+    .dl a {
+      display: inline-flex; flex-direction: column; gap: 3px; padding: 9px 13px; border: 1px solid var(--rule); border-radius: 6px;
+      font: 500 13px/1.1 var(--sans); text-decoration: none; transition: border-color .15s, background .15s;
+    }
+    .dl a:hover { border-color: var(--gold); background: rgb(232 163 61 / .07); }
+    .dl a span { color: var(--faint); font-weight: 400; font-size: 11.5px; }
+    .dl a:first-child { border-color: rgb(232 163 61 / .55); }
+    .still { margin: 10px 0 0; color: var(--faint); font-size: 12.5px; }
+    .still a { color: var(--muted); text-underline-offset: 3px; text-decoration-color: var(--rule); }
+    .still a:hover { color: var(--ink); text-decoration-color: var(--gold); }
+    .grid-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 56px 0 24px; }
+    .grid-head h2 { font-size: 28px; }
+    .grid-head p { margin: 0; color: var(--faint); font-size: 14px; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 48px 32px; padding-bottom: 72px; }
+    .grid .piece { gap: 16px; align-content: start; }
+    footer { padding: 32px 0 56px; border-top: 1px solid var(--rule); color: var(--faint); font-size: 13px; }
+    footer p { margin: 0 0 6px; max-width: 760px; }
+    @media (min-width: 601px) { .grid .line { min-height: calc(2 * 1.55em); } }
+    @media (max-width: 900px) {
+      .hero { grid-template-columns: 1fr; gap: 24px; }
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 600px) {
+      .wrap { padding: 0 16px; }
+      header { padding: 44px 0 28px; }
+      .eyebrow { font-size: 11px; letter-spacing: .12em; }
+      .lede { font-size: 16px; }
+      .grid { grid-template-columns: 1fr; gap: 44px; }
+      .grid-head { flex-direction: column; gap: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <p class="eyebrow">hand-sketch · the solar system from above</p>
+      <h1>One Sun, Ten Hands</h1>
+      <p class="lede">The same plan of the solar system drawn ten times, each in its own visual language. Every planet runs a whole number of orbits per loop, so each piece draws itself on and then circles forever without a seam. All ten are drawn in code, frame by frame.</p>
+    </header>
+    <main>
+      <section class="piece hero" id="s07">
+        <figure class="anim" data-loop-from="0.000000" data-poster-at="3.000000" data-autoplay="true">
+          <video src="solar/media/s07-solar-pastel-web.mp4" poster="solar/media/s07-solar-pastel-poster-web.jpg" width="720" height="720" muted playsinline preload="auto" controls aria-label="Sketch in pastel on black paper: a glowing orange and yellow sun of chalk strokes at the centre of soft grey orbit rings, colourful planets lit on the sunward side with smudged colour trails behind them, among twinkling stars."></video>
+          <button class="control" type="button" hidden>Play</button>
+        </figure>
+        <div class="text">
+          <p class="num">S07</p>
+          <h2>Pastel on Black</h2>
+          <p class="theme">Light drawn in chalk</p>
+          <p class="line">On black paper, only what is lit gets drawn.</p>
+          <p class="dl">
+            <a href="solar/media/s07-solar-pastel-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 7.3 MB</span></a>
+            <a href="solar/media/s07-solar-pastel-web.mp4" download>Download (web)<span>720p · 12 fps · 1.3 MB</span></a>
+          </p>
+          <p class="still"><a href="solar/media/s07-solar-pastel-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 140 KB</p>
+        </div>
+      </section>
+      <div class="grid-head">
+        <h2>Ten styles</h2>
+        <p>Tap any piece to play it. Every clip is silent, square and free to download.</p>
+      </div>
+      <div class="grid">
+        <article class="piece" id="s01">
+          <figure class="anim" data-loop-from="5.000000" data-poster-at="8.000000" data-autoplay="false">
+            <video src="solar/media/s01-solar-blueprint-web.mp4" poster="solar/media/s01-solar-blueprint-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in blueprint style: white compass-drawn orbit circles on a blue drafting grid around a yellow-rayed sun, eight planets with hatched night sides, Saturn ringed and the Earth with its moon, each trailing a yellow arc as it circles."></video>
+            <button class="control" type="button" hidden>Play</button>
+          </figure>
+          <div class="text">
+            <p class="num">S01</p>
+            <h3>Blueprint</h3>
+            <p class="theme">The draughtsman's plan</p>
+            <p class="line">Laid out with a compass, then set running.</p>
+            <p class="dl">
+              <a href="solar/media/s01-solar-blueprint-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 7.1 MB</span></a>
+              <a href="solar/media/s01-solar-blueprint-web.mp4" download>Download (web)<span>720p · 12 fps · 1.4 MB</span></a>
+            </p>
+            <p class="still"><a href="solar/media/s01-solar-blueprint-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 235 KB</p>
+          </div>
+        </article>
+        <article class="piece" id="s02">
+          <figure class="anim" data-loop-from="0.000000" data-poster-at="3.000000" data-autoplay="false">
+            <video src="solar/media/s02-solar-woodblock-web.mp4" poster="solar/media/s02-solar-woodblock-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in Japanese woodblock-print style: black carved orbit lines on cream paper fading to deep blue at the corners, a vermilion sun in an ochre halo, flat-coloured planets with indigo shadows, and a title cartouche with a red seal in the corner."></video>
+            <button class="control" type="button" hidden>Play</button>
+          </figure>
+          <div class="text">
+            <p class="num">S02</p>
+            <h3>Woodblock</h3>
+            <p class="theme">A print from carved blocks</p>
+            <p class="line">Every orbit cut by hand, every planet a block of colour.</p>
+            <p class="dl">
+              <a href="solar/media/s02-solar-woodblock-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 4.9 MB</span></a>
+              <a href="solar/media/s02-solar-woodblock-web.mp4" download>Download (web)<span>720p · 12 fps · 1.0 MB</span></a>
+            </p>
+            <p class="still"><a href="solar/media/s02-solar-woodblock-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 210 KB</p>
+          </div>
+        </article>
+        <article class="piece" id="s03">
+          <figure class="anim" data-loop-from="5.333333" data-poster-at="8.333333" data-autoplay="false">
+            <video src="solar/media/s03-solar-sumi-web.mp4" poster="solar/media/s03-solar-sumi-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in sumi ink: open brush-stroke circles in black and grey ink around a red sun, with planets as ink dabs half grey and half black, a spatter of ink dots between them, and a column of brushed characters with a red seal at the right."></video>
+            <button class="control" type="button" hidden>Play</button>
+          </figure>
+          <div class="text">
+            <p class="num">S03</p>
+            <h3>Sumi Ink</h3>
+            <p class="theme">A few strokes of the brush</p>
+            <p class="line">One breath for each orbit.</p>
+            <p class="dl">
+              <a href="solar/media/s03-solar-sumi-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 4.6 MB</span></a>
+              <a href="solar/media/s03-solar-sumi-web.mp4" download>Download (web)<span>720p · 12 fps · 888 KB</span></a>
+            </p>
+            <p class="still"><a href="solar/media/s03-solar-sumi-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 94 KB</p>
+          </div>
+        </article>
+        <article class="piece" id="s04">
+          <figure class="anim" data-loop-from="0.000000" data-poster-at="3.000000" data-autoplay="false">
+            <video src="solar/media/s04-solar-etching-web.mp4" poster="solar/media/s04-solar-etching-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in etching style: a circular engraved plan of the solar system in fine cross-hatched lines on cream paper, the sun a ringed disc in a burst of rays, planets shaded with hatching, inside a ruled square border with engraved corner fans and lettering."></video>
+            <button class="control" type="button" hidden>Play</button>
+          </figure>
+          <div class="text">
+            <p class="num">S04</p>
+            <h3>Etching</h3>
+            <p class="theme">An engraved plate</p>
+            <p class="line">Tone is only ever the density of lines.</p>
+            <p class="dl">
+              <a href="solar/media/s04-solar-etching-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 8.1 MB</span></a>
+              <a href="solar/media/s04-solar-etching-web.mp4" download>Download (web)<span>720p · 12 fps · 1.4 MB</span></a>
+            </p>
+            <p class="still"><a href="solar/media/s04-solar-etching-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 558 KB</p>
+          </div>
+        </article>
+        <article class="piece" id="s05">
+          <figure class="anim" data-loop-from="0.000000" data-poster-at="3.000000" data-autoplay="false">
+            <video src="solar/media/s05-solar-riso-web.mp4" poster="solar/media/s05-solar-riso-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in risograph poster style: a blue halftone sky with pale orbit rings, a large orange and pink sun at the centre, colourful halftone planets with pink wakes behind them, printed slightly out of register inside a paper margin."></video>
+            <button class="control" type="button" hidden>Play</button>
+          </figure>
+          <div class="text">
+            <p class="num">S05</p>
+            <h3>Riso</h3>
+            <p class="theme">A three-ink poster</p>
+            <p class="line">Blue, pink and yellow, and everything else is an overprint.</p>
+            <p class="dl">
+              <a href="solar/media/s05-solar-riso-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 14.8 MB</span></a>
+              <a href="solar/media/s05-solar-riso-web.mp4" download>Download (web)<span>720p · 12 fps · 2.6 MB</span></a>
+            </p>
+            <p class="still"><a href="solar/media/s05-solar-riso-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 1.2 MB</p>
+          </div>
+        </article>
+        <article class="piece" id="s06">
+          <figure class="anim" data-loop-from="0.000000" data-poster-at="3.000000" data-autoplay="false">
+            <video src="solar/media/s06-solar-stipple-web.mp4" poster="solar/media/s06-solar-stipple-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in stipple: dotted orbit rings on pale grey paper around a sun made of rose dots, planets drawn as dotted spheres with dark sides facing away from the sun, and trails of rose dots behind them."></video>
+            <button class="control" type="button" hidden>Play</button>
+          </figure>
+          <div class="text">
+            <p class="num">S06</p>
+            <h3>Stipple</h3>
+            <p class="theme">A plan in single dots</p>
+            <p class="line">Every orbit, every shadow, one dot at a time.</p>
+            <p class="dl">
+              <a href="solar/media/s06-solar-stipple-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 8.2 MB</span></a>
+              <a href="solar/media/s06-solar-stipple-web.mp4" download>Download (web)<span>720p · 12 fps · 1.9 MB</span></a>
+            </p>
+            <p class="still"><a href="solar/media/s06-solar-stipple-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 273 KB</p>
+          </div>
+        </article>
+        <article class="piece" id="s08">
+          <figure class="anim" data-loop-from="0.000000" data-poster-at="3.000000" data-autoplay="false">
+            <video src="solar/media/s08-solar-cut-paper-web.mp4" poster="solar/media/s08-solar-cut-paper-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in layered cut paper: concentric hand-cut blue paper discs stacked with soft shadows, an orange paper star and yellow disc for the sun, and small paper planets including a striped Jupiter and a ringed Saturn riding the edges, on a navy background with paper-punch stars."></video>
+            <button class="control" type="button" hidden>Play</button>
+          </figure>
+          <div class="text">
+            <p class="num">S08</p>
+            <h3>Cut Paper</h3>
+            <p class="theme">A paper diorama</p>
+            <p class="line">Eight sheets of blue, and a sun cut from three.</p>
+            <p class="dl">
+              <a href="solar/media/s08-solar-cut-paper-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 4.4 MB</span></a>
+              <a href="solar/media/s08-solar-cut-paper-web.mp4" download>Download (web)<span>720p · 12 fps · 782 KB</span></a>
+            </p>
+            <p class="still"><a href="solar/media/s08-solar-cut-paper-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 92 KB</p>
+          </div>
+        </article>
+        <article class="piece" id="s09">
+          <figure class="anim" data-loop-from="0.000000" data-poster-at="3.000000" data-autoplay="false">
+            <video src="solar/media/s09-solar-bauhaus-web.mp4" poster="solar/media/s09-solar-bauhaus-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in Bauhaus style: thin black orbit circles on cream paper around a red and yellow sun, planets as flat circles half coloured and half black, a ring of small black squares, with a black band, a red square and a blue quarter circle framing the composition."></video>
+            <button class="control" type="button" hidden>Play</button>
+          </figure>
+          <div class="text">
+            <p class="num">S09</p>
+            <h3>Bauhaus</h3>
+            <p class="theme">Primary geometry</p>
+            <p class="line">Circles, halves and squares in three colours.</p>
+            <p class="dl">
+              <a href="solar/media/s09-solar-bauhaus-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 4.3 MB</span></a>
+              <a href="solar/media/s09-solar-bauhaus-web.mp4" download>Download (web)<span>720p · 12 fps · 1.1 MB</span></a>
+            </p>
+            <p class="still"><a href="solar/media/s09-solar-bauhaus-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 157 KB</p>
+          </div>
+        </article>
+        <article class="piece" id="s10">
+          <figure class="anim" data-loop-from="3.333333" data-poster-at="6.333333" data-autoplay="false">
+            <video src="solar/media/s10-solar-deco-web.mp4" poster="solar/media/s10-solar-deco-poster-web.jpg" width="720" height="720" muted playsinline preload="none" controls aria-label="Sketch in art deco style: a gold spiked sunburst at the centre of double gold orbit lines on black, with teal wedges radiating behind, gold-ringed planets engraved with fine lines, gold diamonds on the outer orbits and a stepped gold frame with fan-shaped corners."></video>
+            <button class="control" type="button" hidden>Play</button>
+          </figure>
+          <div class="text">
+            <p class="num">S10</p>
+            <h3>Art Deco</h3>
+            <p class="theme">A radiant sunburst</p>
+            <p class="line">Gold on lacquer, opening like a fan.</p>
+            <p class="dl">
+              <a href="solar/media/s10-solar-deco-hd.mp4" download>Download (HD)<span>1080p · 24 fps · 6.8 MB</span></a>
+              <a href="solar/media/s10-solar-deco-web.mp4" download>Download (web)<span>720p · 12 fps · 1.4 MB</span></a>
+            </p>
+            <p class="still"><a href="solar/media/s10-solar-deco-poster.jpg" download>Download the poster frame</a> · 1080 JPEG · 293 KB</p>
+          </div>
+        </article>
+      </div>
+    </main>
+    <footer>
+      <p>Made with hand-sketch: deterministic Canvas 2D scenes with a tapered, wobbling pen, rendered offline at 12 drawings a second.</p>
+      <p>HD downloads are 1080 × 1080 H.264 at 24 fps (each drawing held for two frames); web downloads are the 720 × 720 files this page plays.</p>
+    </footer>
+  </div>
+  <script>
+    // The hero autoplays (intro, then two loops, then rests on its poster frame) unless the visitor prefers reduced
+    // motion; every other piece plays on tap and loops until paused. On 'ended' a clip seeks to its loop start
+    // (a keyframe), so only the loop repeats, not the draw-on. Clips pause while scrolled off-screen.
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const seen = new IntersectionObserver(entries => {
+      for (const { target, isIntersecting } of entries) target.onVisible?.(isIntersecting);
+    });
+    for (const fig of document.querySelectorAll('.anim')) {
+      const video = fig.querySelector('video'), button = fig.querySelector('.control');
+      const name = fig.closest('.piece').querySelector('h2, h3').textContent;
+      const loopFrom = Number(fig.dataset.loopFrom), posterAt = Number(fig.dataset.posterAt);
+      const hero = fig.dataset.autoplay === 'true';
+      let playing = false, rested = false, loops = 0, visible = true;
+      video.controls = false;
+      button.hidden = false;
+      const label = text => { button.textContent = text; button.setAttribute('aria-label', `${text} ${name}`); };
+      label('Play');
+      const go = () => video.play().catch(err => { if (err.name !== 'AbortError') { console.warn(err); stop('Play'); } });
+      const stop = text => { playing = false; video.pause(); label(text); };
+      const start = () => { if (rested) { rested = false; video.currentTime = 0; } playing = true; label('Pause'); if (visible) go(); };
+      video.addEventListener('ended', () => {
+        if (!playing) return;
+        if (hero && ++loops > 2) { stop('Replay'); video.currentTime = posterAt; loops = 0; rested = true; return; }
+        video.currentTime = loopFrom;
+        go();
+      });
+      button.addEventListener('click', () => (playing ? stop('Play') : start()));
+      video.addEventListener('click', () => button.click());
+      fig.onVisible = on => { visible = on; if (!playing) return; on ? go() : video.pause(); };
+      seen.observe(fig);
+      if (hero && !reduce) start();
+    }
+  </script>
+</body>
+</html>
