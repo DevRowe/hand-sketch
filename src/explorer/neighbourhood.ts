@@ -1,12 +1,15 @@
 /**
  * The Earth and Moon view's own annotations, drawn over the style like the moments' geometry: the gap to the Moon,
- * measured live (km, light-seconds, Earths side by side), and which way the sunlight comes from.
+ * measured live (km, light-seconds, Earths side by side), which way the sunlight comes from, and the Moon's phase as
+ * we see it from the Earth.
  */
 import type { Vec2 } from '../core/math';
 import { C, EARTH_R, moonAt, onPage, sunAngle, units } from '../scenes/cislunar/common';
 import type { App } from './app';
 import { moonMarkR } from './bodies';
-import { GOLD, text } from './overlays';
+import { moonPhase } from './live';
+import { GOLD, INK, text } from './overlays';
+import { phasePath } from './phase';
 
 const HALO = 'rgba(13,15,21,0.6)';
 const C_KM_S = 299_792.458;
@@ -18,6 +21,43 @@ export function drawNeighbourhood(ctx: CanvasRenderingContext2D, app: App, busy:
   const k = 1 / app.renderer.designScale;
   drawSunward(ctx, app, k);
   if (!busy) drawGap(ctx, app, k);
+  drawPhase(ctx, app, k);
+}
+
+/**
+ * The Moon's phase as seen from the Earth, beside the Moon: from above it is always half lit; from the Earth we see a
+ * share of that lit half. A small disc (as seen from the northern hemisphere) and its name, on the side of the Moon
+ * away from the Earth's gap line.
+ */
+function drawPhase(ctx: CanvasRenderingContext2D, app: App, k: number): void {
+  const day = app.sim.day, [mx, my] = onPage(moonAt(day)), [sx, sy] = app.renderer.toScreen(mx, my), free = app.freeRect();
+  if (sx < free.x || sx > free.x + free.w || sy < free.y || sy > free.y + free.h) return;
+  const p = moonPhase(day), r = moonMarkR(app.camera.zoom), d = Math.hypot(mx - C[0], my - C[1]) || 1;
+  // square to the line from the Earth (where the gap's line, or the Moon's shadow, runs), on its lower side (the
+  // top of the room is where a moment's name and the sunlight arrow sit), or its left (the Moon's name is on its right)
+  const ux = (mx - C[0]) / d, uy = (my - C[1]) / d;
+  let nx = -uy, ny = ux;
+  if (ny < -0.2 || (Math.abs(ny) <= 0.2 && nx > 0)) [nx, ny] = [-nx, -ny];
+  const R = 7 * k, off = r + 16 * k, gx = mx + nx * off, gy = my + ny * off;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(gx, gy, R + 1.6 * k, 0, Math.PI * 2);
+  ctx.fillStyle = HALO;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(gx, gy, R, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(40,44,56,0.95)';
+  ctx.fill();
+  if (p.lit > 0.005) {
+    phasePath(ctx, gx, gy, R, p);
+    ctx.fillStyle = INK;
+    ctx.fill();
+  }
+  ctx.restore();
+  const label = `${p.name} · ${Math.round(p.lit * 100)}% lit`;
+  if (nx < -0.35) text(ctx, app, [gx - R - 6 * k, gy + 4 * k], label, 'right', 0.92);
+  else if (nx > 0.35) text(ctx, app, [gx + R + 6 * k, gy + 4 * k], label, 'left', 0.92);
+  else text(ctx, app, [gx, gy + R + 15 * k], label, 'center', 0.92);
 }
 
 /** A dashed line from the Earth's limb to the Moon's, captioned with the distance between their centres. */

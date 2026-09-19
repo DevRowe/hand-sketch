@@ -8,7 +8,8 @@ import { heliocentric, moonLongitude, sunLongitude } from '../scenes/solar/ephem
 export const AU_KM = 149_597_870.7;
 const C_KM_S = 299_792.458;
 
-const xyz = (name: PlanetName, day: number): [number, number, number] => {
+/** A planet's heliocentric position, au (J2000 ecliptic). */
+export const xyz = (name: PlanetName, day: number): [number, number, number] => {
   const h = heliocentric(name, day), c = Math.cos(h.lat);
   return [h.r * c * Math.cos(h.lon), h.r * c * Math.sin(h.lon), h.r * Math.sin(h.lat)];
 };
@@ -43,6 +44,8 @@ export interface Phase {
   name: string;
   /** Fraction of the disc lit, 0..1. */
   lit: number;
+  /** Growing from new towards full (lit on the right as seen from the northern hemisphere), or shrinking. */
+  waxing: boolean;
 }
 
 /** The Moon's phase on a date, from how far it stands from the Sun in our sky. */
@@ -55,5 +58,5 @@ export function moonPhase(day: number): Phase {
   else if (Math.abs(lit - 0.5) < 0.04) name = waxing ? 'First quarter' : 'Last quarter';
   else if (lit < 0.5) name = waxing ? 'Waxing crescent' : 'Waning crescent';
   else name = waxing ? 'Waxing gibbous' : 'Waning gibbous';
-  return { name, lit };
+  return { name, lit, waxing };
 }

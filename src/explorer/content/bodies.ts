@@ -366,6 +366,42 @@ export const BODIES: Readonly<Record<BodyId | 'belt', BodyCard>> = {
     ],
     fun: ['In 2019 about 2,300 satellites were working in all; in 2026 there are more than seven times as many.'],
   },
+  halley: {
+    kind: 'Comet · 1P/Halley',
+    intro: 'The most famous comet of all: a dark, icy lump ~15 km long that swings in from beyond Neptune every ~76 years and grows a glowing head and tails as the Sun warms it.',
+    facts: [
+      { label: 'Nucleus', value: '~15 × 8 km' },
+      { label: 'One lap', value: '~76 years (74 to 79 over its recorded returns)' },
+      { label: 'Closest to the Sun', value: '0.59 au, inside Venus’s orbit' },
+      { label: 'Farthest', value: '~35 au, beyond Neptune' },
+      { label: 'Last round the Sun', value: '9 February 1986' },
+      { label: 'Next', value: '28 July 2061' },
+    ],
+    orbit: 'A long, thin ellipse (eccentricity 0.97), tilted 162° to the planets’ plane: it goes round the Sun the opposite way to them. Near the Sun it races at ~55 km/s; at the far end it crawls at under 1 km/s, which is why it spends most of its lap out beyond the planets. Its timings here follow the real returns.',
+    fun: [
+      'Edmond Halley worked out in 1705 that the comets of 1531, 1607 and 1682 were one and the same, and predicted its return in 1758; it came back, rounding the Sun in March 1759, after his death.',
+      'Mark Twain was born two weeks after its perihelion in 1835 and died the day after its next, in April 1910, just as he had predicted.',
+      'The Earth passed through its tail in May 1910.',
+      'It is the source of the Eta Aquariid (May) and Orionid (October) meteor showers.',
+    ],
+  },
+  atlas: {
+    kind: 'Interstellar comet · C/2025 N1',
+    intro: 'Only the third object ever seen passing through the solar system from another star: a comet found on 1 July 2025, moving far too fast for the Sun to hold.',
+    facts: [
+      { label: 'Found', value: '1 July 2025, by the ATLAS survey in Chile' },
+      { label: 'Closest to the Sun', value: '1.36 au, 29 October 2025' },
+      { label: 'Speed', value: '~58 km/s far from the Sun' },
+      { label: 'Nucleus', value: '~0.3 to 5.6 km across (Hubble, 2025)' },
+      { label: 'Before it', value: '1I/ʻOumuamua (2017), 2I/Borisov (2019)' },
+    ],
+    orbit: 'Not an orbit at all: an open curve, a hyperbola with eccentricity ~6.1, which the Sun only bends. It came in from the direction of Sagittarius and is leaving for good, within 5° of the planets’ plane but going round the other way.',
+    fun: [
+      'The “3I” means the third interstellar object; ATLAS is the survey that found it, the Asteroid Terrestrial-impact Last Alert System.',
+      'Its speed alone gives it away: at its closest to the Sun it was moving at ~68 km/s, nearly twice the ~36 km/s the Sun could hold on to there.',
+      'Spacecraft at Mars photographed it as it passed in October 2025, ~29 million km from the planet.',
+    ],
+  },
   belt: {
     kind: 'Between Mars and Jupiter',
     intro: 'Leftovers from the making of the planets, strewn between Mars and Jupiter and never gathered into a planet of their own, stirred up as they are by Jupiter’s pull.',

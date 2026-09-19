@@ -45,6 +45,9 @@ const app = new App({
   skipIntro: reduceMotion || url.day !== undefined,
 });
 if (url.span) app.setSpan(url.span);
+if (url.tonight) app.layers.tonight = true;
+if (url.seasons) app.layers.seasons = true;
+if (url.comets === false) app.layers.comets = false;
 // reduced motion: trails switch and the camera moves at once, without easing
 sim.instant = reduceMotion;
 app.reducedMotion = reduceMotion;
@@ -131,7 +134,8 @@ function stateOf(sharing: boolean): Record<string, string | number | boolean | u
     // a life's link flies at its own pace and frames itself
     pace: Math.abs(app.sim.pace / app.spec.pace.start - 1) < 1e-6 || (sharing && life) ? undefined : app.sim.pace,
     reverse: app.sim.direction === -1,
-    trails: app.sim.trails.on ? undefined : false,
+    // a switch turned off is written out as "0" (a false value is left out of the address altogether)
+    trails: app.sim.trails.on ? undefined : '0',
     span: Math.abs(app.sim.trails.span / app.spec.span.start - 1) < 1e-6 || life ? undefined : app.sim.trails.span,
     opacity: Math.abs(app.sim.trails.opacity - DEFAULT_OPACITY) < 0.005 ? undefined : Math.round(app.sim.trails.opacity * 100) / 100,
     // a body followed across the sky keeps moving the camera: the link keeps the body instead
@@ -141,6 +145,9 @@ function stateOf(sharing: boolean): Record<string, string | number | boolean | u
     born: sharing && life ? life.iso : undefined,
     body: app.selected ?? undefined,
     preset: panel.preset ?? undefined,
+    tonight: app.layers.tonight,
+    seasons: app.layers.seasons,
+    comets: app.layers.comets ? undefined : '0',
   };
 }
 

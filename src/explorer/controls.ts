@@ -13,8 +13,8 @@ const $ = <T extends HTMLElement>(id: string): T => {
   return el as T;
 };
 
-/** The menus, each opening its sheet in the panel (the homes kept for Sky and Tools join them once they are built). */
-export type MenuId = 'moments' | 'look' | 'you' | 'guide';
+/** The menus, each opening its sheet in the panel (the home kept for Tools joins them once it is built). */
+export type MenuId = 'moments' | 'sky' | 'look' | 'you' | 'guide';
 
 /** Hooks the controls call that belong to other parts of the page. */
 export interface ControlHooks {
@@ -268,6 +268,7 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     else if (k === 'h' || k === 'H') setHidden(!document.body.classList.contains('hide-ui'));
     else if (k === 'f' || k === 'F') ui.fs.click();
     else if (k === 'j' || k === 'J') hooks.openMenu('moments');
+    else if (k === 'k' || k === 'K') hooks.toggleMenu('sky');
     else if (k === 's' || k === 'S') hooks.toggleMenu('look');
     else if (k === 'g' || k === 'G') hooks.openMenu('guide');
     else if (k === 'y' || k === 'Y') hooks.openMenu('you');

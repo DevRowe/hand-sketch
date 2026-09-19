@@ -1,6 +1,6 @@
 /**
  * A first visit's welcome: one small card with the handful of things worth knowing (moving about, tapping a planet,
- * the views and the Look menu, the key moments, the speed, and You), over the sky as it draws itself on.
+ * the views and the Look menu, the key moments and the Sky menu, the speed, and You), over the sky as it draws itself on.
  * Dismissed once, it stays dismissed in this browser; the guide can bring it back.
  */
 
@@ -48,7 +48,7 @@ export function wireWelcome(hooks: { openGuide(): void }): Welcome & { showOnce(
       ['move', touch ? '<b>Drag</b> to move about, <b>pinch</b> to zoom.' : '<b>Drag</b> to move about, <b>scroll</b> to zoom.'],
       ['tap', `<b>${touch ? 'Tap' : 'Click'} a planet</b> for its story; ${touch ? 'double-tap' : 'double-click'} to fly in.`],
       ['look', 'Switch between <b>In motion</b>, <b>From above</b> and <b>Earth &amp; Moon</b>, the story of spaceflight at true scale; <b>Look</b> holds the ten visual styles and the trails.'],
-      ['moments', '<b>Moments</b> sets the sky to Apollo 11, Voyager, the next Mars window and more.'],
+      ['moments', '<b>Moments</b> sets the sky to Apollo 11, Voyager, the next Mars window and more; <b>Sky</b> shows what is up tonight, the Moon, comets and the seasons.'],
       ['pace', 'Play, pause and change the <b>speed</b> along the foot of the screen.'],
       ['travel', '<b>You</b>: fly your own years, share this moment, save a picture.'],
     ];

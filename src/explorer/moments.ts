@@ -18,6 +18,9 @@ export const FEATURED: readonly [id: string, short: string][] = [
   ['venus-transit', 'Transit of Venus'],
   ['great-conjunction', 'Great conjunction'],
   ['parade-2025', 'A planet parade'],
+  ['atlas-2025', 'Interstellar visitor'],
+  ['eclipse-2027', 'Total solar eclipse'],
+  ['halley-2061', 'Halley returns'],
   ['mars-window', 'Next launch window to Mars'],
   ['next-opposition', 'Next Mars opposition'],
 ];
@@ -28,6 +31,8 @@ const KIND: Readonly<Record<Preset['group'], string>> = {
   'Launch windows': 'Launch window',
   Missions: 'Mission',
   Alignments: 'Alignment',
+  Eclipses: 'Eclipse',
+  Comets: 'Comet',
   'The space age': 'First',
   'To the Moon': 'To the Moon',
   'Space stations': 'Station',

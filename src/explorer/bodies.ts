@@ -9,12 +9,13 @@ import { STARLINK_COUNT, STARLINK_SHELL, censusAt, GEO_COUNT, GPS_COUNT } from '
 import { BOX, C, MOON, moonOffset, PLANETS, planetAt, RINGS, rockAt, ROCKS, SUN_R, URANUS_RING, type PlanetName } from '../scenes/solar/common';
 import { RINGS as WAKE_RINGS, snapshot, SUN_R as WAKE_SUN_R, URANUS_RING as WAKE_URANUS } from '../scenes/solar-spiral/common';
 import type { Sky } from '../scenes/solar/sky';
+import type { CometId } from './comets';
 
 export type ViewId = 'sky' | 'wake' | 'earth';
 /** What orbits the Earth in the Earth and Moon view: the stations and telescopes, and the orbits named as rings. */
 export type OrbiterId = 'iss' | 'tiangong' | 'hubble' | 'mir' | 'skylab' | 'salyut' | 'sputnik';
 export type RingId = 'leo' | 'gps' | 'geo' | 'starlink';
-export type BodyId = 'sun' | PlanetName | 'moon' | OrbiterId | RingId;
+export type BodyId = 'sun' | PlanetName | 'moon' | OrbiterId | RingId | CometId;
 
 export interface Mark {
   id: BodyId;

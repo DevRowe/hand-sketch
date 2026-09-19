@@ -7,13 +7,13 @@ import type { Vec2 } from '../core/math';
 import type { App } from './app';
 
 export const GOLD = '#e8a33d';
-const HALO = 'rgba(13,15,21,0.6)';
-const INK = '#fff4dc';
+export const HALO = 'rgba(13,15,21,0.6)';
+export const INK = '#fff4dc';
 
 /** Screen pixels to design units at the current zoom. */
 const px = (app: App): number => 1 / app.renderer.designScale;
 
-function haloStroke(ctx: CanvasRenderingContext2D, k: number, width: number, draw: () => void, color = GOLD, dash: number[] = []): void {
+export function haloStroke(ctx: CanvasRenderingContext2D, k: number, width: number, draw: () => void, color = GOLD, dash: number[] = []): void {
   ctx.save();
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -29,7 +29,7 @@ function haloStroke(ctx: CanvasRenderingContext2D, k: number, width: number, dra
   ctx.restore();
 }
 
-function polyline(ctx: CanvasRenderingContext2D, pts: readonly Vec2[]): void {
+export function polyline(ctx: CanvasRenderingContext2D, pts: readonly Vec2[]): void {
   ctx.beginPath();
   pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
 }
@@ -97,9 +97,9 @@ export function drawCraft(ctx: CanvasRenderingContext2D, app: App, [x, y]: Vec2,
 }
 
 /** A line of sight from `from` through `to`, carried on past it. */
-export function drawSight(ctx: CanvasRenderingContext2D, app: App, from: Vec2, to: Vec2, reach = 1.35): void {
+export function drawSight(ctx: CanvasRenderingContext2D, app: App, from: Vec2, to: Vec2, reach = 1.35, color = GOLD, width = 1.3, dash = [2, 5]): void {
   const end: Vec2 = [from[0] + (to[0] - from[0]) * reach, from[1] + (to[1] - from[1]) * reach];
-  haloStroke(ctx, px(app), 1.3, () => polyline(ctx, [from, end]), GOLD, [2, 5]);
+  haloStroke(ctx, px(app), width, () => polyline(ctx, [from, end]), color, dash);
 }
 
 /** Screen pixels a caption keeps from the screen's sides. */
@@ -109,7 +109,7 @@ const EDGE = 6;
  * A small caption in the explorer's type, haloed; slid sideways as needed to stay on the screen. It is set in screen
  * pixels (whatever the zoom, type is never scaled from a fraction of a design unit).
  */
-export function text(ctx: CanvasRenderingContext2D, app: App, at: Vec2, s: string, align: CanvasTextAlign, alpha = 1, bold = false): void {
+export function text(ctx: CanvasRenderingContext2D, app: App, at: Vec2, s: string, align: CanvasTextAlign, alpha = 1, bold = false, color = INK): void {
   let [x, y] = app.renderer.toScreen(at[0], at[1]);
   ctx.save();
   ctx.setTransform(app.renderer.cssScale, 0, 0, app.renderer.cssScale, 0, 0);
@@ -125,7 +125,7 @@ export function text(ctx: CanvasRenderingContext2D, app: App, at: Vec2, s: strin
   ctx.lineWidth = 3.5;
   ctx.strokeStyle = HALO;
   ctx.strokeText(s, x, y);
-  ctx.fillStyle = INK;
+  ctx.fillStyle = color;
   ctx.fillText(s, x, y);
   ctx.restore();
 }

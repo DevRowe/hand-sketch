@@ -29,6 +29,18 @@ export const GUIDE: readonly Section[] = [
     ],
   },
   {
+    id: 'sky',
+    title: 'The sky from Earth',
+    intro: 'What the Sky menu shows, and why a view from above explains it.',
+    items: [
+      { title: 'Evening and morning stars', text: 'A planet east of the Sun in our sky sets after it and shines in the evening; one west of it rises before the Sun, in the morning; one opposite the Sun is up all night. Venus and Mercury, inside our orbit, never stray far from the Sun (Venus at most ~47°, Mercury ~28°), so they are only ever evening or morning stars.' },
+      { title: 'The Moon’s phases', text: 'The Moon is always half lit by the Sun; as it goes round us we see a changing share of that lit half, from new to full and back in 29.5 days. That is longer than the 27.3 days it takes to circle the Earth, because the Earth moves on round the Sun meanwhile.' },
+      { title: 'Eclipses', text: 'A solar eclipse is the new Moon’s shadow falling on the Earth; a lunar eclipse is the full Moon passing through the Earth’s shadow. The Moon’s orbit is tilted ~5° to ours, so the line-up only works in two “eclipse seasons” a year, near where the two orbits cross. Somewhere on Earth sees two to five solar eclipses a year, but any one place waits ~375 years on average for a total one.' },
+      { title: 'Comets', text: 'Icy leftovers from the making of the planets, a few km across, on long, stretched orbits. Warmed near the Sun they grow a glowing head and tails, which always point away from it. Halley’s returns every ~76 years; others take thousands of years; and a few, like 3I/ATLAS, come from other stars and pass through once.' },
+      { title: 'Seasons', text: 'The Earth’s axis leans 23.4° and keeps pointing the same way in space, so each hemisphere leans towards the Sun for half the year (its summer) and away for the other half. The lean is greatest at the solstices, around 21 June and 21 December; at the equinoxes, around 20 March and 22 September, day and night are nearly equal everywhere.' },
+    ],
+  },
+  {
     id: 'moons',
     title: 'Moons',
     intro: 'The planets have hundreds of moons between them: NASA counted 115 at Jupiter, 293 at Saturn, 29 at Uranus and 16 at Neptune by August 2026, most of them small captured rocks. A few are worlds in their own right.',

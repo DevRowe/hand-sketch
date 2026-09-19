@@ -9,14 +9,16 @@ import type { PlanetName } from '../scenes/solar/common';
 import { moonDistance } from '../scenes/solar/ephemeris';
 import { BODY_NAMES, NEIGHBOURS, type App, type Selection } from './app';
 import type { BodyId, RingId } from './bodies';
+import { COMETS, cometAt, type CometId } from './comets';
 import { BODIES } from './content/bodies';
 import { GUIDE, SOURCES } from './content/guide';
 import type { MenuId } from './controls';
 import { dateLabel, dateLong, isFuture, isoDate, parseIsoDate, today } from './format';
 import type { Journey } from './journey';
 import { lifeFrame, lifeOf, type Life } from './life';
-import { AU_KM, fromEarthKm, fromSunAu, km, lightTime, moonPhase } from './live';
+import { AU_KM, fromEarthKm, fromSunAu, km, lightTime, moonPhase, xyz as xyzOf } from './live';
 import { PRESETS, presetById, type Preset } from './presets';
+import { guessLatitude, moonHtml, seasonsHtml, SKY_LATITUDES, tonightHtml } from './skysheet';
 import { clamp, MONTH, PACE_MAX } from './sim';
 import { ageLabel, CMB_KM_S, count, distance, GALAXY_KM_S, lapCount, ORBIT_KM_S, outerLaps, planetAges, speed, travelled } from './travel';
 
@@ -33,16 +35,18 @@ export interface PanelHooks {
 }
 
 type Mode = { kind: 'body'; id: NonNullable<Selection> } | { kind: 'guide' } | { kind: 'jump' } | { kind: 'preset'; id: string }
-  | { kind: 'look' } | { kind: 'you' } | { kind: 'life' };
+  | { kind: 'look' } | { kind: 'you' } | { kind: 'life' } | { kind: 'sky' };
 
 /** The menu each kind of card belongs to (a body's card belongs to none: it comes from the sky). */
-const MENU_OF: Readonly<Record<Mode['kind'], MenuId | null>> = { body: null, guide: 'guide', jump: 'moments', preset: 'moments', look: 'look', you: 'you', life: 'you' };
+const MENU_OF: Readonly<Record<Mode['kind'], MenuId | null>> = { body: null, guide: 'guide', jump: 'moments', preset: 'moments', look: 'look', you: 'you', life: 'you', sky: 'sky' };
 
 const VIEW_WORDS = { wake: 'In motion', sky: 'From above', earth: 'Earth & Moon' } as const;
 
 /** Where the travel card keeps the viewer's birthday and latitude: in this browser only. */
 const BIRTHDAY_KEY = 'explorer.birthday';
 const LATITUDE_KEY = 'explorer.latitude';
+/** Where the Sky sheet keeps the latitude its day lengths are for (signed: south negative). */
+const SKY_LAT_KEY = 'explorer.skylat';
 /** The earliest birthday the card takes. */
 const BIRTHDAY_MIN = '1900-01-01';
 const stored = (key: string): string | null => {
@@ -85,11 +89,15 @@ const ORBIT_IDS: readonly BodyId[] = ['leo', 'gps', 'geo', 'starlink', 'iss', 't
 const RING_IDS: ReadonlySet<BodyId | 'belt'> = new Set<RingId>(['leo', 'gps', 'geo', 'starlink']);
 /** Bodies only the Earth and Moon view draws. */
 const EARTH_ONLY: ReadonlySet<BodyId | 'belt'> = new Set(ORBIT_IDS);
+/** The comets, drawn only in the From above view (while the Sky menu shows them). */
+const COMET_IDS: ReadonlySet<BodyId | 'belt'> = new Set<CometId>(['halley', 'atlas']);
+/** The moments each comet has, offered on its card. */
+const COMET_MOMENTS: Readonly<Record<CometId, readonly string[]>> = { halley: ['halley-1986', 'halley-2061'], atlas: ['atlas-2025'] };
 
 const KEYS: readonly [string, string][] = [
   ['Space', 'play or pause'], ['← →', 'slower, faster'], ['R', 'run time backwards'], ['T', 'today'],
   ['V', 'from above / in motion'], ['E', 'the Earth and Moon up close, and back'], ['1 … 0', 'the ten styles ([ ] step through)'], ['W', 'trails on or off'],
-  ['L', 'names on or off'], ['+ −', 'zoom'], ['Z', 'reset the view'], ['J', 'moments'], ['S', 'look: styles, trails, names'], ['Y', 'you: share, save, your years'], ['G', 'guide'],
+  ['L', 'names on or off'], ['+ −', 'zoom'], ['Z', 'reset the view'], ['J', 'moments'], ['K', 'sky: tonight, the Moon, comets, seasons'], ['S', 'look: styles, trails, names'], ['Y', 'you: share, save, your years'], ['G', 'guide'],
   ['H', 'hide the controls'], ['F', 'full screen'], ['Esc', 'close, deselect'],
 ];
 
@@ -159,6 +167,7 @@ export class Panel {
 
   openMenu(id: MenuId): void {
     if (id === 'moments') this.openJump();
+    else if (id === 'sky') this.openSky();
     else if (id === 'look') this.openLook();
     else if (id === 'you') this.openYou();
     else this.openGuide();
@@ -175,17 +184,77 @@ export class Panel {
     this.show({ kind: 'look' }, 'Look', 'How the sky is drawn', this.look);
   }
 
+  /**
+   * Sky: what is up tonight and why (sight-lines from the Earth), the Moon's phase and the eclipse to come, the comets,
+   * and the seasons. The lists follow the date on screen; the switches draw each over the From above view.
+   */
+  openSky(): void {
+    const L = this.app.layers, lat = this.skyLatitude();
+    const options = SKY_LATITUDES.map(([v, label]) => `<option value="${v}"${v === lat ? ' selected' : ''}>${esc(label)}</option>`).join('');
+    const moments = (ids: readonly string[]): string => `<ul class="presets">${ids.map(presetById).filter((p): p is Preset => p !== undefined).map(presetItem).join('')}</ul>`;
+    const html = `<p class="intro">What you can see from the Earth on <b data-live="sky-date"></b>, and why: from above, the Sun, the Earth and every planet are in view at once.</p>
+      <section class="sky-sec" aria-labelledby="sky-tonight-h">
+        <h3 id="sky-tonight-h">Look up tonight</h3>
+        <div data-live="tonight"></div>
+        <div class="card-actions">
+          <button type="button" class="act primary" data-act="layer" data-layer="tonight" aria-pressed="${L.tonight}">${LAYER_ICON}Draw the sight-lines</button>
+          <button type="button" class="act" data-act="tonight">Tonight</button>
+        </div>
+        <details class="guide"><summary><h3>Evening star or morning star?</h3></summary>
+          <p>The Earth turns towards the east, so the Sun and everything near it in our sky rises in the east and sets in the west. A planet a little east of the Sun sets soon after it: look west after sunset. A planet west of the Sun rises before it: look east before dawn. One opposite the Sun rises as it sets and is up all night. Within ~15° of the Sun, a planet is lost in its glare.</p>
+          <p>From above you can see which it is: from the Earth, look along the gold lines at dusk, the blue ones before dawn. The plan squeezes the outer orbits to fit, so the lines’ angles are only roughly true; the lists use the real ones. Exact heights depend on your latitude and the season.</p>
+        </details>
+      </section>
+      <section class="sky-sec" aria-labelledby="sky-moon-h">
+        <h3 id="sky-moon-h">The Moon and eclipses</h3>
+        <div data-live="moon"></div>
+        <p class="small">The Moon as seen from the northern hemisphere; from the south it is turned the other way up. From above it is always half lit, by the Sun; from the Earth we see a changing share of that lit half.</p>
+        ${moments(['eclipse-2027'])}
+        <div class="card-actions"><button type="button" class="act" data-act="earth-view">See the Earth and Moon up close</button></div>
+      </section>
+      <section class="sky-sec" aria-labelledby="sky-comets-h">
+        <h3 id="sky-comets-h">Comets and visitors</h3>
+        <p>Comets swing in on long, stretched orbits, creeping at the far end and racing round the Sun: Kepler’s second law, drawn. One from another star passes once and never returns.</p>
+        <div class="row">
+          <button type="button" class="toggle" data-act="layer" data-layer="comets" aria-pressed="${L.comets}"><span class="dot" aria-hidden="true"></span>Comets on the plan</button>
+          <button type="button" class="chip" data-body="halley">Halley’s Comet</button>
+          <button type="button" class="chip" data-body="atlas">3I/ATLAS</button>
+        </div>
+        ${moments(COMET_MOMENTS.halley.concat(COMET_MOMENTS.atlas))}
+      </section>
+      <section class="sky-sec" aria-labelledby="sky-seasons-h">
+        <h3 id="sky-seasons-h">Seasons and the tilt</h3>
+        <label class="sky-lat">Daylight at<select id="sky-lat-in">${options}</select></label>
+        <div data-live="seasons"></div>
+        <div class="card-actions"><button type="button" class="act" data-act="layer" data-layer="seasons" aria-pressed="${L.seasons}">${LAYER_ICON}Draw the tilt and seasons</button></div>
+        <details class="guide"><summary><h3>Why are there seasons?</h3></summary>
+          <p>The Earth’s axis leans ~23.4° and keeps pointing the same way in space, towards Polaris, all year round. From June the north leans towards the Sun: long days and a high Sun bring summer there, while the south has winter. Six months later, on the far side of the orbit, it is the other way round.</p>
+          <p>It is not the distance: the Earth is closest to the Sun in early January (~147 million km) and farthest in early July (~152 million km), a difference of only ~3%.</p>
+        </details>
+      </section>
+      <p class="small">Positions: JPL mean orbital elements and Meeus’s Moon; comets from JPL’s Small-Body Database; brightness from the standard magnitude formulas; eclipse times and durations from NASA’s eclipse catalogue. See Sources in the guide.</p>`;
+    this.show({ kind: 'sky' }, 'Sky', 'The sky from Earth', html);
+  }
+
+  /** The latitude the Sky sheet's day lengths are for: the one chosen here before, else a guess from the clock. */
+  private skyLatitude(): number {
+    const v = Number(stored(SKY_LAT_KEY) ?? NaN);
+    return SKY_LATITUDES.some(([l]) => l === v) ? v : guessLatitude();
+  }
+
   openBody(id: NonNullable<Selection>): void {
-    const c = BODIES[id], planet = PLANET_IDS.includes(id as BodyId), ring = RING_IDS.has(id);
+    const c = BODIES[id], planet = PLANET_IDS.includes(id as BodyId), ring = RING_IDS.has(id), comet = COMET_IDS.has(id);
     // the Earth and the Moon, seen in a plan, offer the view that shows them up close
     const closer = NEIGHBOURS.has(id) && this.app.view !== 'earth' ? '<button type="button" class="act primary" data-act="earth-view">See the Earth and Moon up close</button>' : '';
     const actions = id === 'belt' ? '' : ring ? `<div class="card-actions"><button type="button" class="act" data-act="frame-ring">Show it whole</button></div>` : `<div class="card-actions">
       ${closer}
+      ${comet ? COMET_MOMENTS[id as CometId].map(pid => `<button type="button" class="act primary" data-preset="${pid}">${esc(presetById(pid)!.title)}</button>`).join('') : ''}
       <button type="button" class="act" data-act="zoom">Zoom in</button>
       <button type="button" class="act" data-act="follow" aria-pressed="${this.app.following}">Follow</button>
     </div>`;
     const small = planet || id === 'moon' ? '<p class="small">Figures: NASA planetary fact sheets, rounded. Positions for the date: JPL mean orbital elements.</p>'
-      : EARTH_ONLY.has(id) ? '<p class="small">Figures: NASA, CMSA and J. McDowell’s satellite catalogue, rounded; see Sources in the guide. Heights and tilts are real; where a craft is along its orbit is illustrative.</p>' : '';
+      : EARTH_ONLY.has(id) ? '<p class="small">Figures: NASA, CMSA and J. McDowell’s satellite catalogue, rounded; see Sources in the guide. Heights and tilts are real; where a craft is along its orbit is illustrative.</p>'
+      : comet ? '<p class="small">Figures: NASA and ESA, rounded. Its orbit: JPL’s Small-Body Database, placed on the plan’s squeezed scale; its tails show which way they point, not their true length.</p>' : '';
     const html = `<p class="intro">${esc(c.intro)}</p>
       ${id === 'belt' || ring ? '' : `<section class="now" aria-label="On the date shown"><h3>On <span data-live="date"></span></h3><div data-live="facts"></div></section>`}
       ${actions}
@@ -197,7 +266,7 @@ export class Panel {
   }
 
   openGuide(section?: string): void {
-    const bodies = `<div class="chiplist">${(['sun', ...PLANET_IDS.slice(0, 3), 'moon', ...PLANET_IDS.slice(3), 'belt'] as const)
+    const bodies = `<div class="chiplist">${(['sun', ...PLANET_IDS.slice(0, 3), 'moon', ...PLANET_IDS.slice(3), 'belt', 'halley', 'atlas'] as const)
       .map(id => `<button type="button" class="chip" data-body="${id}">${esc(BODY_NAMES[id])}</button>`).join('')}</div>`;
     const round = `<div class="chiplist">${ORBIT_IDS.map(id => `<button type="button" class="chip" data-body="${id}">${esc(BODY_NAMES[id])}</button>`).join('')}</div>`;
     const sections = GUIDE.map(s => `<details class="guide" id="guide-${s.id}"${s.id === (section ?? 'orbits') ? ' open' : ''}>
@@ -368,6 +437,9 @@ export class Panel {
     } else if (t.id === 'lat-in') {
       store(LATITUDE_KEY, (t as HTMLSelectElement).value);
       this.renderTravel();
+    } else if (t.id === 'sky-lat-in') {
+      store(SKY_LAT_KEY, (t as HTMLSelectElement).value);
+      this.tick(true);
     }
   }
 
@@ -380,9 +452,7 @@ export class Panel {
       const g = p.group === 'Now and next' ? (p.day() >= now ? 'Coming up' : 'Recent milestones') : p.group;
       groups.set(g, [...(groups.get(g) ?? []), p]);
     }
-    const html = [...groups].map(([g, ps]) => `<h3 class="group">${esc(g)}</h3><ul class="presets">${ps.map(p => `<li><button type="button" class="preset" data-preset="${p.id}">
-        <span class="p-title">${esc(p.title)}</span><span class="p-when">${esc(dateLong(p.day(), true))}</span><span class="p-kicker">${esc(p.kicker)}</span>
-      </button></li>`).join('')}</ul>`).join('');
+    const html = [...groups].map(([g, ps]) => `<h3 class="group">${esc(g)}</h3><ul class="presets">${ps.map(presetItem).join('')}</ul>`).join('');
     this.show({ kind: 'jump' }, 'Moments', 'Key moments', `<p class="intro">Set the sky to a real moment and see why it matters: in space round the Earth, or out among the planets.</p>${html}`);
   }
 
@@ -466,6 +536,7 @@ export class Panel {
     if (m?.kind === 'body' && this.app.selected && this.app.selected !== m.id) this.openBody(this.app.selected);
     const follow = this.body.querySelector<HTMLButtonElement>('[data-act="follow"]');
     follow?.setAttribute('aria-pressed', String(this.app.following));
+    for (const b of this.body.querySelectorAll<HTMLButtonElement>('[data-layer]')) b.setAttribute('aria-pressed', String(this.app.layers[b.dataset.layer as keyof App['layers']]));
     this.tick(true);
   }
 
@@ -478,6 +549,17 @@ export class Panel {
       if (line && line.textContent !== text) line.textContent = text;
       return;
     }
+    if (m?.kind === 'sky') {
+      const now = performance.now();
+      if (!force && now - this.liveAt < 250) return;
+      this.liveAt = now;
+      const day = this.app.sim.day;
+      this.live('sky-date', dateLong(day), true);
+      this.live('tonight', tonightHtml(day));
+      this.live('moon', moonHtml(day));
+      this.live('seasons', seasonsHtml(day, this.skyLatitude()));
+      return;
+    }
     if (m?.kind !== 'body' || m.id === 'belt') return;
     const now = performance.now();
     if (!force && now - this.liveAt < 250) return;
@@ -488,19 +570,47 @@ export class Panel {
     box.innerHTML = facts(liveFacts(m.id, day), true);
   }
 
+  /** Put markup (or `plain` text) in a live box of the open card, only when it has changed (a list stays still under a finger). */
+  private live(key: string, content: string, plain = false): void {
+    const box = this.body.querySelector<HTMLElement>(`[data-live="${key}"]`);
+    if (!box || box.dataset.shown === content) return;
+    box.dataset.shown = content;
+    if (plain) box.textContent = content;
+    else box.innerHTML = content;
+  }
+
   private onClick(e: Event): void {
     const t = (e.target as HTMLElement).closest<HTMLElement>('[data-act], [data-body], [data-preset]');
     if (!t) return;
     const app = this.app;
     if (t.dataset.body) {
       const id = t.dataset.body as NonNullable<Selection>;
-      // what flies round the Earth is only drawn up close
+      // what flies round the Earth is only drawn up close; the comets only from above
       if (EARTH_ONLY.has(id) && app.view !== 'earth') app.setView('earth');
+      if (COMET_IDS.has(id)) {
+        if (!app.layers.comets) app.setLayer('comets', true);
+        if (app.view !== 'sky') app.setView('sky');
+      }
       app.select(id);
       this.openBody(id);
       if (RING_IDS.has(id)) app.frameDesign(ringFit(id as RingId), [540, 540]);
       else if (EARTH_ONLY.has(id)) app.focusSelected();
+      // a comet's whole path, which reaches out past Neptune
+      else if (COMET_IDS.has(id)) app.resetView();
     } else if (t.dataset.preset) this.openPreset(t.dataset.preset);
+    else if (t.dataset.act === 'layer' && t.dataset.layer) {
+      const layer = t.dataset.layer as keyof App['layers'], on = !app.layers[layer];
+      app.setLayer(layer, on);
+      // the layers are drawn from above: switching one on there shows it
+      if (on && app.view !== 'sky') app.setView('sky');
+      if (on && layer === 'tonight' && !app.atHome) app.resetView();
+      this.hooks.toast(LAYER_TOAST[layer][on ? 1 : 0]);
+    } else if (t.dataset.act === 'tonight') {
+      // tonight: the sky as it stands now, held still
+      this.clearPreset();
+      app.play(false);
+      app.jump(today());
+    }
     else if (t.dataset.act === 'zoom') app.focusSelected(Math.max(4, app.camera.zoom * 2));
     else if (t.dataset.act === 'follow') {
       if (app.following) app.select(app.selected, false);
@@ -568,6 +678,18 @@ function liveFacts(id: BodyId, day: number): { label: string; value: string }[] 
       { label: 'Speed', value: `~${circularSpeed(alt).toFixed(2)} km/s` },
     ];
   }
+  if (COMET_IDS.has(id)) {
+    const c = COMETS[id as CometId], place = cometAt(c, day), e = xyzOf('earth', day);
+    const fromEarth = Math.hypot(place.xyz[0] - e[0], place.xyz[1] - e[1], place.xyz[2] - e[2]) * AU_KM;
+    const peri = c.period ? c.perihelia.find(t => t > day) : c.perihelia[0];
+    const rows = [
+      { label: 'From the Sun', value: `${place.r.toFixed(place.r < 2 ? 2 : 1)} au (${km(place.r * AU_KM)})` },
+      { label: 'From Earth', value: km(fromEarth) },
+      { label: 'Speed', value: `~${place.speed.toFixed(place.speed < 10 ? 1 : 0)} km/s round the Sun` },
+    ];
+    if (peri !== undefined) rows.push({ label: peri > day ? 'Next round the Sun' : 'Round the Sun', value: `${dateLong(peri, true)}${peri > day ? ` (in ${since(day, peri)})` : ` (${since(peri, day)} ago)`}` });
+    return rows;
+  }
   if (id === 'moon') {
     const p = moonPhase(day), d = moonDistance(day);
     return [
@@ -593,6 +715,21 @@ function liveFacts(id: BodyId, day: number): { label: string; value: string }[] 
   ];
 }
 
+
+/** A moment in a list: its title, date and one line. */
+const presetItem = (p: Preset): string => `<li><button type="button" class="preset" data-preset="${p.id}">
+    <span class="p-title">${esc(p.title)}</span><span class="p-when">${esc(dateLong(p.day(), true))}</span><span class="p-kicker">${esc(p.kicker)}</span>
+  </button></li>`;
+
+/** The mark on the Sky sheet's switches that draw over the plan. */
+const LAYER_ICON = '<svg class="line" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.4"/><path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3"/></svg>';
+
+/** What each switch says as it goes off and on. */
+const LAYER_TOAST: Readonly<Record<keyof App['layers'], readonly [string, string]>> = {
+  tonight: ['Sight-lines off.', 'From the Earth: gold lines to the evening sky, blue to the morning sky.'],
+  seasons: ['Seasons off.', 'The Earth’s axis always leans the same way: towards the Sun in June, away in December.'],
+  comets: ['Comets hidden.', 'Comets shown on the plan, from above.'],
+};
 
 /** The two ways to take a moment away with you. */
 const SHARE_ACTS = `<button type="button" class="act" data-act="share"><svg class="line" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14.5V3.8M7.8 8 12 3.8 16.2 8"/><path d="M5 11.5v8h14v-8"/></svg>Share this moment</button>
