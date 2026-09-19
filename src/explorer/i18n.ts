@@ -44,6 +44,12 @@ const EN = {
   'tour.exit': 'End the tour',
   'tour.finish': 'Done',
 
+  // stepping through the moments
+  'moment.prev': 'Previous moment (←)',
+  'moment.next': 'Next moment (→)',
+  'moment.of': 'Moment {n} of {of}',
+  'moment.last': 'Last seen',
+
   // sound
   'sound.on': 'Sound on: each planet plays its note as it passes the line to the right of the Sun.',
   'sound.slow': 'Sound on. At this speed the planets pass their line only now and then: try a year a second to hear the inner ones patter.',

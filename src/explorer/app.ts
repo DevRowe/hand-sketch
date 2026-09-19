@@ -65,6 +65,10 @@ const REST_MS = 350;
 /** CSS pixels kept clear round it, and round a framed moment (whose marks carry names outside the circle). */
 const HOME_MARGIN = 10;
 const FRAME_MARGIN = 16;
+/** CSS pixels from a selected body's edge to its name: past the ring round it (`selectionBox`) and the room names keep. */
+const SELECTION_PAD = 12;
+/** The widest zoom a moment's frame may take the Earth and Moon view out to. */
+const WIDEST = 0.1;
 /** On a compact screen home may zoom in this far to fill the room; within `HOME_SNAP` of 1 it rests on the whole page. */
 const HOME_ZOOM_MAX = 1.6;
 const HOME_SNAP = 0.07;
@@ -168,6 +172,8 @@ export class App {
   private sheet: DesignBox | undefined;
   /** The design box the camera was last framed on (a moment's geometry), until the viewer moves it. */
   private framed: DesignBox | null = null;
+  /** Whether that box may take the Earth and Moon view out past its widest zoom. */
+  private framedWide = false;
   private lastDraw = -1e9;
   /** When the sky, the camera and the trails last moved (ms). */
   private stillSince = 0;
@@ -476,7 +482,7 @@ export class App {
    */
   homeView(r = this.freeRect()): View {
     const { w, h } = this.renderer.logical, whole = { zoom: 1, x: w / 2, y: h / 2 };
-    const [x0, y0, x1, y1] = this.spec.home, perDesign = this.renderer.designScale / this.camera.zoom;
+    const [x0, y0, x1, y1] = this.spec.home, perDesign = this.renderer.designUnit;
     const fit = Math.min((r.w - 2 * HOME_MARGIN) / ((x1 - x0) * perDesign), (r.h - 2 * HOME_MARGIN) / ((y1 - y0) * perDesign));
     // a wide screen shows the whole page unless even its controls would hide much of the system (a very short window)
     if (!COMPACT.matches && fit >= 0.75 && !this.spec.fitHome) return whole;
@@ -558,15 +564,18 @@ export class App {
    * may take the page under the top bar and the dock, and zoom out past the whole page where the cards leave the room
    * narrow (`Camera.setRoom`).
    */
-  frameBox(box: DesignBox, glide = this.glide): void {
+  frameBox(box: DesignBox, glide = this.glide, wide = false): void {
     this.syncRoom();
-    const [x0, y0, x1, y1] = box, r = this.freeRect(), perDesign = this.renderer.designScale / this.camera.zoom;
+    const [x0, y0, x1, y1] = box, r = this.freeRect(), perDesign = this.renderer.designUnit;
     const fit = Math.min((r.w - 2 * FRAME_MARGIN) / ((x1 - x0) * perDesign), (r.h - 2 * FRAME_MARGIN) / ((y1 - y0) * perDesign));
+    // the Earth and Moon view draws its own geometry at any scale: a wide box takes it out as far as it needs (until home)
+    if (wide && this.view === 'earth' && fit < this.camera.min) this.camera.min = Math.max(WIDEST, fit);
     const zoom = clamp(fit, this.camera.least, this.camera.max);
     const [lx, ly] = this.renderer.designToLogical((x0 + x1) / 2, (y0 + y1) / 2), [cx, cy] = this.centreFor(lx, ly, zoom);
     this.following = false;
     this.homed = false;
     this.framed = box;
+    this.framedWide = wide;
     this.camera.glideTo({ zoom, x: cx, y: cy }, glide);
     this.changed();
   }
@@ -594,8 +603,14 @@ export class App {
     this.sheet = this.sheetRoom();
     this.syncRoom(glide);
     if (this.homed) this.camera.glideTo(this.homeView(), glide);
-    else if (this.framed) this.frameBox(this.framed, glide);
+    else if (this.framed) this.frameBox(this.framed, glide, this.framedWide);
     this.dirty = true;
+  }
+
+  /** A card has closed: a moment's frame, fitted to the room the card left, is fitted again to the whole room. */
+  reframe(): void {
+    if (this.framed) this.frameBox(this.framed, this.glide, this.framedWide);
+    else this.syncRoom();
   }
 
   /**
@@ -885,7 +900,9 @@ export class App {
       // a body off the screen, or under the controls or the open card, names nothing: its name would hang over the
       // edge or show through them
       if (x < room[0] || x > room[2] || y < room[1] || y > room[3]) return [];
-      return [{ id: m.id, x, y, r: Math.max(m.id === 'sun' ? m.r : m.reach, m.r) * s, w, h: 18 }];
+      // the selected body's name stands outside the ring round it (which other captions keep clear of)
+      const r = Math.max(m.id === 'sun' ? m.r : m.reach, m.r) * s + (m.id === this.selected ? SELECTION_PAD : 0);
+      return [{ id: m.id, x, y, r, w, h: 18 }];
     });
     const { labels, pending } = this.labelLayout.place(inputs, room, performance.now(), [...this.captions, ...(this.captionRoom?.ui ?? [])]);
     this.labelsPending = pending;

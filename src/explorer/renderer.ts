@@ -256,6 +256,12 @@ export class Renderer {
   /** CSS pixels per design unit at the current zoom. */
   get designScale(): number { return (this.fit.s * this.current.base * this.mapView.zoom) / this.density; }
 
+  /**
+   * CSS pixels per design unit at zoom 1: what framing measures by, since the view last drawn may be another view's (the
+   * Earth and Moon view keeps the stage home) or a glide's step behind the camera.
+   */
+  get designUnit(): number { return (this.fit.s * this.current.base) / this.density; }
+
   /** CSS pixels per logical unit at zoom 1 (for turning a drag into a pan). */
   get logicalScale(): number { return this.current.base / this.density; }
 

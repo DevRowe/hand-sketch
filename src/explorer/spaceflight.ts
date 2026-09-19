@@ -7,11 +7,12 @@
  * Dates and figures are NASA's, ESA's, CMSA's and J. McDowell's (sources in `content/SOURCES.md`), UTC throughout;
  * "~" marks roundings. Paths are representative (`trajectories.ts`): real dates, heights and tilts, simplest orbits.
  */
-import type { Vec2 } from '../core/math';
-import { EARTH_EQ, EARTH_R, hiddenByEarth, moonAt, onPage, orbitAt, units, utc, type V3 } from '../scenes/cislunar/common';
+import { clamp, type Vec2 } from '../core/math';
+import { EARTH_EQ, EARTH_R, hiddenByEarth, MOON_A, moonAt, MU, onPage, orbitAt, sunDir, units, utc, type V3 } from '../scenes/cislunar/common';
 import { flying, trackedById } from '../scenes/cislunar/objects';
+import type { DesignBox } from '../scenes/solar/common';
 import type { App } from './app';
-import { drawCraft, drawMark, drawPath } from './overlays';
+import { drawCraft, drawMark, drawPath, haloStroke, polyline } from './overlays';
 import type { Preset } from './presets';
 import { DAY, HOUR, MINUTE } from './sim';
 import { aboveMoon, earthFlight, launchOrbit, lunarFlight, type Flight } from './trajectories';
@@ -171,14 +172,99 @@ const ARTEMIS_2 = lunarFlight({
   events: [{ day: utc(2026, 4, 6, 23, 2), label: 'Record: 406,771 km' }],
 });
 
+/* ---------- beyond the Moon, and past the Earth ---------- */
+
+const add = (...vs: readonly (readonly [V3, number])[]): V3 => {
+  const o: [number, number, number] = [0, 0, 0];
+  for (const [v, k] of vs) for (let i = 0; i < 3; i++) o[i]! += v[i]! * k;
+  return o;
+};
+/** Straight away from the Sun, and a quarter turn on from it along the ecliptic (anticlockwise from the north). */
+const awayFromSun = (day: number): V3 => sunDir(day).map(c => -c) as unknown as V3;
+const sideways = (day: number): V3 => {
+  const [x, y] = awayFromSun(day);
+  return [-y, x, 0];
+};
+const UP: V3 = [0, 0, 1];
+
+/** The Sun-Earth L2 point's distance, km, and the loop Webb flies round it seen from above (along the line, across it). */
+const L2_KM = 1.5e6;
+const HALO: readonly [number, number] = [250000, 800000];
+const L2 = (day: number): V3 => add([awayFromSun(day), L2_KM]);
+
+/**
+ * Webb: from just above the Earth out to the far side of its loop round L2 in a month, fast at first (it crossed
+ * the Moon's orbit in under three days) and slowing all the way, the line away from the Sun turning with the date.
+ */
+const WEBB = ((): Flight => {
+  const start = utc(2021, 12, 25, 12, 20), end = utc(2022, 1, 24, 19), r0 = EARTH_R + 600, tilt = Math.PI / 3;
+  return {
+    start, end,
+    at: d => {
+      const u = clamp((d - start) / (end - start), 0, 1), a0 = r0 * Math.cos(tilt);
+      return add([awayFromSun(d), a0 + (L2_KM - a0) * (1 - (1 - u) ** 3.7)], [sideways(d), HALO[1] * u ** 2.5], [UP, r0 * Math.sin(tilt) * (1 - u)]);
+    },
+    events: [{ day: end, label: 'On its loop round L2' }],
+    sample: d => Math.max(0.01, (d - start) * 0.06),
+  };
+})();
+
+/** L2 and Webb's loop round it: where they will be when it arrives (as its path ahead is drawn), and on the date after. */
+function l2Overlay(ctx: CanvasRenderingContext2D, app: App): void {
+  if (app.view !== 'earth') return;
+  const now = app.sim.day, at = Math.max(now, WEBB.end), k = 1 / app.renderer.designScale, loop = haloLoop(at);
+  haloStroke(ctx, k, 1.2, () => polyline(ctx, loop), 'rgba(232,163,61,0.6)', [2, 5]);
+  drawMark(ctx, app, onPage(L2(at)), 'L2: 1.5 million km from the Earth', now >= WEBB.end);
+}
+
+const haloLoop = (day: number): Vec2[] => Array.from({ length: 73 }, (_, i) => {
+  const a = (i / 72) * 2 * Math.PI;
+  return onPage(add([L2(day), 1], [awayFromSun(day), HALO[0] * Math.sin(a)], [sideways(day), HALO[1] * Math.cos(a)]));
+});
+
+/** The design box round the Earth, the Moon's orbit, Webb's path and its loop. */
+function webbBox(): DesignBox {
+  const pts: Vec2[] = [...haloLoop(WEBB.end)];
+  for (let d = WEBB.start; d <= WEBB.end; d += 1) pts.push(onPage(WEBB.at(d)));
+  const moon = units(MOON_A), [ex, ey] = onPage([0, 0, 0]);
+  pts.push([ex - moon, ey - moon], [ex + moon, ey + moon]);
+  return [Math.min(...pts.map(p => p[0])), Math.min(...pts.map(p => p[1])), Math.max(...pts.map(p => p[0])), Math.max(...pts.map(p => p[1]))];
+}
+
+/**
+ * A gravity assist past the Earth: the hyperbola closest `alt` km up at `peri`, arriving at `vinf` km/s, run from
+ * `hours` before to after. Seen from above it swings round the Earth's trailing side (a pass behind a planet adds to a
+ * craft's speed round the Sun), tilted a little towards the north so its closest stretch is in front of the disc.
+ */
+function flyby(peri: number, alt: number, vinf: number, hours: number, label: string): Flight {
+  const rp = EARTH_EQ + alt, a = -MU / (vinf * vinf), e = 1 - rp / a, n = Math.sqrt(MU / (-a) ** 3) * 86400, tilt = Math.PI / 6;
+  const back = sideways(peri).map(c => -c) as unknown as V3, P = add([back, Math.cos(tilt)], [UP, Math.sin(tilt)]), Q = awayFromSun(peri);
+  return {
+    start: peri - hours / 24, end: peri + hours / 24,
+    at: d => {
+      const M = n * (d - peri);
+      let H = Math.asinh(M / e);
+      for (let i = 0; i < 30; i++) H -= (e * Math.sinh(H) - H - M) / (e * Math.cosh(H) - 1);
+      const r = a * (1 - e * Math.cosh(H)), nu = 2 * Math.atan(Math.sqrt((e + 1) / (e - 1)) * Math.tanh(H / 2));
+      return add([P, r * Math.cos(nu)], [Q, r * Math.sin(nu)]);
+    },
+    events: [{ day: peri, label }],
+    sample: () => 1 / 1440,
+  };
+}
+
+const JUICE_FLYBY = flyby(utc(2026, 9, 28, 11, 45), 8600, 9, 5, 'Closest: ~8,600 km up');
+const CLIPPER_FLYBY = flyby(utc(2026, 12, 3, 12), 3200, 9, 5, 'Closest: ~3,200 km up');
+
 /** The flights drawn, by name (for tests). */
-export const FLIGHTS = { VOSTOK_1, FRIENDSHIP_7, GEMINI_11, SHENZHOU_5, APOLLO_8, APOLLO_11, APOLLO_13, APOLLO_17, ARTEMIS_1, ARTEMIS_2 } as const;
+export const FLIGHTS = { VOSTOK_1, FRIENDSHIP_7, GEMINI_11, SHENZHOU_5, APOLLO_8, APOLLO_11, APOLLO_13, APOLLO_17, ARTEMIS_1, ARTEMIS_2, WEBB, JUICE_FLYBY, CLIPPER_FLYBY } as const;
 
 /* ---------- the moments ---------- */
 
-/** A moment, with the flight it draws (and the craft's name) if it follows one. */
+/** A moment, with the flight it draws (and the craft's name) if it follows one, and anything more to draw under it. */
 interface Moment extends Preset {
   flight?: readonly [Flight, string];
+  under?: (ctx: CanvasRenderingContext2D, app: App) => void;
 }
 
 const MOMENTS: readonly Moment[] = [
@@ -283,9 +369,71 @@ const MOMENTS: readonly Moment[] = [
     }),
   },
   {
+    id: 'webb', group: 'Missions', title: 'James Webb Space Telescope', kicker: 'A telescope a million and a half km out.',
+    day: () => utc(2021, 12, 25, 12, 20), view: 'earth', frame: { box: webbBox, wide: true }, pace: 6 * HOUR,
+    journey: () => ({ from: WEBB.start, to: WEBB.end, pace: 2 * DAY, label: 'Play the month out to L2' }),
+    flight: [WEBB, 'Webb'],
+    under: l2Overlay,
+    card: () => ({
+      when: '25 December 2021, 12:20 UTC',
+      intro: 'Webb rode an Ariane 5 from Kourou and spent a month unfolding on its way to L2, a balance point ~1.5 million km from Earth on the side away from the Sun, about four times as far as the Moon.',
+      facts: [
+        { label: 'Arrived at L2', value: '24 January 2022' },
+        { label: 'Mirror', value: '6.5 m, 18 gold-coated segments' },
+        { label: 'Sunshield', value: '21 × 14 m, five layers' },
+        { label: 'First images', value: '11-12 July 2022' },
+      ],
+      body: [
+        'At L2 the Sun, Earth and Moon all stay on one side, so a single sunshield keeps the telescope in permanent shade, cold enough to see the faint infrared glow of the first galaxies. It circles L2 while L2 circles the Sun with the Earth, once a year.',
+        'Here the Earth and the Moon’s orbit are drawn to the same scale as the flight: the dashed loop round L2 is where Webb has flown ever since.',
+      ],
+      notes: ['The path is representative: the real dates and distance, drawn from above; the loop round L2 also swings far out of the plane of the page.'],
+    }),
+  },
+  {
+    id: 'juice-earth', group: 'Now and next', title: 'JUICE swings past Earth', kicker: 'Borrowing speed on the way to Jupiter.',
+    day: () => JUICE_FLYBY.events[0]!.day, view: 'earth', frame: upTo(45000), pace: 10 * MINUTE,
+    journey: () => ({ from: JUICE_FLYBY.start + 1 / 24, to: JUICE_FLYBY.end - 1 / 24, pace: 25 * MINUTE, label: 'Play the flyby' }),
+    flight: [JUICE_FLYBY, 'JUICE'],
+    card: () => ({
+      when: '28 September 2026, 11:45 UTC (on ESA’s current trajectory)',
+      intro: 'ESA’s Jupiter Icy Moons Explorer passes about 8,600 km above Earth, the second of its Earth flybys, trading some of our planet’s orbital speed for its own.',
+      facts: [
+        { label: 'Launched', value: '14 April 2023' },
+        { label: 'Flybys so far', value: 'Moon and Earth (August 2024), Venus (August 2025)' },
+        { label: 'Jupiter arrival', value: 'July 2031' },
+        { label: 'Then', value: 'orbit Ganymede from December 2034' },
+      ],
+      body: [
+        'In August 2024 JUICE made the first ever double flyby of the Moon and then Earth. After this pass and one more in January 2029 it heads out to Jupiter to study Ganymede, Callisto and Europa, and in 2034 it becomes the first spacecraft to orbit a moon other than our own.',
+      ],
+      notes: ['The path is representative: the real date and height, on the simplest hyperbola past the Earth.'],
+    }),
+  },
+  {
+    id: 'europa-clipper', group: 'Now and next', title: 'Europa Clipper swings past Earth', kicker: 'A slingshot on the way to Jupiter.',
+    day: () => CLIPPER_FLYBY.events[0]!.day, view: 'earth', frame: upTo(45000), pace: 10 * MINUTE,
+    journey: () => ({ from: CLIPPER_FLYBY.start + 1 / 24, to: CLIPPER_FLYBY.end - 1 / 24, pace: 25 * MINUTE, label: 'Play the flyby' }),
+    flight: [CLIPPER_FLYBY, 'Europa Clipper'],
+    card: () => ({
+      when: '3 December 2026',
+      intro: 'NASA’s Europa Clipper, launched in October 2024, comes back past Earth about 3,200 km above it, borrowing some of our planet’s orbital speed to fling itself out to Jupiter.',
+      facts: [
+        { label: 'Launched', value: '14 October 2024' },
+        { label: 'Mars flyby', value: '1 March 2025' },
+        { label: 'Earth flyby', value: '3 December 2026' },
+        { label: 'Jupiter arrival', value: 'April 2030, then 49 flybys of Europa' },
+      ],
+      body: [
+        'A gravity assist leaves a spacecraft with the same speed relative to the planet it passes but a new direction, so relative to the Sun it can gain (or lose) a lot. Two assists let Clipper reach Jupiter with a smaller rocket.',
+        'Europa hides a salty ocean under its ice, perhaps with twice the water of all Earth’s oceans. Clipper will measure the ice and the ocean and ask whether it could support life.',
+      ],
+      notes: ['The path is representative: the real date and height, on the simplest hyperbola past the Earth.'],
+    }),
+  },
+  {
     id: 'apollo-11-close', group: 'To the Moon', title: 'Apollo 11', kicker: 'Out to the Moon and back: the first landing.',
     day: () => utc(1969, 7, 20, 20, 17), view: 'earth', pace: 6 * HOUR,
-    related: { id: 'apollo-11', label: 'See it among the planets' },
     journey: () => ({ from: utc(1969, 7, 16, 13, 32), to: utc(1969, 7, 24, 16, 51), pace: 12 * HOUR, label: 'Fly the eight days' }),
     flight: [APOLLO_11, 'Apollo 11'],
     card: () => ({
@@ -298,6 +446,7 @@ const MOMENTS: readonly Moment[] = [
         { label: 'Splashdown', value: '24 July 1969, 16:51 UTC' },
       ],
       body: [
+        'Neil Armstrong and Buzz Aldrin landed the lunar module Eagle in the Sea of Tranquility while Michael Collins circled overhead in Columbia.',
         'Drawn from above, as here, the outbound and homebound legs are long ellipses that swing round the Earth; the famous figure of eight appears only in a frame that turns with the Moon.',
         'Six Apollo crews landed between 1969 and 1972: 12 people have walked on the Moon, and 24 flew there.',
       ],
@@ -569,7 +718,11 @@ const MOMENTS: readonly Moment[] = [
   },
 ];
 
-export const SPACEFLIGHT: readonly Preset[] = MOMENTS.map(({ flight, ...p }) => (flight ? { ...p, overlay: flightOverlay(...flight) } : p));
+export const SPACEFLIGHT: readonly Preset[] = MOMENTS.map(({ flight, under, ...p }) => {
+  if (!flight) return p;
+  const over = flightOverlay(...flight);
+  return { ...p, overlay: under ? (ctx, app) => (under(ctx, app), over(ctx, app)) : over };
+});
 
 /**
  * Where a moment's subject is at `day`, km (ecliptic): its flight's craft while it flies, or the station it selects while

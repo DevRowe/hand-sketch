@@ -427,6 +427,8 @@ kbd { display: inline-block; min-width: 22px; padding: 1px 6px; border-radius: 5
 }
 .preset:hover { border-color: rgb(232 163 61 / .55); background: var(--gold-soft); }
 .p-title { color: var(--ink); font: 500 16px/1.25 var(--serif); }
+.preset.last { border-color: rgb(232 163 61 / .7); background: var(--gold-soft); box-shadow: inset 3px 0 0 var(--gold); }
+.p-last { display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px; vertical-align: 2px; background: rgb(232 163 61 / .18); color: var(--gold); font: 600 10.5px/1.5 var(--sans); letter-spacing: .04em; text-transform: uppercase; }
 .p-when { color: var(--gold); font-size: 12px; font-weight: 600; }
 .p-kicker { color: var(--muted); font-size: 13px; }
 .notes { margin: 6px 0 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
@@ -485,12 +487,18 @@ svg.phase .rim { fill: none; stroke: rgb(239 230 212 / .35); stroke-width: 1; }
 }
 .pill[hidden] { display: none; }
 .pill-open { display: flex; align-items: center; gap: 8px; min-width: 0; height: 32px; padding: 0 8px 0 12px; border: 0; background: none; color: var(--ink); font-weight: 500; font-size: 13px; }
-.pill-open span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pill-open #pill-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pill-count { flex: none; color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
 .pill-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 4px rgb(232 163 61 / .2); }
-.pill-clear { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgb(239 230 212 / .06); color: var(--muted); }
-.pill-clear:hover { color: var(--ink); background: rgb(239 230 212 / .14); }
-.pill-clear svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.pill-clear, .pill-step { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgb(239 230 212 / .06); color: var(--muted); }
+.pill-step { background: none; color: var(--ink); }
+.pill-clear:hover, .pill-step:hover { color: var(--ink); background: rgb(239 230 212 / .14); }
+.pill-clear svg, .pill-step svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.pill-step svg { width: 16px; height: 16px; }
+.pill-clear { margin-left: 2px; }
 body.hide-ui .pill { transform: translate(-50%, -8px); }
+/* beside the card, the pill centres in the room it leaves */
+body.panel-open .pill { left: calc(50% - 212px - var(--safe-r) / 2); max-width: min(460px, calc(100vw - 472px - var(--safe-l) - var(--safe-r))); }
 
 /* ---------- toast ---------- */
 
@@ -805,6 +813,7 @@ body.panel-open .tour-bar { left: calc(50% - 212px - var(--safe-r) / 2); width: 
   .panel-head { padding: 14px 12px 10px 16px; }
   .panel-body { padding: 14px 16px 20px; }
   .pill { top: calc(8px + var(--safe-t) + var(--top-h, 48px) + 48px); }
+  body.panel-open .pill { left: 50%; max-width: min(460px, calc(100vw - 32px)); }
   .toast { top: calc(8px + var(--safe-t) + var(--top-h, 48px) + 92px); }
   .facts dd { font-size: 13px; }
   body.journey .top { opacity: 0; visibility: hidden; pointer-events: none; }
@@ -923,6 +932,7 @@ body.panel-open .tour-bar { left: calc(50% - 212px - var(--safe-r) / 2); width: 
   .tour-bar .round.primary { width: 38px; height: 38px; }
   .tour-bar .btn.icon { width: 36px; height: 36px; }
   body.panel-open .tour-bar { visibility: visible; left: calc((100vw - min(380px, 52vw) - 8px) / 2); width: calc(100vw - min(380px, 52vw) - 40px); }
+  body.panel-open .pill { left: calc((100vw - min(380px, 52vw) - 8px) / 2); max-width: calc(100vw - min(380px, 52vw) - 40px); }
   .welcome { padding: 8px; }
   .welcome-card { width: min(780px, 100%); padding: 14px 18px 12px; max-height: calc(100dvh - 16px); }
   .welcome-card .eyebrow { display: none; }
