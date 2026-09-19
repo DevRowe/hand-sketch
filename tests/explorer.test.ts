@@ -4,7 +4,7 @@ import { Camera, ZOOM_MAX, ZOOM_MIN } from '../src/explorer/camera';
 import { LabelLayout } from '../src/explorer/labels';
 import { birthdays, lifeOf } from '../src/explorer/life';
 import { stillScale } from '../src/explorer/share';
-import { ageLabel, distance, lapsLabel, lightTime, outerLaps, planetAges, speed, SPIN_KM_S, travelled } from '../src/explorer/travel';
+import { ageLabel, ageLine, distance, lapsLabel, lightTime, outerLaps, planetAges, speed, SPIN_KM_S, travelled } from '../src/explorer/travel';
 import { dateLabel, isoDate, paceFromSlider, paceLabel, paceToSlider, parseIsoDate, spanLabel } from '../src/explorer/format';
 import { DAY_MAX, MONTH, Sim, WEEK, YEAR } from '../src/explorer/sim';
 import { STYLES } from '../src/explorer/styles';
@@ -216,7 +216,7 @@ describe('explorer names', () => {
 
 describe('explorer travels', () => {
   const YEAR_S = 365.25 * 86_400;
-  const PLANET_DAYS: Record<string, number> = { mercury: 87.97, venus: 224.7, earth: 365.256, mars: 686.98, jupiter: 11.862 * 365.25, saturn: 29.457 * 365.25, uranus: 84.02 * 365.25, neptune: 164.8 * 365.25 };
+  const PLANET_DAYS: Record<string, number> = { mercury: 87.97, venus: 224.7, earth: 365.256, mars: 686.98, jupiter: 11.862 * 365.25, saturn: 29.457 * 365.25, uranus: 30_685.4, neptune: 164.8 * 365.25 };
 
   it('measures a lifetime four ways, at the speeds the card states', () => {
     const t = travelled(36.5 * YEAR_S);
@@ -253,7 +253,21 @@ describe('explorer travels', () => {
     }
     expect(outerLaps(ages)).toBe('Jupiter has gone round 3 times, Saturn once, Uranus 43% of the way and Neptune 22%');
     expect(lapsLabel(2.4)).toBe('twice');
-    expect(lapsLabel(0.004)).toBe('1% of the way');
+    // a lap barely begun reads as what it is, not rounded up to 1%
+    expect(lapsLabel(0.004)).toBe('0.4% of the way');
+    expect(lapsLabel(0.000006)).toBe('0.0006% of the way');
+  });
+
+  it('speaks of a newborn as one, and counts days lived rather than rounding up', () => {
+    const half = travelled(0.54 * 86_400), [spin, orbit, galaxy, cmb] = half.frames;
+    expect(ageLine(half.days, half.laps)).toBe('You were born today: <b>0.15%</b> of a trip round the Sun so far.');
+    expect(spin!.compare).toBe('54% of a turn of Earth');
+    expect(orbit!.compare).toBe('0.15% of a lap of the Sun');
+    expect(galaxy!.compare).toBe('not yet an au: only 1 part in 156 billion of one lap');
+    expect(cmb!.compare).toBe('as far as light travels in ~57.6 seconds');
+    expect(ageLine(1.2, 1.2 / 365.256)).toBe('You are <b>1 day</b> old: <b>0.33%</b> of a trip round the Sun.');
+    // 13,410.54 days: a day not yet over is not counted
+    expect(ageLine(13_410.54, 36.7)).toBe('You are <b>13,410 days</b> old: <b>36.7</b> trips round the Sun.');
   });
 
   it('counts the birthdays of a life, a leap-day birthday on the 28th in other years', () => {
@@ -299,5 +313,6 @@ describe('explorer travels', () => {
     expect(speed(369.82)).toBe('370 km/s');
     expect(lightTime(2.59e10 * 3)).toBe('3 days');
     expect(lightTime(9.461e12 * 1.5)).toBe('1.5 years');
+    expect(lightTime(299_792.458 * 90)).toBe('1.5 minutes');
   });
 });
