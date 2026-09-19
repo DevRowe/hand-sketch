@@ -177,7 +177,7 @@ const DEPTH = 1400;
 const COILS_MAX = 3;
 const MOON_COILS_MAX = 5;
 /** Aimed-for distance between neighbouring samples along a dated wake, design units (the loop's are 2 to 3.5). */
-const SPACING = 2.5;
+export const SPACING = 2.5;
 /** Most samples a dated wake may take, and a lifetime's wake (all its turns, decades of them). */
 const MAX_SAMPLES = 2400;
 const LIFE_SAMPLES = 4800;
@@ -241,7 +241,7 @@ function datedPlan(sky: Sky, spec: TrailSpec): WakePlan {
       pace = (TAU * a) / P + (w === MOON_K ? (TAU * PLANETS[2]!.a) / sky.period(2) : 0);
     }
     const most = life?.k === w ? LIFE_SAMPLES : MAX_SAMPLES;
-    const ideal = Math.max(SPACING / Math.hypot(pace, speed), reach / most), n = Math.max(2, Math.round(year / ideal));
+    const ideal = Math.max((spec.spacing ?? SPACING) / Math.hypot(pace, speed), reach / most), n = Math.max(2, Math.round(year / ideal));
     step.push(year / n);
     tick.push(n * ruler);
     // nothing reaches back before a life began: the wake only shortens, its grid stays put, so its marks ride along

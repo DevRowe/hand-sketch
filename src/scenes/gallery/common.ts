@@ -67,6 +67,41 @@ export function still(f: SceneFrame, key: string, build: (g: SceneFrame) => void
   composite(f, cached(f, key, build), o);
 }
 
+/** A frame the live explorer draws at rest (the draw-on over, the scene's own clock still) carries `held`. */
+interface HeldFrame {
+  held?: boolean;
+  room?: readonly number[];
+}
+
+/** The key each stage last held a piece under, so a piece redrawn for a new room lets the old layer go. */
+const heldKeys = new WeakMap<object, Map<string, string>>();
+
+/**
+ * Marks that do not move once a piece is drawn (orbits, rules, lettering), in paint order where they stand. A render
+ * draws them straight onto the frame, as if `held` were not there. The live explorer, which draws the same resting
+ * frame under a moving sky, keeps them as a `cached` layer and lays that instead: one blit for hundreds of marks.
+ * `build` starts from the frame's reset state (logical units, source-over, full strength) and must leave it so; call
+ * `held` only where the frame's context is in that state, and draw nothing in it that reads the sky.
+ */
+export function held(f: SceneFrame, key: string, build: (g: SceneFrame) => void): void {
+  if (isHeld(f)) f.stage.blit(f.ctx, heldLayer(f, key, build));
+  else build(f);
+}
+
+/** Whether the frame is one the live explorer draws at rest. */
+const isHeld = (f: SceneFrame): boolean => (f as HeldFrame).held === true;
+
+/** The layer a held piece is kept as: one per room it was drawn for, the last room's let go. */
+function heldLayer(f: SceneFrame, key: string, build: (g: SceneFrame) => void): HTMLCanvasElement {
+  const room = (f as HeldFrame).room, id = `held:${key}:${room ? room.map(v => v.toFixed(1)).join(',') : ''}`;
+  let keys = heldKeys.get(f.stage);
+  if (!keys) heldKeys.set(f.stage, (keys = new Map()));
+  const before = keys.get(key);
+  if (before !== undefined && before !== id) f.stage.dropPage(`gallery-still:${before}`);
+  keys.set(key, id);
+  return cached(f, id, build);
+}
+
 /** A per-frame layer: cleared, drawn by `draw` in logical units, and returned for `composite`. */
 export function scratch(f: SceneFrame, key: string, draw: (g: SceneFrame) => void): HTMLCanvasElement {
   const { stage } = f, layer = stage.layer(`gallery-scratch:${key}`), g = stage.context(layer);
@@ -226,10 +261,23 @@ export function knockOut(f: SceneFrame, g: Ctx, mask: HTMLCanvasElement, alpha: 
 export interface InkOptions extends CompositeOptions {
   /** Texture knocked out of the ink before it is laid down. */
   tooth?: ToothOptions & { alpha: number };
+  /**
+   * Nothing on the plate moves once the piece is drawn (a seal, a title block): the live explorer keeps the textured
+   * plate as a layer (see `held`) instead of inking it afresh every frame. Renders ink it as ever.
+   */
+  fixed?: boolean;
 }
 
 /** One ink drawn on its own layer, textured, then laid down (multiply by default: overprints mix like ink). */
 export function ink(f: SceneFrame, key: string, draw: (g: SceneFrame) => void, o: InkOptions = {}): void {
+  if (o.fixed && isHeld(f)) {
+    const plate = heldLayer(f, `ink:${key}`, g => {
+      draw(g);
+      if (o.tooth) knockOut(g, g.ctx, toothMask(g, o.tooth), o.tooth.alpha);
+    });
+    composite(f, plate, { blend: 'multiply', ...o });
+    return;
+  }
   const layer = scratch(f, `ink:${key}`, g => {
     draw(g);
     if (o.tooth) knockOut(f, g.ctx, toothMask(f, o.tooth), o.tooth.alpha);

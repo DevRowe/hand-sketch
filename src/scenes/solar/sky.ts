@@ -31,6 +31,11 @@ export interface TrailSpec {
    * reaches all the way there, however many turns that takes.
    */
   readonly life?: { readonly since: number; readonly k: number };
+  /**
+   * Aimed-for distance between neighbouring wake samples, design units: the live explorer's level of detail (coarser
+   * where a design unit is under a device pixel). Absent, the wakes keep their own spacing.
+   */
+  readonly spacing?: number;
 }
 
 export interface Sky {

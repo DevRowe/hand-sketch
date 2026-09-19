@@ -189,7 +189,7 @@ export const sumiScene: Scene = {
         c.beginPath();
         for (const pts of brushChar(1016, 568, 26, 1360)) pts.forEach(([x, y], k) => (k ? c.lineTo(x, y) : c.moveTo(x, y)));
         c.stroke();
-      }, { tooth: { seed: 1304, density: 60, size: 1.6, alpha: 0.5 }, alpha: 0.92 });
+      }, { tooth: { seed: 1304, density: 60, size: 1.6, alpha: 0.5 }, alpha: 0.92, fixed: true });
     }
   },
 };

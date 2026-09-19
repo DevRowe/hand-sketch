@@ -565,9 +565,6 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
 .tour-bar .btn.icon { width: 40px; height: 40px; }
 .tour-bar.paused .i-play { display: block; }
 .tour-bar.paused .i-pause { display: none; }
-.tour-read svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.tour-read[aria-pressed='true'] svg { color: var(--gold); }
-.tour-read[hidden] { display: none; }
 .tour-finish { display: none; }
 /* the last stop's next is the way out: a word, not an arrow */
 .tour-next.finish { width: auto; padding: 0 16px; border-radius: 999px; background: var(--gold); border-color: var(--gold); color: #1b1307; font-weight: 600; font-size: 13.5px; }
@@ -815,7 +812,6 @@ body.panel-open .tour-bar { left: calc(50% - 212px - var(--safe-r) / 2); width: 
   .tour-bar, body.panel-open .tour-bar { left: 50%; bottom: calc(8px + var(--safe-b)); width: calc(100vw - 16px - var(--safe-l) - var(--safe-r)); padding: 12px 10px 10px 14px; gap: 8px; }
   .tour-title { font-size: 19px; }
   .tour-text { font-size: 13.5px; }
-  .tour-read { padding: 0 10px 0 8px; }
   .welcome-card { padding: 18px 18px 16px; }
   .welcome-card h2 { font-size: 23px; }
 }
@@ -836,10 +832,11 @@ body.panel-open .tour-bar { left: calc(50% - 212px - var(--safe-r) / 2); width: 
 
 @media (max-width: 420px) {
   .chip { padding: 0 9px; }
-  /* the tour's stops on a line of their own, its buttons spread along the next */
+  /* the tour's stops on a line of their own; on the next, back, play and next together in the middle, the way out at the end */
   .tour-nav { flex-wrap: wrap; gap: 4px; }
   .tour-dots { flex: 1 1 100%; justify-content: center; }
-  .tour-buttons { flex: 1 1 100%; justify-content: space-between; gap: 6px; }
+  .tour-buttons { flex: 1 1 100%; justify-content: center; gap: 22px; position: relative; }
+  .tour-buttons #tour-exit { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
   .v-text span { font-size: 12px; }
   /* four planets a row still, with room for a whole date under each */
   .ages li { padding: 6px 4px 7px 6px; }

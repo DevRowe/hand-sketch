@@ -12,7 +12,7 @@ import { alpha } from '../../art/color';
 import { clamp, TAU, type Vec2 } from '../../core/math';
 import { rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
-import { composite, ground, knockOut, polyPath, scratch, still, toothMask } from '../gallery/common';
+import { composite, ground, held, knockOut, polyPath, scratch, still, toothMask } from '../gallery/common';
 import { BOX, C, cyclePhase, dayHalf, disc, drawnFrame, enter, frameFit, LOOP, MOON, moonOffset, once, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type Planet } from './common';
 import { skyOf, type Sky } from './sky';
 import { orbitTrail } from './trails';
@@ -151,89 +151,99 @@ export const decoScene: Scene = {
     still(f, 's10-wedges', g => background(g, fr), { alpha: ease });
 
     const gold = scratch(f, 's10-gold', g => {
+      // the Sun, the orbits' rules and the frame stand still once swept on: the live explorer keeps them as a layer
+      held(g, 's10-rules', h => {
+        const c = h.ctx;
+        c.save();
+        enter(c, fr);
+        c.strokeStyle = GOLD;
+        c.fillStyle = GOLD;
+        c.lineCap = 'butt';
+        // the Sun: a disc engraved in rings, sixteen long spikes and sixteen short, and a ring of fine rays
+        if (burst > 0) {
+          c.save();
+          c.translate(C[0], C[1]);
+          c.scale(ease, ease);
+          c.beginPath();
+          for (let k = 0; k < 32; k++) {
+            const a = (k / 32) * TAU, len = k % 2 ? 18 : 38, w = k % 2 ? 0.07 : 0.09;
+            c.moveTo(Math.cos(a - w) * (SUN_R + 3), Math.sin(a - w) * (SUN_R + 3));
+            c.lineTo(Math.cos(a) * (SUN_R + len), Math.sin(a) * (SUN_R + len));
+            c.lineTo(Math.cos(a + w) * (SUN_R + 3), Math.sin(a + w) * (SUN_R + 3));
+          }
+          c.fill();
+          c.fill(disc(0, 0, SUN_R));
+          c.restore();
+          c.save();
+          c.globalCompositeOperation = 'destination-out';
+          c.lineWidth = 1.4;
+          c.beginPath();
+          for (let rr = 8; rr < SUN_R * ease - 3; rr += 6) { c.moveTo(C[0] + rr, C[1]); c.arc(C[0], C[1], rr, 0, TAU); }
+          c.stroke();
+          c.restore();
+          c.lineWidth = 0.9;
+          c.beginPath();
+          for (let k = 0; k < 96; k++) {
+            const a = ((k + 0.5) / 96) * TAU, r0 = SUN_R + 46, r1 = r0 + (k % 3 === 0 ? 30 : 16) * ease;
+            c.moveTo(C[0] + Math.cos(a) * r0, C[1] + Math.sin(a) * r0);
+            c.lineTo(C[0] + Math.cos(a) * r1, C[1] + Math.sin(a) * r1);
+          }
+          c.stroke();
+        }
+        // the orbits: double rules swept on from the inside out, diamonds at the quarters of the outer ones
+        PLANETS.forEach((p, k) => {
+          const prog = clamp((n - F.orbits - k * F.every) / F.sweep, 0, 1);
+          if (prog <= 0) return;
+          const a0 = -Math.PI / 2;
+          c.lineWidth = 1;
+          c.beginPath();
+          for (const dr of [-2, 2]) {
+            c.moveTo(C[0] + Math.cos(a0) * (p.a + dr), C[1] + Math.sin(a0) * (p.a + dr));
+            c.arc(C[0], C[1], p.a + dr, a0, a0 + prog * TAU);
+          }
+          c.stroke();
+          if (prog >= 1 && k >= 4) {
+            for (let q = 0; q < 4; q++) {
+              const a = (q / 4) * TAU + (k % 2 ? Math.PI / 4 : 0), x = C[0] + Math.cos(a) * p.a, y = C[1] + Math.sin(a) * p.a, s = 6;
+              c.fill(polyPath([[x + Math.cos(a) * s, y + Math.sin(a) * s], [x - Math.sin(a) * s * 0.6, y + Math.cos(a) * s * 0.6], [x - Math.cos(a) * s, y - Math.sin(a) * s], [x + Math.sin(a) * s * 0.6, y - Math.cos(a) * s * 0.6]]));
+            }
+          }
+        });
+        // the frame and its corner fans
+        const fp = clamp((n - F.frame[0]) / (F.frame[1] - F.frame[0]), 0, 1);
+        if (fp > 0) {
+          c.lineWidth = 2;
+          const outer: Vec2[] = [[INSET, INSET], [BOX - INSET, INSET], [BOX - INSET, BOX - INSET], [INSET, BOX - INSET], [INSET, INSET]];
+          for (const [pts, w] of [[outer, 2], [steppedFrame(), 1.1]] as const) {
+            c.lineWidth = w;
+            c.beginPath();
+            prefix(pts, fp).forEach(([x, y], k) => (k ? c.lineTo(x, y) : c.moveTo(x, y)));
+            c.stroke();
+          }
+          c.lineWidth = 1;
+          c.beginPath();
+          const a = INSET + 10;
+          for (const [cx, cy, a0] of [[a, a, 0], [BOX - a, a, Math.PI / 2], [BOX - a, BOX - a, Math.PI], [a, BOX - a, -Math.PI / 2]] as const) {
+            for (const rr of [70, 96]) {
+              const rp = rr * fp;
+              c.moveTo(cx + Math.cos(a0) * rp, cy + Math.sin(a0) * rp);
+              c.arc(cx, cy, rp, a0, a0 + Math.PI / 2);
+            }
+            for (let j = 1; j < 8; j++) {
+              const b = a0 + (j / 8) * (Math.PI / 2);
+              c.moveTo(cx + Math.cos(b) * 50, cy + Math.sin(b) * 50);
+              c.lineTo(cx + Math.cos(b) * (50 + 46 * fp), cy + Math.sin(b) * (50 + 46 * fp));
+            }
+          }
+          c.stroke();
+        }
+        c.restore();
+      });
       const c = g.ctx;
       enter(c, fr);
       c.strokeStyle = GOLD;
       c.fillStyle = GOLD;
       c.lineCap = 'butt';
-      // the Sun: a disc engraved in rings, sixteen long spikes and sixteen short, and a ring of fine rays
-      if (burst > 0) {
-        c.save();
-        c.translate(C[0], C[1]);
-        c.scale(ease, ease);
-        c.beginPath();
-        for (let k = 0; k < 32; k++) {
-          const a = (k / 32) * TAU, len = k % 2 ? 18 : 38, w = k % 2 ? 0.07 : 0.09;
-          c.moveTo(Math.cos(a - w) * (SUN_R + 3), Math.sin(a - w) * (SUN_R + 3));
-          c.lineTo(Math.cos(a) * (SUN_R + len), Math.sin(a) * (SUN_R + len));
-          c.lineTo(Math.cos(a + w) * (SUN_R + 3), Math.sin(a + w) * (SUN_R + 3));
-        }
-        c.fill();
-        c.fill(disc(0, 0, SUN_R));
-        c.restore();
-        c.save();
-        c.globalCompositeOperation = 'destination-out';
-        c.lineWidth = 1.4;
-        c.beginPath();
-        for (let rr = 8; rr < SUN_R * ease - 3; rr += 6) { c.moveTo(C[0] + rr, C[1]); c.arc(C[0], C[1], rr, 0, TAU); }
-        c.stroke();
-        c.restore();
-        c.lineWidth = 0.9;
-        c.beginPath();
-        for (let k = 0; k < 96; k++) {
-          const a = ((k + 0.5) / 96) * TAU, r0 = SUN_R + 46, r1 = r0 + (k % 3 === 0 ? 30 : 16) * ease;
-          c.moveTo(C[0] + Math.cos(a) * r0, C[1] + Math.sin(a) * r0);
-          c.lineTo(C[0] + Math.cos(a) * r1, C[1] + Math.sin(a) * r1);
-        }
-        c.stroke();
-      }
-      // the orbits: double rules swept on from the inside out, diamonds at the quarters of the outer ones
-      PLANETS.forEach((p, k) => {
-        const prog = clamp((n - F.orbits - k * F.every) / F.sweep, 0, 1);
-        if (prog <= 0) return;
-        const a0 = -Math.PI / 2;
-        c.lineWidth = 1;
-        c.beginPath();
-        for (const dr of [-2, 2]) {
-          c.moveTo(C[0] + Math.cos(a0) * (p.a + dr), C[1] + Math.sin(a0) * (p.a + dr));
-          c.arc(C[0], C[1], p.a + dr, a0, a0 + prog * TAU);
-        }
-        c.stroke();
-        if (prog >= 1 && k >= 4) {
-          for (let q = 0; q < 4; q++) {
-            const a = (q / 4) * TAU + (k % 2 ? Math.PI / 4 : 0), x = C[0] + Math.cos(a) * p.a, y = C[1] + Math.sin(a) * p.a, s = 6;
-            c.fill(polyPath([[x + Math.cos(a) * s, y + Math.sin(a) * s], [x - Math.sin(a) * s * 0.6, y + Math.cos(a) * s * 0.6], [x - Math.cos(a) * s, y - Math.sin(a) * s], [x + Math.sin(a) * s * 0.6, y - Math.cos(a) * s * 0.6]]));
-          }
-        }
-      });
-      // the frame and its corner fans
-      const fp = clamp((n - F.frame[0]) / (F.frame[1] - F.frame[0]), 0, 1);
-      if (fp > 0) {
-        c.lineWidth = 2;
-        const outer: Vec2[] = [[INSET, INSET], [BOX - INSET, INSET], [BOX - INSET, BOX - INSET], [INSET, BOX - INSET], [INSET, INSET]];
-        for (const [pts, w] of [[outer, 2], [steppedFrame(), 1.1]] as const) {
-          c.lineWidth = w;
-          c.beginPath();
-          prefix(pts, fp).forEach(([x, y], k) => (k ? c.lineTo(x, y) : c.moveTo(x, y)));
-          c.stroke();
-        }
-        c.lineWidth = 1;
-        c.beginPath();
-        const a = INSET + 10;
-        for (const [cx, cy, a0] of [[a, a, 0], [BOX - a, a, Math.PI / 2], [BOX - a, BOX - a, Math.PI], [a, BOX - a, -Math.PI / 2]] as const) {
-          for (const rr of [70, 96]) {
-            const rp = rr * fp;
-            c.moveTo(cx + Math.cos(a0) * rp, cy + Math.sin(a0) * rp);
-            c.arc(cx, cy, rp, a0, a0 + Math.PI / 2);
-          }
-          for (let j = 1; j < 8; j++) {
-            const b = a0 + (j / 8) * (Math.PI / 2);
-            c.moveTo(cx + Math.cos(b) * 50, cy + Math.sin(b) * 50);
-            c.lineTo(cx + Math.cos(b) * (50 + 46 * fp), cy + Math.sin(b) * (50 + 46 * fp));
-          }
-        }
-        c.stroke();
-      }
       // the belt, fine gold dust
       if (n >= F.orbits + 4 * F.every) {
         c.beginPath();
