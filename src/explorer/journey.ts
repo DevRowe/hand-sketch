@@ -17,6 +17,12 @@ export interface Journey {
   pace: number;
   /** What the bar calls it: "Fly the Grand Tour". */
   label: string;
+  /** The flight wants the whole sky: the panel steps aside on every screen, not only where it would cover it. */
+  clear?: boolean;
+  /** Called once the journey has reached its end (again after each replay). */
+  arrive?(): void;
+  /** Called when the journey leaves the screen. */
+  leave?(): void;
 }
 
 export interface JourneyHooks {
@@ -38,6 +44,8 @@ export class JourneyBar {
   private readonly fromEl = $('jb-from');
   private readonly toEl = $('jb-to');
   private shownDate = '';
+  /** The journey has been seen to reach its end (its `arrive` called). */
+  private arrived = false;
   /** The journey on screen (playing, paused or ended), or null. */
   current: Journey | null = null;
 
@@ -45,8 +53,11 @@ export class JourneyBar {
     this.play.addEventListener('click', () => {
       const j = this.current;
       if (!j) return;
-      if (this.ended) this.app.journey(j.from, j.to, j.pace);
-      else this.app.play(!this.app.sim.playing);
+      if (this.ended) {
+        this.arrived = false;
+        if (COMPACT.matches || j.clear) this.hooks.makeRoom();
+        this.app.journey(j.from, j.to, j.pace);
+      } else this.app.play(!this.app.sim.playing);
     });
     $('jb-exit').addEventListener('click', () => this.end());
   }
@@ -57,27 +68,37 @@ export class JourneyBar {
     return j !== null && !this.app.journeying && this.app.sim.day >= j.to - 1e-6;
   }
 
-  start(j: Journey): void {
+  /** Put the journey's bar up and fly it; with `play` false, show it arrived at its end instead (a shared link). */
+  start(j: Journey, play = true): void {
+    if (this.current && this.current !== j) this.current.leave?.();
     this.current = j;
+    this.arrived = !play;
     this.title.textContent = j.label;
     this.fromEl.textContent = dateLabel(j.from);
     this.toEl.textContent = dateLabel(j.to);
     this.bar.hidden = false;
     document.body.classList.add('journey');
-    if (COMPACT.matches) this.hooks.makeRoom();
-    this.app.journey(j.from, j.to, j.pace);
+    if (COMPACT.matches || j.clear) this.hooks.makeRoom();
+    if (play) this.app.journey(j.from, j.to, j.pace);
+    else {
+      this.app.play(false);
+      this.app.jump(j.to);
+    }
     // the framing fits the room the journey's own bar leaves, once the page has laid itself out without the dock
     requestAnimationFrame(() => this.app.refit());
+    this.refresh();
   }
 
   /** Leave the journey (it stops where it is); false when none was on screen. */
   end(): boolean {
-    if (!this.current) return false;
+    const j = this.current;
+    if (!j) return false;
     this.current = null;
     if (this.app.journeying) this.app.play(false);
     this.bar.hidden = true;
     document.body.classList.remove('journey');
     requestAnimationFrame(() => this.app.refit());
+    j.leave?.();
     this.app.onChange();
     return true;
   }
@@ -91,6 +112,10 @@ export class JourneyBar {
       return;
     }
     const ended = this.ended;
+    if (ended && !this.arrived) {
+      this.arrived = true;
+      j.arrive?.();
+    }
     this.bar.classList.toggle('ended', ended);
     this.bar.classList.toggle('paused', !ended && !this.app.sim.playing);
     this.play.setAttribute('aria-label', ended ? 'Play the journey again' : this.app.sim.playing ? 'Pause the journey' : 'Play the journey');

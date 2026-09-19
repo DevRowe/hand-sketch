@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { pick, sceneMarks } from '../src/explorer/bodies';
 import { Camera, ZOOM_MAX, ZOOM_MIN } from '../src/explorer/camera';
 import { LabelLayout } from '../src/explorer/labels';
-import { distance, lightTime, speed, SPIN_KM_S, travelled } from '../src/explorer/travel';
+import { birthdays, lifeOf } from '../src/explorer/life';
+import { stillScale } from '../src/explorer/share';
+import { ageLabel, distance, lapsLabel, lightTime, outerLaps, planetAges, speed, SPIN_KM_S, travelled } from '../src/explorer/travel';
 import { dateLabel, isoDate, paceFromSlider, paceLabel, paceToSlider, parseIsoDate, spanLabel } from '../src/explorer/format';
 import { DAY_MAX, MONTH, Sim, WEEK, YEAR } from '../src/explorer/sim';
 import { STYLES } from '../src/explorer/styles';
-import { readUrl } from '../src/explorer/url';
+import { hashOf, readUrl } from '../src/explorer/url';
+import { snapshot } from '../src/scenes/solar-spiral/common';
 import { SOLAR_CATALOG } from '../src/scenes/solar';
 import { PLANETS, planetAt } from '../src/scenes/solar/common';
 import { dayOf } from '../src/scenes/solar/ephemeris';
@@ -147,6 +150,15 @@ describe('explorer words', () => {
     expect(readUrl('#style=<script>&view=up&date=soon&pace=-3&body=x')).toEqual({});
   });
 
+  it('carries a shared moment whole: trail strength, the camera and a life, and reads back what it writes', () => {
+    const hash = hashOf({ style: 'riso', date: '1977-08-20', opacity: 0.8, zoom: 3, at: '655.2,565.6', born: '1990-05-12', reverse: false, trails: undefined });
+    expect(hash).toBe('#style=riso&date=1977-08-20&opacity=0.8&zoom=3&at=655.2,565.6&born=1990-05-12');
+    expect(readUrl(hash)).toEqual({ style: 'riso', day: parseIsoDate('1977-08-20')!, opacity: 0.8, zoom: 3, at: [655.2, 565.6], born: parseIsoDate('1990-05-12')! });
+    expect(readUrl('#opacity=2&zoom=0&at=1,2,3&born=1990-13-01')).toEqual({});
+    expect(readUrl('#at=1e9,5')).toEqual({});
+    expect(hashOf({ style: undefined, trails: false })).toBe('');
+  });
+
   it('offers all ten styles, each with all three views', () => {
     expect(STYLES.map(s => s.title)).toEqual(SOLAR_CATALOG.map(e => e.title));
     for (const s of STYLES) {
@@ -194,6 +206,7 @@ describe('explorer names', () => {
 
 describe('explorer travels', () => {
   const YEAR_S = 365.25 * 86_400;
+  const PLANET_DAYS: Record<string, number> = { mercury: 87.97, venus: 224.7, earth: 365.256, mars: 686.98, jupiter: 11.862 * 365.25, saturn: 29.457 * 365.25, uranus: 84.02 * 365.25, neptune: 164.8 * 365.25 };
 
   it('measures a lifetime four ways, at the speeds the card states', () => {
     const t = travelled(36.5 * YEAR_S);
@@ -212,6 +225,59 @@ describe('explorer travels', () => {
   it('shrinks the spin with latitude and never runs backwards', () => {
     expect(travelled(YEAR_S, 60).frames[0]!.speed).toBeCloseTo(SPIN_KM_S / 2, 9);
     expect(travelled(-5).frames.every(f => f.km === 0)).toBe(true);
+  });
+
+  it('tells your age on every planet by its sidereal year, and when you next have a birthday there', () => {
+    // 12 May 1990 to 19 September 2026: 13,280 days
+    const days = 13_280, ages = planetAges(days), by = Object.fromEntries(ages.map(a => [a.id, a]));
+    expect(ages.map(a => a.id)).toEqual(['mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune']);
+    expect(by.mercury!.age).toBeCloseTo(days / 87.97, 9);
+    expect(by.earth!.age).toBeCloseTo(36.358, 3);
+    expect(by.jupiter!.age).toBeCloseTo(days / (11.862 * 365.25), 9);
+    expect(by.neptune!.age).toBeCloseTo(days / (164.8 * 365.25), 9);
+    expect(ages.map(a => ageLabel(a.age))).toEqual(['150', '59.1', '36.4', '19.3', '3.07', '1.23', '0.43', '0.22']);
+    // the next birthday lies ahead, within one of the planet's years
+    for (const a of ages) {
+      expect(a.next).toBeGreaterThan(days);
+      expect(a.next - days).toBeLessThanOrEqual(PLANET_DAYS[a.id]! + 1e-9);
+    }
+    expect(outerLaps(ages)).toBe('Jupiter has gone round 3 times, Saturn once, Uranus 43% of the way and Neptune 22%');
+    expect(lapsLabel(2.4)).toBe('twice');
+    expect(lapsLabel(0.004)).toBe('1% of the way');
+  });
+
+  it('counts the birthdays of a life, a leap-day birthday on the 28th in other years', () => {
+    const until = parseIsoDate('2026-09-19')!;
+    const days = birthdays('1990-05-12', until);
+    expect(days).toHaveLength(36);
+    expect(isoDate(days[0]!)).toBe('1991-05-12');
+    expect(isoDate(days[35]!)).toBe('2026-05-12');
+    expect(birthdays('2000-02-29', parseIsoDate('2004-03-01')!).map(isoDate)).toEqual(['2001-02-28', '2002-02-28', '2003-02-28', '2004-02-29']);
+    expect(lifeOf('2030-01-01', until)).toBeNull();
+    expect(lifeOf('1990-05-12', until)?.born).toBe(parseIsoDate('1990-05-12'));
+  });
+
+  it("draws a life's wake back to the day it began, and no wake from before it", () => {
+    const born = parseIsoDate('1990-05-12')!, now = parseIsoDate('2026-09-19')!, span = now - born;
+    const trails = { span, reveal: 1, alpha: 1 };
+    const plain = snapshot(datedSky({ day: now, beat: 0, trails })), life = snapshot(datedSky({ day: now, beat: 0, trails: { ...trails, life: { since: born, k: 2 } } }));
+    const reach = (S: typeof plain, k: number): number => {
+      const run = S.trails[k]!.samples, h = S.plan.step[k]!;
+      return (run[0]!.q - run[run.length - 1]!.q) * h;
+    };
+    // plainly the Earth's wake keeps to three turns; a life's runs the whole way back
+    expect(reach(plain, 2)).toBeCloseTo(3 * 365.256, -1);
+    expect(reach(life, 2)).toBeCloseTo(span, -1);
+    // the grid is the plain one's only where the Earth is concerned; nothing reaches back before the birth
+    for (const k of [0, 1, 3, 4, 5, 6, 7]) expect(reach(life, k)).toBeLessThanOrEqual(span + life.plan.step[k]!);
+    expect(life.plan.speed).toBe(plain.plan.speed);
+  });
+
+  it('draws a saved picture at twice the screen, never larger than the page can hold', () => {
+    expect(stillScale(1440, 900)).toBe(2);
+    expect(stillScale(390, 844)).toBe(2);
+    expect(stillScale(3840, 2160)).toBeLessThan(1.1);
+    expect(stillScale(3840, 2160) * 3840).toBeLessThanOrEqual(4096);
   });
 
   it('reads distances and speeds plainly', () => {

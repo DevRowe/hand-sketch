@@ -12,6 +12,13 @@ export interface UrlState {
   reverse?: boolean;
   trails?: boolean;
   span?: number;
+  /** Trail strength, 0..1. */
+  opacity?: number;
+  /** The camera: its zoom, and the design point in the middle of the free part of the screen. */
+  zoom?: number;
+  at?: [number, number];
+  /** A shared life's helix: the day it starts. */
+  born?: number;
   body?: string;
   preset?: string;
 }
@@ -33,6 +40,12 @@ export function readUrl(hash = location.hash): UrlState {
   if (pace !== undefined) out.pace = pace;
   if (span !== undefined) out.span = span;
   if (q.get('reverse') === '1') out.reverse = true;
+  const opacity = Number(q.get('opacity') ?? NaN), zoom = num(q.get('zoom')), at = (q.get('at') ?? '').split(',').map(Number);
+  if (q.get('opacity') && opacity >= 0 && opacity <= 1) out.opacity = opacity;
+  if (zoom !== undefined && zoom <= 1000) out.zoom = zoom;
+  if (at.length === 2 && at.every(v => Number.isFinite(v) && Math.abs(v) <= 5000)) out.at = [at[0]!, at[1]!];
+  const born = q.get('born') ? parseIsoDate(q.get('born')!) : null;
+  if (born !== null) out.born = born;
   if (q.get('trails') === '0') out.trails = false;
   if (q.get('trails') === '1') out.trails = true;
   if (body && /^[a-z]{3,10}$/.test(body)) out.body = body;
@@ -40,12 +53,19 @@ export function readUrl(hash = location.hash): UrlState {
   return out;
 }
 
-export function writeUrl(s: Record<string, string | number | boolean | undefined>): void {
+/** The state as an address-bar hash ("#style=riso&date=1977-08-20"; empty for the defaults). */
+export function hashOf(s: Record<string, string | number | boolean | undefined>): string {
   const q = new URLSearchParams();
   for (const [k, v] of Object.entries(s)) {
     if (v === undefined || v === false) continue;
     q.set(k, v === true ? '1' : typeof v === 'number' ? String(Number(v.toPrecision(5))) : v);
   }
-  const hash = q.toString();
-  if (`#${hash}` !== location.hash) history.replaceState(null, '', hash ? `#${hash}` : location.pathname + location.search);
+  // commas may stand in a fragment as they are ("at=540,512"), and read better there
+  const hash = q.toString().replace(/%2C/g, ',');
+  return hash ? `#${hash}` : '';
+}
+
+export function writeUrl(s: Record<string, string | number | boolean | undefined>): void {
+  const hash = hashOf(s);
+  if (hash !== location.hash) history.replaceState(null, '', hash || location.pathname + location.search);
 }

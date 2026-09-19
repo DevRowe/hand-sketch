@@ -65,7 +65,7 @@ svg { display: block; }
 /* stacking, bottom to top: the names over the sky, the key moments, the bars (whose menus must open over the
    moments), the open card, the toast, the welcome */
 .labels { z-index: 1; }
-.moments, .pill { z-index: 2; }
+.moments, .pill, .home-pill { z-index: 2; }
 .top, .dock, .journey-bar, .show-ui { z-index: 3; }
 .panel { z-index: 4; }
 .toast { z-index: 6; }
@@ -80,7 +80,7 @@ body.hide-ui .top { transform: translateY(-8px); }
 body.hide-ui .dock { transform: translateY(8px); }
 body.hide-ui .moments { transform: translateX(-8px); }
 /* a journey plays with its own small bar in place of the dock and the moments (and, on a compact screen, the top bar) */
-body.journey .dock, body.journey .moments, body.journey .pill { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .3s, visibility 0s .3s; }
+body.journey .dock, body.journey .moments, body.journey .pill, body.journey .home-pill { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .3s, visibility 0s .3s; }
 /* idle on a desktop: the controls fade until the pointer moves */
 body.idle .chrome, body.idle .journey-bar { opacity: 0; transition-duration: .9s; }
 body.idle #sky { cursor: none; }
@@ -113,16 +113,34 @@ body.hide-ui .show-ui:hover, body.hide-ui .show-ui:focus-visible { opacity: 1; }
   backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
 }
 .seg button {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 5px 12px; border: 0; border-radius: 10px;
+  display: flex; align-items: center; gap: 9px; padding: 5px 12px 5px 10px; border: 0; border-radius: 10px;
   background: transparent; color: var(--muted); text-align: left; transition: background .15s, color .15s;
 }
-.seg button span { font-weight: 500; font-size: 13.5px; }
-.seg button small { font: 400 11px/1.1 var(--sans); color: var(--faint); letter-spacing: .02em; }
+.vi { width: 20px; height: 20px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.vi .fill { fill: currentColor; stroke: none; }
+.v-text { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; }
+.v-text span { font-weight: 500; font-size: 13.5px; white-space: nowrap; }
+.v-text small { font: 400 11px/1.1 var(--sans); color: var(--faint); letter-spacing: .02em; white-space: nowrap; }
 .seg button:hover { color: var(--ink); background: rgb(239 230 212 / .06); }
 .seg button[aria-checked='true'] { background: var(--gold-soft); color: var(--ink); box-shadow: inset 0 0 0 1px rgb(232 163 61 / .45); }
-.seg button[aria-checked='true'] small { color: var(--gold); }
+.seg button[aria-checked='true'] small, .seg button[aria-checked='true'] .vi { color: var(--gold); }
 
-.actions { display: flex; gap: 8px; margin-left: auto; }
+/* the menus: labelled buttons along the top bar on a wide screen, tabs along the foot of the dock on a compact one */
+.menus { display: flex; gap: 8px; margin-left: auto; }
+.menu {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px 0 11px; border-radius: 12px;
+  border: 1px solid var(--rule); background: var(--glass); color: var(--ink); font-weight: 500; font-size: 13.5px; white-space: nowrap;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); transition: border-color .15s, background .15s, color .15s;
+}
+.menu:hover { border-color: var(--rule-strong); background: var(--glass-strong); }
+.menu[aria-expanded='true'] { border-color: rgb(232 163 61 / .6); background: rgb(40 30 14 / .85); }
+.menu svg { width: 19px; height: 19px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.menu[aria-expanded='true'] svg { color: var(--gold); }
+.menu .sw { width: 22px; height: 22px; border-radius: 6px; }
+.menu .sw i:nth-child(1) { width: 14px; height: 14px; left: 4px; top: 4px; border-width: 1.5px; }
+.menu .sw i:nth-child(2) { width: 5px; height: 5px; left: 8.5px; top: 8.5px; }
+.menu-text { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; line-height: 1.15; }
+.menu-text small { font: 400 11px/1.1 var(--sans); color: var(--faint); letter-spacing: .02em; }
 .btn {
   display: inline-flex; align-items: center; gap: 7px; height: 40px; padding: 0 14px; border-radius: 12px;
   border: 1px solid var(--rule); background: var(--glass); color: var(--ink); font-weight: 500; font-size: 13.5px;
@@ -134,39 +152,29 @@ body.hide-ui .show-ui:hover, body.hide-ui .show-ui:focus-visible { opacity: 1; }
 .btn.icon { width: 40px; padding: 0; justify-content: center; }
 button:focus-visible, input:focus-visible, a:focus-visible, .date-pick:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
 
-/* ---------- visual style menu ---------- */
+/* ---------- the Look sheet ---------- */
 
-.style-pick { position: relative; }
-.btn.style-btn {
-  height: auto; min-height: 40px; align-self: stretch; padding: 5px 10px 5px 6px; gap: 9px; border-radius: var(--radius);
-}
-.style-btn .sw { width: 30px; height: 30px; }
-.style-btn .sw i:nth-child(1) { width: 20px; height: 20px; left: 5px; top: 5px; }
-.style-btn .sw i:nth-child(2) { left: 11.5px; top: 11.5px; }
-.style-btn-text { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; }
-.style-btn-text small { font: 400 11px/1.1 var(--sans); color: var(--faint); letter-spacing: .02em; }
-.style-btn-text b { font-weight: 500; font-size: 13.5px; line-height: 1.2; white-space: nowrap; }
-.style-btn .chev { width: 16px; height: 16px; color: var(--muted); transition: transform .15s; }
-.style-btn[aria-expanded='true'] { border-color: rgb(232 163 61 / .6); background: var(--glass-strong); }
-.style-btn[aria-expanded='true'] .chev { transform: rotate(180deg); }
-.style-menu {
-  position: absolute; z-index: 5; top: calc(100% + 8px); left: 0; width: 300px; max-height: min(560px, calc(100vh - 110px)); overflow-y: auto;
-  display: grid; gap: 2px; padding: 6px; border-radius: 16px;
-  background: rgb(17 20 29 / .97); border: 1px solid var(--rule-strong);
-  backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2);
-  box-shadow: 0 24px 60px -18px rgb(0 0 0 / .9);
-  animation: menu-in .16s ease both;
-}
-.style-menu[hidden] { display: none; }
-@keyframes menu-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
-.style-menu .style { width: 100%; height: 46px; border-color: transparent; background: transparent; }
-.style-menu .style:hover, .style-menu .style:focus-visible { background: rgb(239 230 212 / .07); color: var(--ink); }
-.style-menu .style:focus-visible { outline-offset: -2px; }
-.style-menu .style[aria-checked='true'] { border-color: rgb(232 163 61 / .6); background: var(--gold-soft); }
+.sheets { display: none; }
+.look-sheet > h3:first-child { margin-top: 0; }
+.style-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.style-grid .style { width: 100%; height: auto; min-height: 50px; padding: 6px 8px 6px 6px; border-radius: 12px; }
+.style-grid .style:hover { background: rgb(239 230 212 / .07); color: var(--ink); border-color: var(--rule-strong); }
+.style-grid .style[aria-checked='true'] { border-color: rgb(232 163 61 / .65); background: var(--gold-soft); color: var(--ink); }
+.style-grid .style .sw { width: 30px; height: 30px; }
+.style-grid .style .sw i:nth-child(1) { width: 20px; height: 20px; left: 5px; top: 5px; }
+.style-grid .style .sw i:nth-child(2) { left: 11.5px; top: 11.5px; }
 .style-text { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; flex: 1; text-align: left; }
-.style-text b { color: var(--ink); }
-.style-text small { margin: 0; color: var(--faint); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-.style-menu kbd { flex: none; min-width: 20px; opacity: .7; }
+.style-text b { color: var(--ink); font-size: 13px; line-height: 1.25; white-space: normal; }
+.style-text small { margin: 0; color: var(--faint); font-size: 11.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.look-sheet h3.with-note { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.keys-note { color: var(--faint); font: 400 11.5px/1 var(--sans); letter-spacing: 0; text-transform: none; }
+.look-sheet .trails { display: grid; gap: 6px; }
+.look-sheet .trails .toggle { justify-self: start; }
+.look-sheet .mini { font-size: 12.5px; }
+.look-sheet .mini > span { flex: none; width: 62px; }
+.look-sheet .row { display: flex; flex-wrap: wrap; gap: 8px; }
+.look-zoom { display: none; }
+.look-zoom .zoom { gap: 10px; }
 
 /* ---------- key moments ---------- */
 
@@ -202,15 +210,15 @@ button:focus-visible, input:focus-visible, a:focus-visible, .date-pick:focus-wit
 
 /* ---------- dock ---------- */
 
-/* one grid, laid out per screen below: the date and play, the pace (reverse, slider, readout, presets), the look (the
-   view and the style, on narrower screens), and the extras (trails, the year, zoom, names) */
+/* one grid, laid out per screen below: time (play, the date, reverse, the speed slider, its readout and presets), the
+   year and zoom (a second row on a wide screen, under More on a phone), and on a compact screen the menus as tabs */
 .dock {
   /* centred by its margins between two insets, so opening a card moves an inset and nothing has to animate across */
   position: fixed; left: calc(12px + var(--safe-l)); right: calc(12px + var(--safe-r)); bottom: calc(12px + var(--safe-b)); margin-inline: auto;
   width: auto; max-width: 1120px;
   display: grid; align-items: center; gap: 10px 12px; padding: 12px 14px;
   grid-template-columns: auto auto auto minmax(140px, 1fr) auto auto;
-  grid-template-areas: 'play when rev pace out chips' 'extras extras extras extras extras extras';
+  grid-template-areas: 'play when rev pace out chips' 'dmore dmore dmore dmore dmore dmore';
   background: var(--glass); border: 1px solid var(--rule); border-radius: 18px;
   backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2);
   box-shadow: 0 24px 60px -24px rgb(0 0 0 / .85);
@@ -221,9 +229,9 @@ button:focus-visible, input:focus-visible, a:focus-visible, .date-pick:focus-wit
 #pace { grid-area: pace; }
 .pace-out { grid-area: out; }
 .chips { grid-area: chips; }
-.look { grid-area: look; display: none; gap: 8px; min-width: 0; }
 .more { grid-area: more; }
-.extras { grid-area: extras; }
+.dock-more { grid-area: dmore; }
+.tab-slot { grid-area: tabs; display: none; min-width: 0; }
 
 .round {
   flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%;
@@ -297,12 +305,12 @@ input[type='range']::-moz-range-thumb { width: 12px; height: 12px; border-radius
 .sw i:nth-child(2) { width: 7px; height: 7px; left: 9.5px; top: 9.5px; }
 .style b { font-weight: 500; font-size: 13px; }
 
-.extras { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 18px; min-width: 0; padding-top: 10px; border-top: 1px solid var(--rule); }
+.dock-more { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 22px; min-width: 0; padding-top: 10px; border-top: 1px solid var(--rule); }
 .group { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.trails { flex: 3 1 400px; gap: 20px; }
-.mini.year { flex: 2 1 200px; }
+.mini.year { flex: 1 1 280px; }
 .mini.year output { min-width: 38px; }
 .zoom { flex: 0 0 auto; }
+.mini-label { color: var(--faint); font-size: 12px; }
 .zoom-readout { min-width: 36px; text-align: center; color: var(--ink); font-weight: 600; font-size: 12.5px; font-variant-numeric: tabular-nums; }
 .round:disabled, .link:disabled { opacity: .4; cursor: default; }
 .round:disabled:hover { background: rgb(239 230 212 / .06); }
@@ -317,6 +325,13 @@ input[type='range']::-moz-range-thumb { width: 12px; height: 12px; border-radius
 .toggle[aria-pressed='true'] { color: var(--ink); border-color: rgb(232 163 61 / .55); }
 .toggle[aria-pressed='true'] .dot { background: var(--gold); border-color: var(--gold); }
 .trails.off .mini { opacity: .45; }
+.home-pill {
+  display: none; align-items: center; gap: 7px; height: 38px; padding: 0 14px 0 11px; border-radius: 999px;
+  border: 1px solid rgb(232 163 61 / .5); background: var(--glass-strong); color: var(--ink); font-size: 13px; font-weight: 500;
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: 0 10px 30px -12px rgb(0 0 0 / .8);
+}
+.home-pill svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; color: var(--gold); }
+.home-pill[hidden] { display: none !important; }
 .more {
   display: none; align-items: center; justify-content: center; gap: 6px; height: 36px; min-width: 36px; padding: 0 10px; border-radius: 10px;
   border: 1px solid var(--rule); background: rgb(239 230 212 / .04); color: var(--muted); font-size: 12.5px; font-weight: 500;
@@ -376,6 +391,8 @@ body.panel-open .dock { right: calc(436px + var(--safe-r)); margin-left: 0; }
 .act.primary { background: var(--gold); border-color: var(--gold); color: #1b1307; }
 .act.primary:hover { background: #f0b458; }
 .act svg { width: 14px; height: 14px; fill: currentColor; }
+.act svg.line, .look-sheet .act svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.act[aria-pressed='true'] svg.line { color: var(--gold); }
 .fun { margin: 0; padding: 0; list-style: none; }
 .fun li { position: relative; margin: 0 0 10px; padding-left: 18px; }
 .fun li::before { content: ''; position: absolute; left: 2px; top: .62em; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--gold); }
@@ -513,6 +530,29 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
 .ticker { margin: 0 0 14px; padding: 10px 12px; border-radius: 12px; background: var(--gold-soft); border: 1px solid rgb(232 163 61 / .3); color: var(--muted); font-size: 13px; }
 .ticker b { color: var(--ink); font-variant-numeric: tabular-nums; }
 
+/* ---------- you: this moment, your years ---------- */
+
+.this-moment { margin: 0 0 6px; padding: 12px 12px 4px; border-radius: 14px; background: var(--gold-soft); border: 1px solid rgb(232 163 61 / .3); }
+.this-moment h3 { margin: 0 0 4px; color: var(--gold); }
+.moment-line { margin: 0 0 10px !important; color: var(--ink); font-weight: 500; font-variant-numeric: tabular-nums; }
+.this-moment .card-actions { margin-bottom: 8px; }
+.this-moment .act { flex: 1 1 auto; justify-content: center; }
+.this-moment .share-note { margin: 0 0 8px; }
+.share-link { display: grid; gap: 4px; margin: 0 0 10px; color: var(--faint); font-size: 12px; }
+.share-link input {
+  width: 100%; height: 36px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--rule-strong); background: rgb(13 15 21 / .6);
+  color: var(--ink); font-size: 12.5px;
+}
+.panel-body .lede { margin-bottom: 12px; }
+.fly-note { margin: -8px 0 4px !important; }
+.ages-key { margin: 0 0 6px !important; color: var(--faint); font-size: 12px; }
+.ages { margin: 0 0 12px; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; border-radius: 12px; overflow: hidden; background: var(--rule); border: 1px solid var(--rule); }
+.ages li { display: grid; padding: 7px 8px 8px; background: rgb(17 20 29 / .96); min-width: 0; }
+.ages li.age-earth { background: rgb(38 30 16 / .96); }
+.a-name { color: var(--faint); font-size: 11px; }
+.a-age { color: var(--gold); font: 500 20px/1.2 var(--serif); font-variant-numeric: tabular-nums; }
+.a-next { color: var(--muted); font-size: 10.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* ---------- laptops ---------- */
 
 @media (max-width: 1279px) {
@@ -551,35 +591,48 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
 }
 
 @media (max-width: 1199px) {
-  .actions .btn span { display: none; }
-  .actions .btn { width: 40px; padding: 0; justify-content: center; }
+  /* the brand keeps its mark, the views their names, and the Look menu its word: the rest is in their menus */
+  .top .brand-text, .v-text small, .top .menu-text small { display: none; }
+  .brand { padding: 7px 9px; }
   /* the presets move under the slider */
-  .dock { grid-template-columns: auto auto auto minmax(120px, 1fr) auto; grid-template-areas: 'play when rev pace out' 'play when chips chips chips' 'extras extras extras extras extras'; }
+  .dock { grid-template-columns: auto auto auto minmax(120px, 1fr) auto; grid-template-areas: 'play when rev pace out' 'play when chips chips chips' 'dmore dmore dmore dmore dmore'; }
   .chips { justify-self: start; max-width: 100%; }
 }
 
-/* ---------- tablets, and anything narrower: the view and the style join the dock ---------- */
+/* ---------- tablets, and anything narrower: the menus become tabs along the foot of the dock ---------- */
 
 @media (max-width: 980px), (max-height: 540px) {
-  .look { display: flex; }
-  .look .views { flex: none; }
-  .look .style-pick { flex: 1 1 0; min-width: 0; }
-  .look .views button { flex: 1; align-items: center; text-align: center; padding: 5px 11px; }
-  .look .views button span { white-space: nowrap; }
-  .look .btn.style-btn { width: 100%; min-height: 42px; }
-  .look .style-btn-text { flex: 1; flex-direction: row; align-items: baseline; gap: 8px; min-width: 0; }
-  .look .style-btn-text b { overflow: hidden; text-overflow: ellipsis; }
-  .look .style-menu { top: auto; bottom: calc(100% + 8px); left: auto; right: 0; width: min(320px, calc(100vw - 24px)); max-height: min(60vh, 520px); }
-  .look .style-menu kbd { display: none; }
-  body.panel-open .dock { visibility: hidden; }
+  .tab-slot { display: block; }
+  .tab-slot .menus {
+    display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; margin: 0;
+    padding-top: 8px; border-top: 1px solid var(--rule);
+  }
+  .tab-slot .menu {
+    flex-direction: column; justify-content: center; gap: 3px; min-width: 0; min-height: 50px; padding: 5px 4px 4px; border: 0; border-radius: 11px;
+    background: none; backdrop-filter: none; -webkit-backdrop-filter: none; color: var(--muted); font-size: 11.5px; letter-spacing: .01em;
+  }
+  .tab-slot .menu:hover { background: rgb(239 230 212 / .06); color: var(--ink); }
+  .tab-slot .menu[aria-expanded='true'] { background: var(--gold-soft); color: var(--ink); box-shadow: inset 0 0 0 1px rgb(232 163 61 / .4); }
+  .tab-slot .menu svg, .tab-slot .menu .sw { width: 21px; height: 21px; }
+  .tab-slot .menu .sw i:nth-child(1) { width: 13px; height: 13px; left: 4px; top: 4px; }
+  .tab-slot .menu .sw i:nth-child(2) { left: 8px; top: 8px; }
+  .tab-slot .menu-text { align-items: center; }
+  .tab-slot .menu-text small { display: none; }
+  .views { flex: none; }
+  /* the dock stays whole beside or under a card: a card never hides the tabs that switch it */
+  body.panel-open .dock { right: calc(12px + var(--safe-r)); margin-left: auto; }
+  .panel { bottom: calc(12px + var(--safe-b) + var(--dock-h, 128px) + 10px); }
+  body.journey .panel { bottom: calc(12px + var(--safe-b)); }
+  body.panel-open .journey-bar { visibility: hidden; }
   /* a row of chips too long for its room scrolls sideways, fading at the edge so a clipped chip reads as "more" */
   .chips { overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; mask-image: linear-gradient(to right, #000 calc(100% - 26px), transparent); padding-right: 22px; }
   .chips::-webkit-scrollbar { display: none; }
 }
 
 @media (max-width: 980px) {
-  .dock { grid-template-columns: auto auto auto minmax(100px, 1fr) auto; grid-template-areas: 'play when rev pace out' 'chips chips chips chips chips' 'look look look look look' 'extras extras extras extras extras'; }
+  .dock { grid-template-columns: auto auto auto minmax(100px, 1fr) auto; grid-template-areas: 'play when rev pace out' 'chips chips chips chips chips' 'dmore dmore dmore dmore dmore' 'tabs tabs tabs tabs tabs'; }
   .chips { justify-self: stretch; }
+  .top { justify-content: space-between; }
 }
 
 /* ---------- phones held upright ---------- */
@@ -587,35 +640,34 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
 @media (max-width: 720px) {
   :root { --gap: 8px; }
   .top { top: calc(8px + var(--safe-t)); left: calc(8px + var(--safe-l)); right: calc(8px + var(--safe-r)); gap: 8px; }
-  .brand { padding: 5px 10px 5px 6px; gap: 8px; }
-  .brand-mark { width: 24px; height: 24px; }
-  .brand-text b { font-size: 14.5px; }
-  .actions { gap: 6px; }
-  .btn, .btn.icon, .actions .btn { height: 38px; width: 38px; }
+  .brand { padding: 5px; }
+  .brand-mark { width: 30px; height: 30px; }
+  /* the views fill the top bar: a small icon over each name */
+  .top .views { flex: 1 1 auto; min-width: 0; }
+  .views button { flex: 1 1 0; min-width: 0; flex-direction: column; justify-content: center; gap: 2px; padding: 5px 4px 4px; }
+  .views .vi { width: 18px; height: 18px; }
+  .v-text { align-items: center; }
+  .v-text span { font-size: 12.5px; }
   .moments { top: calc(8px + var(--safe-t) + var(--top-h, 48px) + 8px); left: calc(8px + var(--safe-l)); right: calc(8px + var(--safe-r)); }
   .moments .link { height: 32px; }
   .moment { min-height: 32px; }
   .dock {
-    left: calc(8px + var(--safe-l)); right: calc(8px + var(--safe-r)); bottom: calc(8px + var(--safe-b)); max-width: none; padding: 10px; gap: 8px; border-radius: 16px;
+    left: calc(8px + var(--safe-l)); right: calc(8px + var(--safe-r)); bottom: calc(8px + var(--safe-b)); max-width: none; padding: 10px 10px 6px; gap: 8px; border-radius: 16px;
     grid-template-columns: auto minmax(0, 1fr) auto auto;
-    grid-template-areas: 'play when rev more' 'chips chips chips chips' 'look look look look';
+    grid-template-areas: 'play when rev more' 'chips chips chips chips' 'tabs tabs tabs tabs';
   }
-  .dock.expanded { grid-template-areas: 'play when rev more' 'chips chips chips chips' 'look look look look' 'pace pace pace out' 'extras extras extras extras'; }
+  .dock.expanded { grid-template-areas: 'play when rev more' 'chips chips chips chips' 'pace pace pace out' 'dmore dmore dmore dmore' 'tabs tabs tabs tabs'; }
   .round { width: 42px; height: 42px; }
   .more { display: inline-flex; }
-  #pace, .pace-out, .extras { display: none; }
+  #pace, .pace-out, .dock-more { display: none; }
   .dock.expanded #pace, .dock.expanded .pace-out { display: block; }
-  .dock.expanded .extras { display: flex; }
+  .dock.expanded .dock-more { display: flex; }
   .pace-out { min-width: 0; font-size: 13px; }
-  .extras { padding-top: 8px; gap: 8px 14px; }
-  .trails, .zoom, .mini.year { flex-basis: 100%; }
-  .trails { flex-wrap: wrap; row-gap: 4px; }
-  .trails .mini { flex: 1 1 100%; }
-  .zoom { justify-content: flex-start; }
-  #labels-btn { margin-left: auto; }
-  .look .views small { display: none; }
-  .look .style-btn-text small { display: none; }
-  .panel { top: auto; left: 8px; right: 8px; bottom: calc(8px + var(--safe-b)); width: auto; max-height: min(60dvh, 560px); animation-name: sheet-in; }
+  .dock-more { padding-top: 6px; gap: 8px 14px; }
+  .dock-more .zoom { display: none; }
+  .mini.year { flex-basis: 100%; }
+  .look-zoom { display: block; }
+  .panel { top: auto; left: 8px; right: 8px; bottom: calc(8px + var(--safe-b) + var(--dock-h, 70px) + 8px); width: auto; max-height: min(62dvh, 560px); animation-name: sheet-in; }
   @keyframes sheet-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
   .panel h2 { font-size: 23px; }
   .panel-head { padding: 14px 12px 10px 16px; }
@@ -625,34 +677,37 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
   .facts dd { font-size: 13px; }
   body.journey .top { opacity: 0; visibility: hidden; pointer-events: none; }
   .journey-bar, body.panel-open .journey-bar { left: 50%; bottom: calc(8px + var(--safe-b)); width: calc(100vw - 16px - var(--safe-l) - var(--safe-r)); }
-  /* an upright phone's card is a sheet along the bottom: the bar waits under it until it closes */
-  body.panel-open .journey-bar { visibility: hidden; }
   .welcome-card { padding: 18px 18px 16px; }
   .welcome-card h2 { font-size: 23px; }
 }
 
-@media (max-width: 420px) {
-  .brand { padding: 5px 8px 5px 6px; gap: 7px; }
-  .brand-text b { font-size: 12.5px; line-height: 1.12; white-space: normal; width: 6.6em; }
-  .actions { gap: 4px; }
-  .btn, .btn.icon, .actions .btn { width: 36px; }
-  .chip { padding: 0 9px; }
-  .look .views button { padding: 5px 9px; }
-  .look .views button span { font-size: 13px; }
-  .look .btn.style-btn { gap: 7px; padding-right: 8px; }
-  .look .style-btn .chev { display: none; }
+/* upright only (a phone on its side is short too, and lays out below) */
+@media (max-width: 720px) and (min-height: 541px) {
+  /* a card is a sheet over the tabs: while it is up, the dock is only the tabs */
+  body.panel-open .dock { right: calc(8px + var(--safe-r)); padding-top: 6px; grid-template-areas: 'tabs tabs tabs tabs'; }
+  body.panel-open .dock > :not(.tab-slot) { display: none; }
+  body.panel-open .tab-slot .menus { padding-top: 0; border-top: 0; }
+  /* during a journey the dock is away, and the card rests on the foot of the screen, over the journey's bar */
+  body.journey .panel { bottom: calc(8px + var(--safe-b)); }
+  /* a life's card leaves the upper half to the helix it lands on */
+  .panel[data-kind='life'] { max-height: min(46dvh, 420px); }
+  .home-pill { display: inline-flex; position: fixed; right: calc(8px + var(--safe-r)); bottom: calc(8px + var(--safe-b) + var(--dock-h, 150px) + 10px); }
+  body.panel-open .home-pill { display: none; }
 }
-/* three views and the style share one row on an upright phone: the style keeps its swatch, its name is in the menu */
-@media (max-width: 460px) and (min-width: 360px) {
-  .look .style-btn-text { display: none; }
-  .look .btn.style-btn { padding: 0 9px; }
-  .look .views button { padding: 5px 8px; }
+
+@media (max-width: 420px) {
+  .chip { padding: 0 9px; }
+  .v-text span { font-size: 12px; }
+  /* four planets a row still, with room for a whole date under each */
+  .ages li { padding: 6px 4px 7px 6px; }
+  .a-age { font-size: 18px; }
+  .a-next { font-size: 9.5px; letter-spacing: -.01em; }
 }
 @media (max-width: 359px) {
-  .brand { padding: 5px 6px; }
-  .brand-text { display: none; }
-  .look { flex-wrap: wrap; }
-  .look .views, .look .style-pick { flex-basis: 100%; }
+  .a-next { white-space: normal; }
+  .top { gap: 6px; }
+  .brand { display: none; }
+  .tab-slot .menu { font-size: 11px; }
 }
 
 /* ---------- short screens (phones on their side): one row of controls, the moments in the top bar ---------- */
@@ -660,14 +715,17 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
 @media (max-height: 540px) {
   :root { --gap: 8px; }
   .top { top: calc(6px + var(--safe-t)); left: calc(8px + var(--safe-l)); right: calc(8px + var(--safe-r)); gap: 8px; }
-  .brand { flex: none; padding: 4px 10px 4px 5px; gap: 8px; }
-  .brand-mark { width: 24px; height: 24px; }
-  .brand-text b { font-size: 12.5px; line-height: 1.12; white-space: normal; max-width: 7.2em; }
-  .actions { gap: 6px; }
-  .btn, .btn.icon, .actions .btn { height: 36px; width: 36px; }
-  .actions .btn span { display: none; }
-  .actions .btn { padding: 0; justify-content: center; }
-  /* the key moments ride in the top bar, between the name and the buttons */
+  .brand { flex: none; padding: 4px; }
+  .brand-mark { width: 26px; height: 26px; }
+  .top .brand-text { display: none; }
+  /* one line each, icon beside name, however narrow the phone on its side */
+  .top .views { flex: none; }
+  .views button { flex: none; flex-direction: row; padding: 4px 10px 4px 8px; gap: 7px; }
+  .v-text { align-items: flex-start; }
+  .v-text small { display: none; }
+  .v-text span { font-size: 12.5px; }
+  .vi { width: 18px; height: 18px; }
+  /* the key moments ride in the top bar, between the name and the views */
   .top .moments {
     position: static; flex: 1 1 auto; min-width: 0; display: flex; flex-direction: row; align-items: center; gap: 6px; width: auto; max-height: none;
     padding: 0; background: none; border: 0; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; transform: none;
@@ -675,39 +733,41 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
   .top .moments .link { height: 32px; }
   .top .moment { min-height: 32px; }
   .dock {
-    left: calc(8px + var(--safe-l)); right: calc(8px + var(--safe-r)); bottom: calc(6px + var(--safe-b)); max-width: none; padding: 7px 8px; gap: 6px 8px; border-radius: 14px;
+    left: calc(8px + var(--safe-l)); right: calc(8px + var(--safe-r)); bottom: calc(6px + var(--safe-b)); max-width: none; padding: 6px 8px; gap: 6px 8px; border-radius: 14px;
     grid-template-columns: auto auto auto minmax(0, 1fr) auto auto;
-    grid-template-areas: 'play when rev chips look more';
+    grid-template-areas: 'play when rev chips more tabs';
   }
-  .dock.expanded { grid-template-areas: 'play when rev chips look more' 'pace pace pace pace out out' 'extras extras extras extras extras extras'; }
+  .dock.expanded { grid-template-areas: 'play when rev chips more tabs' 'pace pace pace pace out out' 'dmore dmore dmore dmore dmore dmore'; }
   .round { width: 38px; height: 38px; }
   .round.small { width: 30px; height: 30px; }
   #date-out { font-size: 13.5px; }
   .when .link { font-size: 11.5px; }
-  .more { display: inline-flex; width: 36px; padding: 0; }
-  .more span { display: none; }
-  #pace, .pace-out, .extras { display: none; }
+  /* More reads like the tabs beside it: its icon over its word */
+  .more { display: inline-flex; flex-direction: column; gap: 2px; height: auto; min-height: 40px; width: 52px; padding: 3px 2px 2px; font-size: 10.5px; }
+  .more svg { width: 18px; height: 18px; }
+  #pace, .pace-out, .dock-more { display: none; }
   .dock.expanded #pace, .dock.expanded .pace-out { display: block; }
-  .dock.expanded .extras { display: flex; flex-wrap: wrap; }
-  .extras { padding-top: 6px; gap: 6px 14px; }
+  .dock.expanded .dock-more { display: flex; flex-wrap: wrap; }
+  .dock-more { padding-top: 6px; gap: 6px 14px; }
+  .dock-more .zoom { display: none; }
   .dock.expanded { max-height: calc(100dvh - 12px - var(--safe-t) - var(--safe-b)); overflow-y: auto; overscroll-behavior: contain; }
-  .trails { flex: 1 1 100%; flex-wrap: nowrap; }
-  .trails .mini { flex: 1 1 140px; }
-  .zoom, .mini.year { flex: 1 1 auto; }
-  .mini.year { flex-basis: 200px; }
-  #labels-btn { margin-left: 0; }
-  .look .views small, .look .style-btn-text { display: none; }
-  .look .views, .look .style-pick { flex: none; }
-  .look .views button { padding: 4px 9px; }
-  .look .views button span { font-size: 12.5px; }
-  .look .btn.style-btn { width: auto; min-height: 36px; padding: 3px 6px 3px 4px; }
-  /* all ten styles at once, in two columns, rather than a list that has to scroll */
-  .look .style-menu { grid-template-columns: 1fr 1fr; width: min(500px, calc(100vw - 16px)); max-height: calc(100dvh - 70px); }
-  .look .style-menu .style { height: 40px; }
-  .panel { top: calc(6px + var(--safe-t)); bottom: calc(6px + var(--safe-b)); right: calc(8px + var(--safe-r)); left: auto; width: min(380px, 52vw); max-height: none; }
+  .look-zoom { display: block; }
+  /* the tabs sit at the end of the one row, a small icon over each word */
+  .tab-slot .menus { padding: 0 0 0 8px; border-top: 0; border-left: 1px solid var(--rule); gap: 2px; }
+  .tab-slot .menu { min-height: 40px; width: 60px; padding: 3px 2px 2px; font-size: 10.5px; gap: 2px; }
+  .tab-slot .menu svg, .tab-slot .menu .sw { width: 18px; height: 18px; }
+  .tab-slot .menu .sw i:nth-child(1) { width: 11px; height: 11px; left: 3.5px; top: 3.5px; }
+  .tab-slot .menu .sw i:nth-child(2) { width: 4px; height: 4px; left: 7px; top: 7px; }
+  /* a card is a side sheet above the dock, which stays whole under it */
+  .panel { top: calc(6px + var(--safe-t) + var(--top-h, 44px) + 6px); bottom: calc(6px + var(--safe-b) + var(--dock-h, 52px) + 6px); right: calc(8px + var(--safe-r)); left: auto; width: min(380px, 52vw); max-height: none; }
+  /* during a journey the top bar and the dock are away: the card has the full height */
+  body.journey .panel { top: calc(6px + var(--safe-t)); bottom: calc(6px + var(--safe-b)); }
+  body.panel-open .dock { right: calc(8px + var(--safe-r)); }
   .panel h2 { font-size: 21px; }
   .panel-head { padding: 12px 12px 8px 16px; }
   .panel-body { padding: 12px 16px 18px; }
+  .home-pill { display: inline-flex; position: fixed; left: calc(8px + var(--safe-l)); bottom: calc(6px + var(--safe-b) + var(--dock-h, 52px) + 8px); height: 34px; }
+  body.panel-open .home-pill { display: none; }
   .pill { top: calc(6px + var(--safe-t) + var(--top-h, 44px) + 6px); }
   .toast { top: calc(6px + var(--safe-t) + var(--top-h, 44px) + 50px); }
   body.journey .top { opacity: 0; visibility: hidden; pointer-events: none; }
@@ -731,19 +791,20 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
   .journey-bar, .welcome, .welcome-card, .label { animation: none; transition: none; }
 }
 
-/* on touch screens the text links get a finger-sized hit area without changing the layout */
+/* on touch screens the text links get a finger-sized hit area without changing the layout; the style keys are for keyboards */
 @media (pointer: coarse) {
   .link { padding-block: 6px; margin-block: -6px; }
+  .keys-note { display: none; }
 }
 
 /* the smallest phones on their side: the pace reads out in the row and its presets wait under More with the rest, and
    the top bar keeps only the way into all the moments */
-@media (max-height: 540px) and (max-width: 640px) {
-  .dock { grid-template-areas: 'play when rev out look more'; }
-  .dock.expanded { grid-template-areas: 'play when rev out look more' 'chips chips chips chips chips chips' 'pace pace pace pace pace pace' 'extras extras extras extras extras extras'; }
+@media (max-height: 540px) and (max-width: 740px) {
+  .dock { grid-template-areas: 'play when rev out more tabs'; }
+  .dock.expanded { grid-template-areas: 'play when rev out more tabs' 'chips chips chips chips chips chips' 'pace pace pace pace pace pace' 'dmore dmore dmore dmore dmore dmore'; }
   .pace-out { display: block; min-width: 0; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; }
-  .look .views button { padding: 4px 8px; }
   .chips { display: none; }
   .dock.expanded .chips { display: flex; }
   .top .moments-list { display: none; }
+  .tab-slot .menu { width: 54px; }
 }

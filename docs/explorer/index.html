@@ -14,8 +14,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,300&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="./assets/index-Bu3zySgU.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-DdZbJRWZ.css">
+  <script type="module" crossorigin src="./assets/index-C0Y-dCxZ.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-C8IKF7H-.css">
 </head>
 <body>
   <canvas id="sky" role="img" aria-label="The solar system, drawn live"></canvas>
@@ -27,24 +27,17 @@
       <span class="brand-text"><b>Solar System Explorer</b><small>hand-sketched live · One Sun, Ten Hands</small></span>
     </a>
     <div class="views seg" role="radiogroup" aria-label="View">
-      <button type="button" role="radio" data-view="wake" aria-checked="true"><span>In motion</span><small>One Wake</small></button>
-      <button type="button" role="radio" data-view="sky" aria-checked="false"><span>From above</span><small>One Sky</small></button>
-      <button type="button" role="radio" data-view="earth" aria-checked="false"><span>Earth &amp; Moon</span><small>Up close</small></button>
+      <button type="button" role="radio" data-view="wake" aria-checked="true" title="In motion: the Sun carrying its planets through space (V)"><svg class="vi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="18.5" cy="12" r="2.6"/><path d="M15.4 12c-1.4-4.2-3.3-4.2-4.3 0s-2.9 4.2-4.3 0-2.9-4.2-4.3 0"/></svg><span class="v-text"><span>In motion</span><small>One Wake</small></span></button>
+      <button type="button" role="radio" data-view="sky" aria-checked="false" title="From above: the planets' real places on the date (V)"><svg class="vi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.2"/><circle cx="12" cy="12" r="8.4"/><circle cx="17.9" cy="6.1" r="1.7" class="fill"/></svg><span class="v-text"><span>From above</span><small>One Sky</small></span></button>
+      <button type="button" role="radio" data-view="earth" aria-checked="false" title="Earth &amp; Moon: at true scale, with the story of spaceflight (E)"><svg class="vi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9.5" cy="13.5" r="6"/><circle cx="19" cy="5.5" r="2.1"/></svg><span class="v-text"><span>Earth &amp; Moon</span><small>Up close</small></span></button>
     </div>
-    <div class="style-pick" id="style-pick">
-      <button type="button" class="btn style-btn" id="style-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="style-menu" title="Visual style ([ ] or 1 … 0)">
-        <span class="sw" id="style-sw" aria-hidden="true"><i></i><i></i></span>
-        <span class="style-btn-text"><small>Visual style</small><b id="style-name">…</b></span>
-        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-      </button>
-      <div class="style-menu" id="style-menu" role="menu" aria-label="Visual styles" hidden></div>
-    </div>
-    <nav class="actions" aria-label="Explore">
-      <button type="button" class="btn" id="jump-btn" aria-haspopup="dialog" aria-controls="panel" aria-label="Jump to a key moment" title="Jump to a key moment (J)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h12M13 6l6 6-6 6"/></svg><span>Jump to</span></button>
-      <button type="button" class="btn" id="travel-btn" aria-haspopup="dialog" aria-controls="panel" aria-label="How far have you travelled?" title="How far have you travelled since you were born? (Y)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="17.5" cy="6.5" r="2.6"/><path d="M3.5 20.5c2.5-6 6-9.6 10.6-11.6" stroke-dasharray="2.2 2.6"/></svg><span>Your travels</span></button>
-      <button type="button" class="btn" id="guide-btn" aria-haspopup="dialog" aria-controls="panel" aria-label="Guide" title="Guide (G)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5C6.5 4 9.5 4 12 5.5 14.5 4 17.5 4 20 5.5V19c-2.5-1.5-5.5-1.5-8 0-2.5-1.5-5.5-1.5-8 0z"/><path d="M12 5.5V19"/></svg><span>Guide</span></button>
-      <button type="button" class="btn icon" id="hide-btn" aria-pressed="false" title="Hide the controls (H)" aria-label="Hide the controls"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
-      <button type="button" class="btn icon" id="fs-btn" title="Full screen (F)" aria-label="Full screen"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+    <nav class="menus" id="menus" aria-label="Menus">
+      <!-- the menus, each opening its sheet: Moments, then the homes kept for Sky (what you can see from Earth) and
+           Tools (scale and depth) once they have something in them, then Look, You and the Guide -->
+      <button type="button" class="menu" id="moments-btn" data-menu="moments" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" title="Key moments and journeys (J)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2c.9 4.7 4.1 7.9 8.8 8.8-4.7.9-7.9 4.1-8.8 8.8-.9-4.7-4.1-7.9-8.8-8.8 4.7-.9 7.9-4.1 8.8-8.8z"/></svg><span>Moments</span></button>
+      <button type="button" class="menu" id="look-btn" data-menu="look" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" title="Look: the visual style, trails, names and zoom (S)"><span class="sw" id="look-sw" aria-hidden="true"><i></i><i></i></span><span class="menu-text"><span>Look</span><small id="look-name">…</small></span></button>
+      <button type="button" class="menu" id="you-btn" data-menu="you" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" title="You: share this moment, save a picture, fly your years (Y)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.7"/><path d="M4.6 20.2c.9-4.1 3.8-6.3 7.4-6.3s6.5 2.2 7.4 6.3"/></svg><span>You</span></button>
+      <button type="button" class="menu" id="guide-btn" data-menu="guide" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" title="Guide: the bodies, how to read the views, keys and sources (G)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5C6.5 4 9.5 4 12 5.5 14.5 4 17.5 4 20 5.5V19c-2.5-1.5-5.5-1.5-8 0-2.5-1.5-5.5-1.5-8 0z"/><path d="M12 5.5V19"/></svg><span>Guide</span></button>
     </nav>
   </header>
 
@@ -56,7 +49,7 @@
     <ol class="moments-list" id="moments-list"></ol>
   </nav>
 
-  <section class="dock chrome" id="dock" aria-label="Time, speed and trails">
+  <section class="dock chrome" id="dock" aria-label="Time">
     <button type="button" class="round primary" id="play" aria-label="Pause" title="Play or pause (Space)">
       <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
       <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>
@@ -65,7 +58,7 @@
       <label class="date-pick" title="Go to a date">
         <span class="sr">Date</span>
         <output id="date-out" aria-live="off">…</output>
-        <input type="date" id="date-in" min="1000-01-01" max="2999-12-31">
+        <input type="date" id="date-in" min="1000-01-01" max="2999-12-31" aria-label="Go to a date">
       </label>
       <div class="when-actions">
         <button type="button" class="link" id="today-btn" title="Back to today (T)">Today</button>
@@ -76,24 +69,53 @@
     <input type="range" id="pace" min="0" max="1000" step="1" aria-label="Speed" title="Speed (arrow keys)">
     <output id="pace-out" class="pace-out">…</output>
     <div class="chips" id="pace-chips" role="group" aria-label="Speed presets"></div>
-    <div class="look" id="style-slot"></div>
-    <button type="button" class="more" id="more-btn" aria-expanded="false" aria-controls="extras" title="Trails, zoom, names and the year"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>More</span></button>
-    <div class="extras" id="extras">
-      <div class="group trails" role="group" aria-labelledby="trails-label">
-        <button type="button" class="toggle" id="trails-btn" aria-pressed="true" title="Trails on or off (W)"><span class="dot" aria-hidden="true"></span><span id="trails-label">Trails</span></button>
-        <label class="mini"><span>Length</span><input type="range" id="span" min="0" max="1000" step="1" aria-label="Trail length"><output id="span-out">…</output></label>
-        <label class="mini"><span>Opacity</span><input type="range" id="opacity" min="0" max="100" step="1" aria-label="Trail opacity"><output id="opacity-out">…</output></label>
-      </div>
+    <button type="button" class="more" id="more-btn" aria-expanded="false" aria-controls="dock-more" title="The speed slider and the year"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>More</span></button>
+    <div class="dock-more" id="dock-more">
       <label class="mini year" title="Scrub through the years"><span>Year</span><input type="range" id="year" min="1900" max="2100" step="0.01" aria-label="Year"><output id="year-out">…</output></label>
-      <div class="group zoom" role="group" aria-label="Zoom">
-        <button type="button" class="round small" id="zoom-out" aria-label="Zoom out" title="Zoom out (-)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
-        <output id="zoom-out-readout" class="zoom-readout" aria-live="off">1×</output>
-        <button type="button" class="round small" id="zoom-in" aria-label="Zoom in" title="Zoom in (+)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg></button>
-        <button type="button" class="link" id="view-reset" title="Reset the view (Z)">Reset view</button>
+      <div class="group zoom" id="dock-zoom" role="group" aria-label="Zoom">
+        <span class="mini-label">Zoom</span>
+        <button type="button" class="round small" data-zoom="out" aria-label="Zoom out" title="Zoom out (-)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+        <output class="zoom-readout" aria-live="off">1×</output>
+        <button type="button" class="round small" data-zoom="in" aria-label="Zoom in" title="Zoom in (+)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg></button>
+        <button type="button" class="link" data-zoom="home" title="Back to the whole view (Z)">Reset view</button>
       </div>
-      <button type="button" class="toggle" id="labels-btn" aria-pressed="true" title="Names on or off (L)"><span class="dot" aria-hidden="true"></span>Names</button>
     </div>
+    <div class="tab-slot" id="tab-slot"></div>
   </section>
+
+  <button type="button" class="home-pill chrome" id="home-pill" hidden title="Back to the whole view (Z)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span>Whole view</span></button>
+
+  <!-- sheets kept whole while closed, and shown in the panel when their menu opens -->
+  <div class="sheets" hidden>
+    <div class="look-sheet" id="look-sheet">
+      <h3 class="with-note"><span id="look-styles-h">Visual style</span><small class="keys-note">keys 1 … 0</small></h3>
+      <div class="style-grid" id="style-grid" role="radiogroup" aria-labelledby="look-styles-h"></div>
+      <h3>Trails</h3>
+      <div class="trails" id="trails-group" role="group" aria-label="Trails">
+        <button type="button" class="toggle" id="trails-btn" aria-pressed="true" title="Trails on or off (W)"><span class="dot" aria-hidden="true"></span><span>Trails</span></button>
+        <label class="mini"><span>Length</span><input type="range" id="span" min="0" max="1000" step="1" aria-label="Trail length"><output id="span-out">…</output></label>
+        <label class="mini"><span>Strength</span><input type="range" id="opacity" min="0" max="100" step="1" aria-label="Trail strength"><output id="opacity-out">…</output></label>
+      </div>
+      <h3>Names</h3>
+      <div class="row">
+        <button type="button" class="toggle" id="labels-btn" aria-pressed="true" title="Names on or off (L)"><span class="dot" aria-hidden="true"></span>Names of the planets and craft</button>
+      </div>
+      <div class="look-zoom" id="look-zoom">
+        <h3>Zoom</h3>
+        <div class="group zoom" role="group" aria-label="Zoom">
+          <button type="button" class="round small" data-zoom="out" aria-label="Zoom out" title="Zoom out (-)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+          <output class="zoom-readout" aria-live="off">1×</output>
+          <button type="button" class="round small" data-zoom="in" aria-label="Zoom in" title="Zoom in (+)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg></button>
+          <button type="button" class="link" data-zoom="home" title="Back to the whole view (Z)">Reset view</button>
+        </div>
+      </div>
+      <h3>Screen</h3>
+      <div class="row">
+        <button type="button" class="act" id="hide-btn" aria-pressed="false" title="Hide the controls (H)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.6A10 10 0 0 1 12 5.5C18 5.5 21.5 12 21.5 12a17 17 0 0 1-2.9 3.7M6.3 6.4C3.9 8.1 2.5 12 2.5 12S6 18.5 12 18.5c1.7 0 3.2-.5 4.5-1.2"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>Hide the controls</button>
+        <button type="button" class="act" id="fs-btn" title="Full screen (F)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span id="fs-text">Full screen</span></button>
+      </div>
+    </div>
+  </div>
 
   <section class="journey-bar" id="journey-bar" aria-label="Journey" hidden>
     <button type="button" class="round primary" id="jb-play" aria-label="Pause the journey" title="Play or pause (Space)">
@@ -126,7 +148,7 @@
     <div class="panel-body" id="panel-body"></div>
   </aside>
 
-  <button type="button" class="btn icon show-ui" id="show-btn" aria-label="Show the controls" title="Show the controls (H)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+  <button type="button" class="btn show-ui" id="show-btn" title="Show the controls (H)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg><span>Show the controls</span></button>
   <div class="welcome" id="welcome" hidden>
     <div class="welcome-card" role="dialog" aria-modal="true" aria-labelledby="welcome-title" tabindex="-1">
       <p class="eyebrow">Welcome</p>

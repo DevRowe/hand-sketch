@@ -8,6 +8,8 @@
  *   room. It remembers the level each scene settled on, since the ten styles differ tenfold in cost; a scene it has
  *   not seen starts at full resolution. Frames that paid for building caches (a new style, size or level) say nothing
  *   about the steady cost, so it ignores them.
+ * - At rest (paused, nothing moving) the picture is drawn at full resolution, since no pace has to be kept; the
+ *   governor's level comes back as soon as anything moves.
  * - Stages are kept per backing size, with their caches: stepping the resolution and back, or returning to a style,
  *   costs no rebuild.
  * - The heaviest styles draw to a smaller pixel budget on dense screens and let the browser scale up: hand-drawn marks
@@ -126,6 +128,10 @@ export class Renderer {
   /** The view the last drawing was made for: every mapping between the screen and the design goes through it. */
   private view: View = HOME;
   private crossingNow: Crossing | null = null;
+  /** Output pixels per CSS pixel of a still being drawn (`still`). */
+  private stillScale: number | null = null;
+  /** The picture is at rest (`rest`): drawn at full resolution, whatever level the governor keeps for motion. */
+  private resting = false;
 
   constructor(readonly canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d', { alpha: false });
@@ -156,7 +162,7 @@ export class Renderer {
     if (!this.stage) {
       const donor = this.last;
       const { devW, devH, cssW } = this.size;
-      const full = Math.min(1, (MAX_DPR * cssW) / devW, Math.sqrt(this.budget / (devW * devH))), k = full * LEVELS[this.governor.level]!;
+      const full = Math.min(1, (MAX_DPR * cssW) / devW, Math.sqrt(this.budget / (devW * devH))), k = full * this.quality;
       const width = Math.max(2, Math.round(devW * k)), height = Math.max(2, Math.round(devH * k)), id = `${width}x${height}`;
       let stage = this.stages.get(id);
       if (stage) this.stages.delete(id);
@@ -183,8 +189,8 @@ export class Renderer {
   /** Output pixels per CSS pixel. */
   private get density(): number { return this.current.outW / this.size.cssW; }
 
-  /** Canvas pixels per CSS pixel (for marks set in screen pixels). */
-  get cssScale(): number { return this.density; }
+  /** Canvas pixels per CSS pixel (for marks set in screen pixels): the screen's, or a still's while one is drawn. */
+  get cssScale(): number { return this.stillScale ?? this.density; }
 
   /** The scenes' design box fitted into the logical frame. */
   get fit(): Frame { const s = this.current; return frameFit(s.w, s.h); }
@@ -231,15 +237,23 @@ export class Renderer {
       this.governor.enter(scene.name);
       if (this.governor.level !== before) this.stage = null;
     }
-    const stage = this.current, ctx = this.ctx, builds = stage.builds;
+    const stage = this.current, builds = stage.builds;
     this.drawStart = performance.now();
     this.view = view;
+    this.paint(this.ctx, stage, scene, intro, sky, view, overlay, o);
+    this.drawCrossing();
+    this.drawJs = performance.now() - this.drawStart;
+    this.built = stage.builds !== builds;
+  }
+
+  /** The scene under `sky` through `view` on `stage`, painted into `ctx` (its canvas the stage's output size), then `overlay`. */
+  private paint(ctx: CanvasRenderingContext2D, stage: Stage, scene: Scene, intro: number, sky: Sky, view: View, overlay?: (ctx: CanvasRenderingContext2D) => void, o?: DrawOptions): void {
     stage.setView(o?.lens ? { zoom: 1, x: stage.w / 2, y: stage.h / 2 } : view);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = DESK;
-    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     const rest = toFrames(scene.loopFrom ?? 0, ON_TWOS.fps);
     drawScene(ctx, stage, scene, Math.min(rest, Math.max(0, intro)), ON_TWOS, DEFAULT_SETTINGS, o?.lens ? { sky, lens: view, step: o.step } : { sky });
     if (overlay) {
@@ -248,13 +262,31 @@ export class Renderer {
       ctx.setTransform(k, 0, 0, k, stage.base * (stage.w / 2 - view.zoom * view.x), stage.base * (stage.h / 2 - view.zoom * view.y));
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
-      enter(ctx, this.fit);
+      enter(ctx, frameFit(stage.w, stage.h));
       overlay(ctx);
       ctx.restore();
     }
-    this.drawCrossing();
-    this.drawJs = performance.now() - this.drawStart;
-    this.built = stage.builds !== builds;
+  }
+
+  /**
+   * The picture on screen drawn afresh `scale` times its size in CSS pixels, for a still to keep: a stage of its own
+   * (the engine draws at any resolution, so it is sharp, not an enlargement), the same scene, sky and view, and the
+   * overlay, whose marks set in screen pixels scale with it. The heaviest styles take a moment to build their paper.
+   */
+  still(scale: number, scene: Scene, sky: Sky, view: View, overlay?: (ctx: CanvasRenderingContext2D) => void, o?: DrawOptions): HTMLCanvasElement {
+    const { cssW, cssH } = this.size, width = Math.max(2, Math.round(cssW * scale)), height = Math.max(2, Math.round(cssH * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) throw new Error('2D canvas context unavailable');
+    this.stillScale = scale;
+    try {
+      this.paint(ctx, new Stage({ ar: `${width}:${height}`, width, height }), scene, Infinity, sky, view, overlay, o);
+    } finally {
+      this.stillScale = null;
+    }
+    return canvas;
   }
 
   /**
@@ -273,7 +305,8 @@ export class Renderer {
     if (this.drawStart < 0) return false;
     const cost = now - this.drawStart;
     this.drawStart = -1;
-    if (this.built) return false;
+    // a drawing at rest keeps no pace, and one that built caches says nothing of the steady cost
+    if (this.built || this.resting) return false;
     if (this.governor.observe(this.sceneName, cost, this.drawJs, interval, dt)) {
       this.stage = null;
       return true;
@@ -313,6 +346,19 @@ export class Renderer {
     ctx.restore();
   }
 
-  /** The resolution in use, as a fraction of the full backing size (for diagnostics). */
-  get quality(): number { return LEVELS[this.governor.level]!; }
+  /**
+   * Whether the picture is at rest (paused, the camera and the trails still). At rest nothing has a pace to keep, so it
+   * is drawn at full resolution (a heavy style's paper sharpening in idle slices); the level the governor chose for
+   * motion comes back the moment anything moves, its stage kept. True when that changes the resolution.
+   */
+  rest(on: boolean): boolean {
+    if (on === this.resting) return false;
+    this.resting = on;
+    if (this.governor.level === 0) return false;
+    this.stage = null;
+    return true;
+  }
+
+  /** The resolution in use, as a fraction of the full backing size. */
+  get quality(): number { return LEVELS[this.resting ? 0 : this.governor.level]!; }
 }

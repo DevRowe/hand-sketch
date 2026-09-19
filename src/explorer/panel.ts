@@ -11,22 +11,34 @@ import { BODY_NAMES, NEIGHBOURS, type App, type Selection } from './app';
 import type { BodyId, RingId } from './bodies';
 import { BODIES } from './content/bodies';
 import { GUIDE, SOURCES } from './content/guide';
-import { dateLong, isFuture, isoDate, parseIsoDate, today } from './format';
+import type { MenuId } from './controls';
+import { dateLabel, dateLong, isFuture, isoDate, parseIsoDate, today } from './format';
 import type { Journey } from './journey';
+import { lifeFrame, lifeOf, type Life } from './life';
 import { AU_KM, fromEarthKm, fromSunAu, km, lightTime, moonPhase } from './live';
 import { PRESETS, presetById, type Preset } from './presets';
 import { clamp, MONTH, PACE_MAX } from './sim';
-import { CMB_KM_S, count, distance, GALAXY_KM_S, lapCount, ORBIT_KM_S, speed, travelled } from './travel';
+import { ageLabel, CMB_KM_S, count, distance, GALAXY_KM_S, lapCount, ORBIT_KM_S, outerLaps, planetAges, speed, travelled } from './travel';
 
 export interface PanelHooks {
   toast(text: string): void;
-  /** Play a journey with its own bar. */
-  startJourney(j: Journey): void;
+  /** Play a journey with its own bar (or, `play` false, show it arrived); end the one on screen. */
+  startJourney(j: Journey, play?: boolean): void;
+  endJourney(): boolean;
   /** Show the first visit's welcome again. */
   showWelcome(): void;
+  /** Share this moment (a link that opens paused on it), and save a picture of it. */
+  share(): void;
+  savePicture(): void;
 }
 
-type Mode = { kind: 'body'; id: NonNullable<Selection> } | { kind: 'guide' } | { kind: 'jump' } | { kind: 'preset'; id: string } | { kind: 'travel' };
+type Mode = { kind: 'body'; id: NonNullable<Selection> } | { kind: 'guide' } | { kind: 'jump' } | { kind: 'preset'; id: string }
+  | { kind: 'look' } | { kind: 'you' } | { kind: 'life' };
+
+/** The menu each kind of card belongs to (a body's card belongs to none: it comes from the sky). */
+const MENU_OF: Readonly<Record<Mode['kind'], MenuId | null>> = { body: null, guide: 'guide', jump: 'moments', preset: 'moments', look: 'look', you: 'you', life: 'you' };
+
+const VIEW_WORDS = { wake: 'In motion', sky: 'From above', earth: 'Earth & Moon' } as const;
 
 /** Where the travel card keeps the viewer's birthday and latitude: in this browser only. */
 const BIRTHDAY_KEY = 'explorer.birthday';
@@ -77,7 +89,7 @@ const EARTH_ONLY: ReadonlySet<BodyId | 'belt'> = new Set(ORBIT_IDS);
 const KEYS: readonly [string, string][] = [
   ['Space', 'play or pause'], ['← →', 'slower, faster'], ['R', 'run time backwards'], ['T', 'today'],
   ['V', 'from above / in motion'], ['E', 'the Earth and Moon up close, and back'], ['1 … 0', 'the ten styles ([ ] step through)'], ['W', 'trails on or off'],
-  ['L', 'names on or off'], ['+ −', 'zoom'], ['Z', 'reset the view'], ['J', 'jump to…'], ['G', 'guide'], ['Y', 'your travels'],
+  ['L', 'names on or off'], ['+ −', 'zoom'], ['Z', 'reset the view'], ['J', 'moments'], ['S', 'look: styles, trails, names'], ['Y', 'you: share, save, your years'], ['G', 'guide'],
   ['H', 'hide the controls'], ['F', 'full screen'], ['Esc', 'close, deselect'],
 ];
 
@@ -88,6 +100,11 @@ export class Panel {
   private readonly body = document.getElementById('panel-body') as HTMLElement;
   private readonly pill = document.getElementById('preset-pill') as HTMLElement;
   private readonly pillText = document.getElementById('pill-text') as HTMLElement;
+  /** The Look sheet: kept whole (its controls are wired once), shown here when Look opens and put back when it closes. */
+  private readonly look = document.getElementById('look-sheet') as HTMLElement;
+  private readonly lookHome = this.look.parentElement!;
+  /** The life on screen, for its card. */
+  private life: { life: Life; to: number } | null = null;
   private mode: Mode | null = null;
   private liveAt = 0;
   /** While the travel card is open: when it opened (ms since 1970), and its once-a-second ticker. */
@@ -108,12 +125,14 @@ export class Panel {
 
   /* ---------- showing ---------- */
 
-  private show(mode: Mode, eyebrow: string, title: string, html: string): void {
+  private show(mode: Mode, eyebrow: string, title: string, html: string | HTMLElement): void {
     this.mode = mode;
     clearInterval(this.travelTimer);
     this.eyebrow.textContent = eyebrow;
     this.title.textContent = title;
-    this.body.innerHTML = html;
+    if (this.look.parentElement === this.body) this.lookHome.append(this.look);
+    if (typeof html === 'string') this.body.innerHTML = html;
+    else this.body.replaceChildren(html);
     this.body.scrollTop = 0;
     const opening = this.el.hidden;
     if (opening) {
@@ -121,11 +140,39 @@ export class Panel {
       this.returnFocus = active instanceof HTMLElement && active !== document.body && !this.el.contains(active) ? active : null;
     }
     this.el.hidden = false;
+    this.el.dataset.kind = mode.kind;
     document.body.classList.add('panel-open');
-    document.getElementById('jump-btn')!.setAttribute('aria-expanded', String(mode.kind === 'jump' || mode.kind === 'preset'));
-    document.getElementById('guide-btn')!.setAttribute('aria-expanded', String(mode.kind === 'guide'));
+    this.markMenus(MENU_OF[mode.kind]);
     if (opening) this.el.focus({ preventScroll: true });
+    // the names under the card are put away (and come back once it closes) on the next drawing
+    if (opening) this.app.invalidate();
     this.tick(true);
+  }
+
+  /** Show which menu's sheet is open (on the menu buttons, and on the tabs they become on a phone). */
+  private markMenus(menu: MenuId | null): void {
+    for (const b of document.querySelectorAll<HTMLButtonElement>('#menus .menu')) b.setAttribute('aria-expanded', String(b.dataset.menu === menu));
+  }
+
+  /** The menu whose sheet is open, if any. */
+  get menu(): MenuId | null { return this.mode ? MENU_OF[this.mode.kind] : null; }
+
+  openMenu(id: MenuId): void {
+    if (id === 'moments') this.openJump();
+    else if (id === 'look') this.openLook();
+    else if (id === 'you') this.openYou();
+    else this.openGuide();
+  }
+
+  /** A menu's button: open its sheet, or close it when it is the one showing (a preset's card belongs to Moments). */
+  toggleMenu(id: MenuId): void {
+    if (this.menu === id && !(this.mode?.kind === 'preset')) this.close();
+    else this.openMenu(id);
+  }
+
+  /** Look: the visual style, the trails, the names, zoom (on a compact screen) and the screen itself. */
+  openLook(): void {
+    this.show({ kind: 'look' }, 'Look', 'How the sky is drawn', this.look);
   }
 
   openBody(id: NonNullable<Selection>): void {
@@ -171,17 +218,28 @@ export class Panel {
     this.show({ kind: 'guide' }, 'Guide', 'The solar system', `<p class="intro">Tap any body for its card:</p>${bodies}<p class="intro">And round the Earth (the Earth and Moon view):</p>${round}${sections}${keys}${sources}${sourcesIntro}`);
   }
 
-  /** How far you have travelled through space since your birthday, measured four ways. */
-  openTravel(): void {
+  /**
+   * You: this moment to share or keep as a picture, and your own years from your birthday: flown in motion, your age on
+   * every planet, and how far you have travelled through space, measured four ways.
+   */
+  openYou(): void {
     const bday = stored(BIRTHDAY_KEY) ?? '', lat = Number(stored(LATITUDE_KEY) ?? 0);
     const options = LATITUDES.map(([v, label]) => `<option value="${v}"${v === lat ? ' selected' : ''}>${esc(label)}</option>`).join('');
-    const html = `<p class="intro">You have never once sat still. Enter your birthday to see how far you have been carried through space since.</p>
+    const html = `<section class="this-moment" aria-labelledby="moment-h">
+        <h3 id="moment-h">This moment</h3>
+        <p class="moment-line" data-live="moment"></p>
+        <div class="card-actions">${SHARE_ACTS}</div>
+        <div data-live="share-link"></div>
+        <p class="small share-note">The link opens paused on this moment, in this view and style; the picture is drawn afresh at twice the size of your screen.</p>
+      </section>
+      <h3>Your years</h3>
+      <p class="lede">Enter your birthday to fly your years in motion, and see your age on every planet and how far you have come.</p>
       <div class="bday">
         <label>Your birthday<input type="date" id="bday-in" min="${BIRTHDAY_MIN}" max="${isoDate(today())}" value="${esc(bday)}"></label>
         <label>Where you have mostly lived<select id="lat-in">${options}</select></label>
       </div>
       <div data-live="travel"></div>
-      <h3>Why the numbers don’t add up</h3>
+      <details class="guide"><summary><h3>Why the distances don’t add up</h3></summary>
       <p>Speed only means something against a reference, and each figure above uses a different one. The motions also point in different directions, so they never simply add: your ~${Math.round(CMB_KM_S)} km/s against the microwave background already includes the Sun’s ~${GALAXY_KM_S} km/s round the galaxy, Earth’s ~${ORBIT_KM_S} km/s round the Sun and the Milky Way’s own drift. Against the chair you are sitting in, you have hardly moved at all.</p>
       <ul class="fun">
         <li><b>Spin</b>: a point on the equator circles Earth’s axis once a sidereal day (23 h 56 min), 40,075 km at ~1,674 km/h; nearer the poles the circle, and the speed, shrink with the cosine of the latitude (~71% at 45°).</li>
@@ -189,11 +247,67 @@ export class Panel {
         <li><b>Round the Milky Way</b>: the Sun circles the galaxy’s centre at ~230 km/s (estimates run from ~220 to ~250), one lap every ~230 million years.</li>
         <li><b>Through the cosmos</b>: against the cosmic microwave background, the afterglow of the Big Bang, the Solar System moves at ~370 km/s towards the constellations Leo and Crater (Planck 2018: 369.8 km/s).</li>
       </ul>
-      <p class="small">Figures: NASA’s Earth fact sheet, WGS 84, Reid et al. 2019 and the Planck 2018 results; see Sources in the guide. Your birthday stays in this browser.</p>`;
-    this.show({ kind: 'travel' }, 'Your travels', 'How far have you come?', html);
+      </details>
+      <p class="small">Figures: NASA’s planetary and Earth fact sheets, WGS 84, Reid et al. 2019 and the Planck 2018 results; see Sources in the guide. Your birthday stays in this browser.</p>`;
+    this.show({ kind: 'you' }, 'You', 'Your sky', html);
     this.travelOpenedAt = Date.now();
     this.renderTravel();
     this.travelTimer = window.setInterval(() => this.tickTravel(), 1000);
+  }
+
+  /** The link, shown to copy by hand where the clipboard was refused. */
+  showLink(url: string): void {
+    const box = this.body.querySelector('[data-live="share-link"]');
+    if (!box) return;
+    box.innerHTML = `<label class="share-link">Copy this link<input type="text" readonly value="${esc(url)}"></label>`;
+    const input = box.querySelector('input')!;
+    input.focus();
+    input.select();
+  }
+
+  /**
+   * Your life's helix, flown: every coil behind the Earth a year of your life, and your age on every planet. Where
+   * `play` is false it is shown as flown (a shared link).
+   */
+  flyLife(life: Life, to: number, play = true): void {
+    // the journey on screen (a life flown before, perhaps) leaves first, putting its own things away
+    this.hooks.endJourney();
+    this.clearPreset();
+    this.close();
+    this.life = { life, to };
+    this.app.showLife(life, to);
+    const pace = clamp((to - life.born) / LIFE_FLIGHT_S, MONTH, PACE_MAX);
+    this.hooks.startJourney({
+      from: life.born, to, pace, label: 'Your years so far', clear: true,
+      arrive: () => this.openLife(),
+      leave: () => {
+        this.life = null;
+        this.app.endLife();
+        if (this.mode?.kind === 'life') this.close();
+      },
+    }, play);
+  }
+
+  /** The card a life's flight lands on: your years in coils, and your age on every planet. */
+  openLife(): void {
+    const l = this.life;
+    if (!l) return;
+    const days = l.to - l.life.born, ages = planetAges(days), [mercury, , earth, mars] = ages, years = Math.floor(earth!.age);
+    const galaxy = travelled(days * 86_400).frames.find(f => f.id === 'galaxy')!;
+    const html = `<p class="intro">You are <b>${ageLabel(earth!.age)}</b> on Earth, <b>${ageLabel(mars!.age)}</b> on Mars and <b>${ageLabel(mercury!.age)}</b> on Mercury.</p>
+      ${agesHtml(days, l.life.born)}
+      <p>Since you were born, ${esc(outerLaps(ages))}.</p>
+      <div class="card-actions">
+        <button type="button" class="act primary" data-act="life-again"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>Fly again</button>
+        ${SHARE_ACTS}
+      </div>
+      <div data-live="share-link"></div>
+      <p>Every coil behind the Earth is a year of your life, ${years} of them since ${esc(dateLong(l.life.born))}, each birthday ticked in gold. All the while the Sun carried you ~${esc(distance(galaxy.km))} round the galaxy.</p>
+      <p class="small">Your age on a planet is the laps it has made round the Sun since you were born: your days divided by its sidereal year (NASA planetary fact sheets).</p>`;
+    this.show({ kind: 'life' }, 'Your years', 'Your life’s helix', html);
+    // the helix alone, framed in the room the card leaves
+    const f = lifeFrame(l.life, l.to, this.app.sim.trails.span, false);
+    this.app.frameDesign(f.radius, f.at);
   }
 
   /** The viewer's birthday as a day count (noon of that date), or null when none is set, it lies ahead or before 1900. */
@@ -220,15 +334,20 @@ export class Panel {
       return;
     }
     const lat = Number(this.body.querySelector<HTMLSelectElement>('#lat-in')?.value ?? 0);
-    const t = travelled(Panel.secondsSince(input.value), lat);
-    box.innerHTML = `<p class="age">You are <b>${count(t.days)} days</b> old: <b>${lapCount(t.laps)}</b> trips round the Sun.</p>
+    const t = travelled(Panel.secondsSince(input.value), lat), ages = planetAges(t.days);
+    box.innerHTML = `<div class="card-actions">
+        <button type="button" class="act primary" data-act="life"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>Fly your years</button>
+        <button type="button" class="act" data-act="birth-sky">The sky on your birthday</button>
+      </div>
+      <p class="small fly-note">Flies your life in motion: the Earth’s wake drawn back to the day you were born, a coil a year.</p>
+      <h3>Your age on every planet</h3>
+      ${agesHtml(t.days, day)}
+      <p>Since you were born, ${esc(outerLaps(ages))}.</p>
+      <h3>How far you have travelled</h3>
+      <p class="age">You are <b>${count(t.days)} days</b> old: <b>${lapCount(t.laps)}</b> trips round the Sun.</p>
       <ul class="frames">${t.frames.map(f => `<li><div class="f-head"><span class="f-title">${esc(f.title)}</span><span class="f-speed">~${esc(speed(f.speed))}${f.id === 'spin' ? (lat ? ` at ~${lat}°` : ' at the equator') : ''}</span></div>
         <span class="f-km">~${esc(distance(f.km))}</span><span class="f-note">${esc(f.compare)} · measured against ${esc(f.against)}</span></li>`).join('')}</ul>
-      <p class="ticker">Since you opened this card: <b data-live="since">0 km</b> round the Sun, <b data-live="since-cmb">0 km</b> through the cosmos.</p>
-      <div class="card-actions">
-        <button type="button" class="act primary" data-act="life"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>Fly your years, in motion</button>
-        <button type="button" class="act" data-act="birth-sky">The sky on your birthday</button>
-      </div>`;
+      <p class="ticker">Since you opened this card: <b data-live="since">0 km</b> round the Sun, <b data-live="since-cmb">0 km</b> through the cosmos.</p>`;
     this.tickTravel();
   }
 
@@ -264,7 +383,7 @@ export class Panel {
     const html = [...groups].map(([g, ps]) => `<h3 class="group">${esc(g)}</h3><ul class="presets">${ps.map(p => `<li><button type="button" class="preset" data-preset="${p.id}">
         <span class="p-title">${esc(p.title)}</span><span class="p-when">${esc(dateLong(p.day(), true))}</span><span class="p-kicker">${esc(p.kicker)}</span>
       </button></li>`).join('')}</ul>`).join('');
-    this.show({ kind: 'jump' }, 'Jump to', 'Key moments', `<p class="intro">Set the sky to a real moment and see why it matters: in space round the Earth, or out among the planets.</p>${html}`);
+    this.show({ kind: 'jump' }, 'Moments', 'Key moments', `<p class="intro">Set the sky to a real moment and see why it matters: in space round the Earth, or out among the planets.</p>${html}`);
   }
 
   /** Open a preset's card; `apply` also sets the sky to its moment. */
@@ -332,8 +451,10 @@ export class Panel {
     this.returnFocus = null;
     this.mode = null;
     clearInterval(this.travelTimer);
+    if (this.look.parentElement === this.body) this.lookHome.append(this.look);
     document.body.classList.remove('panel-open');
-    for (const id of ['jump-btn', 'guide-btn']) document.getElementById(id)!.setAttribute('aria-expanded', 'false');
+    this.markMenus(null);
+    this.app.invalidate();
     return true;
   }
 
@@ -351,6 +472,12 @@ export class Panel {
   /** Update the live figures (a few times a second while the date runs). */
   tick(force = false): void {
     const m = this.mode;
+    if (m?.kind === 'you') {
+      const line = this.body.querySelector('[data-live="moment"]'), app = this.app;
+      const text = `${dateLabel(app.sim.day)} · ${VIEW_WORDS[app.view]} · ${app.style.title}`;
+      if (line && line.textContent !== text) line.textContent = text;
+      return;
+    }
     if (m?.kind !== 'body' || m.id === 'belt') return;
     const now = performance.now();
     if (!force && now - this.liveAt < 250) return;
@@ -382,15 +509,15 @@ export class Panel {
       const j = presetById(this.preset)?.journey?.();
       if (j) this.hooks.startJourney(j);
     } else if (t.dataset.act === 'life') {
-      const from = this.birthday();
-      if (from === null) return;
       // the Sun carrying you through space reads best in motion, from the day you were born to today
-      this.clearPreset();
-      app.setView('wake');
-      app.select(null, false);
-      app.resetView();
-      const to = today();
-      this.hooks.startJourney({ from, to, pace: clamp((to - from) / LIFE_FLIGHT_S, MONTH, PACE_MAX), label: 'Your years so far' });
+      const iso = this.body.querySelector<HTMLInputElement>('#bday-in')?.value ?? '', life = this.birthday() === null ? null : lifeOf(iso, today());
+      if (life) this.flyLife(life, today());
+    } else if (t.dataset.act === 'life-again' && this.life) {
+      this.flyLife(this.life.life, this.life.to);
+    } else if (t.dataset.act === 'share') {
+      this.hooks.share();
+    } else if (t.dataset.act === 'save') {
+      this.hooks.savePicture();
     } else if (t.dataset.act === 'birth-sky') {
       const day = this.birthday();
       if (day === null) return;
@@ -466,3 +593,13 @@ function liveFacts(id: BodyId, day: number): { label: string; value: string }[] 
   ];
 }
 
+
+/** The two ways to take a moment away with you. */
+const SHARE_ACTS = `<button type="button" class="act" data-act="share"><svg class="line" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14.5V3.8M7.8 8 12 3.8 16.2 8"/><path d="M5 11.5v8h14v-8"/></svg>Share this moment</button>
+  <button type="button" class="act" data-act="save"><svg class="line" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="m3.5 16 5-5 4 4 2.5-2.5 5.5 5.5"/><circle cx="15.5" cy="9.2" r="1.4"/></svg>Save a picture</button>`;
+
+/** Your age on each planet after `days`, with your next birthday there (from your birth, `born`). */
+function agesHtml(days: number, born: number): string {
+  const cells = planetAges(days).map(a => `<li class="age-${a.id}"><span class="a-name">${esc(a.name)}</span><span class="a-age">${esc(ageLabel(a.age))}</span><span class="a-next" title="Your next birthday on ${esc(a.name)}">${esc(dateLabel(born + a.next))}</span></li>`);
+  return `<p class="ages-key">Your age on each planet, and your next birthday there</p><ul class="ages">${cells.join('')}</ul>`;
+}
