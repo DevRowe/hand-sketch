@@ -632,12 +632,12 @@ body.panel-open .tour-bar { left: calc(50% - 212px - var(--safe-r) / 2); width: 
 /* ---------- how far you have travelled ---------- */
 
 .bday { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin: 0 0 14px; }
-.bday label { display: grid; gap: 4px; color: var(--faint); font-size: 12px; }
+.bday label { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; max-width: 100%; color: var(--faint); font-size: 12px; }
 .bday input, .bday select {
   height: 38px; padding: 0 10px; border-radius: 10px; border: 1px solid var(--rule-strong); background: rgb(239 230 212 / .06);
   color: var(--ink); font-size: 14px; font-variant-numeric: tabular-nums; color-scheme: dark;
 }
-.bday select { max-width: 100%; }
+.bday select { min-width: 0; max-width: 100%; text-overflow: ellipsis; }
 .age { margin: 0 0 12px; color: var(--ink); font: 300 17px/1.45 var(--serif); }
 .frames { margin: 0 0 12px; padding: 0; list-style: none; display: grid; gap: 8px; }
 .frames li { padding: 10px 12px 11px; border-radius: 12px; background: rgb(239 230 212 / .04); border: 1px solid var(--rule); }

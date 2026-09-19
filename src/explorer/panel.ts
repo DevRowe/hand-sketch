@@ -169,6 +169,8 @@ export class Panel {
     if (opening) this.el.focus({ preventScroll: true });
     // the names under the card are put away (and come back once it closes) on the next drawing
     if (opening) this.app.invalidate();
+    // the room the card leaves is where the page must stay
+    this.app.syncRoom();
     this.tick(true);
   }
 
@@ -574,6 +576,7 @@ export class Panel {
     if (this.look.parentElement === this.body) this.lookHome.append(this.look);
     document.body.classList.remove('panel-open');
     this.markMenus(null);
+    this.app.syncRoom();
     this.app.invalidate();
     return true;
   }

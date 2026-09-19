@@ -264,9 +264,69 @@ export interface ScreenOptions {
   alpha?: number;
 }
 
+/**
+ * How halftones are drawn. Renders draw every dot as a path. The live explorer, which redraws moving screens (a Riso
+ * wake) every frame, sets `live`: an even tone is then filled with a pattern of one lattice cell, the same page-locked
+ * lattice and dot size, in one fill instead of hundreds of arcs (a hair softer, since the cell is drawn once and mapped).
+ */
+export const halftone = { live: false };
+
+/** Patterns of one lattice cell's dots, by pixel size, dot radius (quantised), colour, cell and angle, for live halftones. */
+const cells = new Map<string, CanvasPattern | null>();
+const CELL_STEPS = 8;
+
+/**
+ * A pattern of the dot lattice at `angle` with spacing `cell` (user units), anchored at the user origin: a tile `n`
+ * pixels square with dots of radius `r` pixels at its corners (the lattice points), mapped onto the lattice.
+ */
+function cellPattern(ctx: Ctx, n: number, r: number, color: string, cell: number, angle: number): CanvasPattern | null {
+  const q = Math.max(1, Math.round(r * CELL_STEPS)), key = `${n}:${q}:${color}:${cell}:${angle}`;
+  let pattern = cells.get(key);
+  if (pattern === undefined) {
+    if (cells.size > 512) cells.clear();
+    const tile = document.createElement('canvas');
+    tile.width = tile.height = n;
+    const g = tile.getContext('2d')!, rad = q / CELL_STEPS;
+    g.fillStyle = color;
+    g.beginPath();
+    for (const [x, y] of [[0, 0], [n, 0], [0, n], [n, n]] as const) {
+      g.moveTo(x + rad, y);
+      g.arc(x, y, rad, 0, TAU);
+    }
+    g.fill();
+    pattern = ctx.createPattern(tile, 'repeat');
+    pattern?.setTransform(new DOMMatrix().rotateSelf((angle * 180) / Math.PI).scaleSelf(cell / n));
+    cells.set(key, pattern);
+  }
+  return pattern;
+}
+
+/** An even tone as a pattern fill of the dot lattice (see `halftone`); false when the transform will not take one. */
+function patterned(ctx: Ctx, box: Box, cell: number, angle: number, color: string, d: number, clip: Path2D | undefined): boolean {
+  const m = ctx.getTransform(), k = Math.hypot(m.a, m.b);
+  if (!(k > 0) || Math.abs(Math.hypot(m.c, m.d) - k) > 1e-6 * k) return false;
+  const n = Math.max(2, Math.round(cell * k)), pattern = cellPattern(ctx, n, cell * 0.62 * Math.sqrt(d) * (n / cell), color, cell, angle);
+  if (!pattern) return false;
+  ctx.fillStyle = pattern;
+  // a clip's own shape bounds the tone (its box is that shape's bounds, a cell out)
+  if (clip) ctx.fill(clip);
+  else ctx.fillRect(box[0] - cell, box[1] - cell, box[2] + 2 * cell, box[3] + 2 * cell);
+  return true;
+}
+
 /** Halftone dots on a page-locked lattice within `box`; dot area carries the tone. */
 export function screen(ctx: Ctx, box: Box, o: ScreenOptions): void {
   const { cell = 7, angle = 0.26, color, density, clip, alpha = 1 } = o;
+  if (halftone.live && typeof density === 'number') {
+    const d = clamp(density, 0, 1);
+    if (d <= 0.02) return;
+    const a = ctx.globalAlpha, style = ctx.fillStyle;
+    ctx.globalAlpha = a * alpha;
+    const done = patterned(ctx, box, cell, angle, color, d, clip);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = style;
+    if (done) return;
+  }
   const dens = typeof density === 'function' ? density : () => density;
   const [u0, u1, v0, v1] = latticeRange(box, cell, angle), ca = Math.cos(angle), sa = Math.sin(angle);
   ctx.save();

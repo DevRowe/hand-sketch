@@ -178,7 +178,7 @@ export class App {
     this.view = o.view;
     this.style = o.style;
     this.renderer = new Renderer(o.canvas);
-    this.renderer.setHeavy(o.style.heavy);
+    this.renderer.setLoad(o.style.heavy, o.view);
     const { w, h } = this.renderer.logical;
     this.camera = new Camera(w, h);
     this.camera.min = VIEWS[o.view].zoomMin;
@@ -233,6 +233,7 @@ export class App {
     this.spans[from] = this.sim.trails.span;
     this.paces[VIEWS[from].family] = this.sim.pace;
     this.view = view;
+    this.renderer.setLoad(this.style.heavy, view);
     if (view !== 'earth') this.plan = view;
     this.sim.trails.span = this.spans[view];
     this.sim.trails.reveal = 0;
@@ -286,7 +287,7 @@ export class App {
   setStyle(style: Style): void {
     if (style === this.style) return;
     this.style = style;
-    this.renderer.setHeavy(style.heavy);
+    this.renderer.setLoad(style.heavy, this.view);
     this.changed();
   }
 
