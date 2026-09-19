@@ -112,17 +112,25 @@ export function heliocentric(name: PlanetName | 'pluto', day: number): Helio {
 /** General precession in longitude, degrees per Julian century (5,028.83 arcseconds, JPL astrodynamic parameters). */
 const PRECESSION = 5028.83 / 3600;
 
+/** The Moon's mean arguments `day` days from J2000.0 (Meeus ch. 47): the ones every series below is summed over. */
+function moonArgs(day: number) {
+  const T = day / 36525, T2 = T * T, T3 = T2 * T, T4 = T3 * T;
+  return {
+    T,
+    // mean longitude, mean elongation, the Sun's and the Moon's mean anomalies, argument of latitude (degrees)
+    Lp: 218.3164477 + 481267.88123421 * T - 0.0015786 * T2 + T3 / 538841 - T4 / 65194000,
+    D: (297.8501921 + 445267.1114034 * T - 0.0018819 * T2 + T3 / 545868 - T4 / 113065000) * RAD,
+    M: (357.5291092 + 35999.0502909 * T - 0.0001536 * T2 + T3 / 24490000) * RAD,
+    Mp: (134.9633964 + 477198.8675055 * T + 0.0087414 * T2 + T3 / 69699 - T4 / 14712000) * RAD,
+    F: (93.2720950 + 483202.0175233 * T - 0.0036539 * T2 - T3 / 3526000 + T4 / 863310000) * RAD,
+    // the terms carrying the Sun's anomaly shrink with the slowly falling eccentricity of the Earth's orbit
+    E: 1 - 0.002516 * T - 0.0000074 * T2,
+  };
+}
+
 /** Geocentric ecliptic longitude of the Moon `day` days from J2000.0, radians in [0, 2 pi) (Meeus ch. 47). */
 export function moonLongitude(day: number): number {
-  const T = day / 36525, T2 = T * T, T3 = T2 * T, T4 = T3 * T;
-  // mean longitude, mean elongation, the Sun's and the Moon's mean anomalies, argument of latitude (degrees)
-  const Lp = 218.3164477 + 481267.88123421 * T - 0.0015786 * T2 + T3 / 538841 - T4 / 65194000;
-  const D = (297.8501921 + 445267.1114034 * T - 0.0018819 * T2 + T3 / 545868 - T4 / 113065000) * RAD;
-  const M = (357.5291092 + 35999.0502909 * T - 0.0001536 * T2 + T3 / 24490000) * RAD;
-  const Mp = (134.9633964 + 477198.8675055 * T + 0.0087414 * T2 + T3 / 69699 - T4 / 14712000) * RAD;
-  const F = (93.2720950 + 483202.0175233 * T - 0.0036539 * T2 - T3 / 3526000 + T4 / 863310000) * RAD;
-  // the terms carrying the Sun's anomaly shrink with the slowly falling eccentricity of the Earth's orbit
-  const E = 1 - 0.002516 * T - 0.0000074 * T2;
+  const { T, Lp, D, M, Mp, F, E } = moonArgs(day);
   const sum =
     6.288774 * Math.sin(Mp) +
     1.274027 * Math.sin(2 * D - Mp) +
@@ -140,6 +148,63 @@ export function moonLongitude(day: number): number {
   // Meeus measures from the equinox of date; the planets' elements from J2000's
   return wrapTau((Lp + sum - PRECESSION * T) * RAD);
 }
+
+/** The Moon's geocentric ecliptic latitude, radians (the largest terms of Meeus Table 47.B, good to ~0.01 degrees). */
+export function moonLatitude(day: number): number {
+  const { D, M, Mp, F, E } = moonArgs(day);
+  const deg =
+    5.128122 * Math.sin(F) +
+    0.280602 * Math.sin(Mp + F) +
+    0.277693 * Math.sin(Mp - F) +
+    0.173237 * Math.sin(2 * D - F) +
+    0.055413 * Math.sin(2 * D - Mp + F) +
+    0.046271 * Math.sin(2 * D - Mp - F) +
+    0.032573 * Math.sin(2 * D + F) +
+    0.017198 * Math.sin(2 * Mp + F) +
+    0.009266 * Math.sin(2 * D + Mp - F) +
+    0.008822 * Math.sin(2 * Mp - F) +
+    0.008216 * E * Math.sin(2 * D - M - F);
+  return deg * RAD;
+}
+
+/** Distance from the Earth's centre to the Moon's, km (the largest terms of Meeus Table 47.A, good to ~50 km). */
+export function moonDistance(day: number): number {
+  const { D, M, Mp, F, E } = moonArgs(day);
+  const sum =
+    -20905.355 * Math.cos(Mp) -
+    3699.111 * Math.cos(2 * D - Mp) -
+    2955.968 * Math.cos(2 * D) -
+    569.925 * Math.cos(2 * Mp) +
+    48.888 * E * Math.cos(M) -
+    3.149 * Math.cos(2 * F) +
+    246.158 * Math.cos(2 * D - 2 * Mp) -
+    152.138 * E * Math.cos(2 * D - M - Mp) -
+    170.733 * Math.cos(2 * D + Mp) -
+    204.586 * E * Math.cos(2 * D - M) -
+    129.620 * E * Math.cos(M - Mp) +
+    108.743 * Math.cos(D) +
+    104.755 * E * Math.cos(M + Mp) +
+    10.321 * Math.cos(2 * D - 2 * F) +
+    79.661 * Math.cos(Mp - 2 * F) -
+    34.782 * Math.cos(4 * D - Mp) -
+    23.210 * Math.cos(3 * Mp) -
+    21.636 * Math.cos(4 * D - 2 * Mp) +
+    24.208 * E * Math.cos(2 * D + M - Mp) +
+    30.824 * E * Math.cos(2 * D + M);
+  return 385000.56 + sum;
+}
+
+/**
+ * Greenwich mean sidereal time `day` days from J2000.0 (UT), radians in [0, 2 pi): how far the Earth has turned, the
+ * angle from the equinox to the Greenwich meridian (Meeus eq. 12.4; UT1 is within a second of UTC).
+ */
+export function siderealTime(day: number): number {
+  const T = day / 36525;
+  return wrapTau((280.46061837 + 360.98564736629 * day + 0.000387933 * T * T) * RAD);
+}
+
+/** The tilt of the Earth's axis to the ecliptic at J2000, radians (23.439 degrees). */
+export const OBLIQUITY = 23.4392911 * RAD;
 
 /** The Sun's geocentric longitude: the Earth's heliocentric one turned half round. */
 export const sunLongitude = (day: number): number => wrapTau(heliocentric('earth', day).lon + Math.PI);

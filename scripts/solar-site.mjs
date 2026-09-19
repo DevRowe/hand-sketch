@@ -259,7 +259,7 @@ writeFileSync(path.join(docs, 'index.html'), `<!doctype html>
           <div class="explore-text">
             <p class="eyebrow"><span class="live-dot" aria-hidden="true"></span>Drawn live in your browser</p>
             <h2 class="explore-title" id="explore-title">Explore the live Solar System</h2>
-            <p>The same hand-sketched solar system, running live at the real positions of the planets on any date. Speed time up or run it backwards, switch between the ten styles, trail the planets\u2019 wakes, zoom in, tap any world for its facts, and jump to launch windows, the Voyager Grand Tour and great conjunctions.</p>
+            <p>The same hand-sketched solar system, running live at the real positions of the planets on any date. Speed time up or run it backwards, switch between the ten styles, trail the planets\u2019 wakes, zoom in, tap any world for its facts, and jump to launch windows, the Voyager Grand Tour and great conjunctions. Then dive into the Earth and the Moon at true scale, for the story of spaceflight from Sputnik to Artemis.</p>
             <span class="explore-go">Open the explorer <span aria-hidden="true">\u2192</span></span>
           </div>
         </a>

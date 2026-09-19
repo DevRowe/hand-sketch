@@ -58,6 +58,20 @@ export const GUIDE: readonly Section[] = [
     ],
   },
   {
+    id: 'earth-moon',
+    title: 'The Earth and the Moon',
+    intro: 'The Earth and Moon view draws the Earth, its orbits and the Moon at one true scale, seen from above as the plans are. Zoom in on the Earth to see where the stations fly.',
+    items: [
+      { title: 'The gap', text: 'The Moon is on average 384,400 km away, centre to centre: about 30 Earths side by side, and 1.28 light-seconds. The space station flies ~420 km up, so the Moon is some 900 times farther than the ISS. Only 24 people crossed that gap on Apollo, and 28 have now, with Artemis II.' },
+      { title: 'Three heights', text: 'Low Earth orbit, ~160 to 2,000 km: ~7.8 km/s and about an hour and a half a lap, home to every station and most satellites. Medium orbit, ~20,200 km: GPS, twice round a day. Geostationary orbit, 35,786 km over the equator: one lap a day, so a satellite there hangs over one spot.' },
+      { title: 'Where space begins', text: 'The FAI’s Kármán line is 100 km up; the US counts astronauts from 50 miles (~80 km). About 781 people have been above 100 km, and ~640 have reached orbit (2026).' },
+      { title: 'Tidally locked', text: 'The Moon turns once on its axis in the 27.3 days it takes to go round the Earth, so it keeps one face turned to us; wobbles (libration) let us see ~59% of its surface over time. No one saw the far side until Luna 3 photographed it in 1959.' },
+      { title: 'All the planets in the gap?', text: 'The other seven planets’ widths add up to ~380,000 km, less than the Moon’s average distance, but only centre to centre: surface to surface they miss by ~3,700 km, and fit only when the Moon is near its farthest.' },
+      { title: 'Why the Earth leans', text: 'Seen from above the plane of the Earth’s orbit, as here, the North Pole tips 23.4° towards one side of the page: towards the Sun in June (northern summer) and away in December. The geostationary belt, over the equator, tips with it into a slight ellipse.' },
+      { title: 'In orbit right now', text: 'Ten people as of September 2026: seven on the ISS and three on China’s Tiangong. The record is 19 at once, in September 2024.' },
+    ],
+  },
+  {
     id: 'spaceflight',
     title: 'People and probes',
     items: [
@@ -116,6 +130,13 @@ export const SOURCES: readonly Source[] = [
   { label: 'NASA Mars trajectory handbook (TM-2010-216764)', href: 'https://ntrs.nasa.gov/citations/20100037210' },
   { label: 'ESA Space Science', href: 'https://www.esa.int/Science_Exploration/Space_Science' },
   { label: 'Jonathan McDowell’s satellite statistics', href: 'https://planet4589.org/space/stats/active.html' },
+  { label: 'NASA: International Space Station facts and figures', href: 'https://www.nasa.gov/international-space-station/space-station-facts-and-figures/' },
+  { label: 'NASA: Earth’s Moon facts', href: 'https://science.nasa.gov/moon/facts/' },
+  { label: 'GPS.gov: the space segment', href: 'https://www.gps.gov/space-segment' },
+  { label: 'NASA: Artemis II crew breaks the distance record', href: 'https://www.nasa.gov/news-release/nasas-artemis-ii-crew-eclipses-record-for-farthest-human-spaceflight' },
+  { label: 'NASA: Artemis III in 2027, crew named', href: 'https://www.nasa.gov/news-release/nasa-marches-toward-artemis-iii-mission-in-2027-names-crew-members/' },
+  { label: 'Apollo Flight Journal', href: 'https://www.apollojournals.org/afj/' },
+  { label: 'Natural Earth: the coastlines on the globe', href: 'https://www.naturalearthdata.com' },
   { label: 'Reid et al. 2019: the Milky Way’s rotation (the Sun’s galactic speed)', href: 'https://arxiv.org/abs/1910.03357' },
   { label: 'Planck 2018 results I: our motion against the cosmic microwave background', href: 'https://arxiv.org/abs/1807.06205' },
 ];

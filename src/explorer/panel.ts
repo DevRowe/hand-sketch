@@ -3,12 +3,15 @@
  * guide, and the jump-to presets with their stories. A preset stays active (its geometry drawn, named in a pill at the
  * top) after its card is closed, until it is cleared or another is chosen.
  */
+import { circularSpeed, EARTH_R, shape } from '../scenes/cislunar/common';
+import { trackedById } from '../scenes/cislunar/objects';
 import type { PlanetName } from '../scenes/solar/common';
-import { BODY_NAMES, type App, type Selection } from './app';
-import type { BodyId } from './bodies';
+import { moonDistance } from '../scenes/solar/ephemeris';
+import { BODY_NAMES, NEIGHBOURS, type App, type Selection } from './app';
+import type { BodyId, RingId } from './bodies';
 import { BODIES } from './content/bodies';
 import { GUIDE, SOURCES } from './content/guide';
-import { dateLong, isoDate, parseIsoDate, today } from './format';
+import { dateLong, isFuture, isoDate, parseIsoDate, today } from './format';
 import type { Journey } from './journey';
 import { AU_KM, fromEarthKm, fromSunAu, km, lightTime, moonPhase } from './live';
 import { PRESETS, presetById, type Preset } from './presets';
@@ -28,6 +31,8 @@ type Mode = { kind: 'body'; id: NonNullable<Selection> } | { kind: 'guide' } | {
 /** Where the travel card keeps the viewer's birthday and latitude: in this browser only. */
 const BIRTHDAY_KEY = 'explorer.birthday';
 const LATITUDE_KEY = 'explorer.latitude';
+/** The earliest birthday the card takes. */
+const BIRTHDAY_MIN = '1900-01-01';
 const stored = (key: string): string | null => {
   try {
     return localStorage.getItem(key);
@@ -63,10 +68,15 @@ const facts = (rows: readonly { label: string; value: string }[], live = false):
   `<dl class="facts${live ? ' live' : ''}">${rows.map(r => `<div><dt>${esc(r.label)}</dt><dd>${esc(r.value)}</dd></div>`).join('')}</dl>`;
 
 const PLANET_IDS: readonly BodyId[] = ['mercury', 'venus', 'earth', 'mars', 'jupiter', 'saturn', 'uranus', 'neptune'];
+/** What the Earth and Moon view shows round the Earth, for the guide: the heights, then the craft, newest first. */
+const ORBIT_IDS: readonly BodyId[] = ['leo', 'gps', 'geo', 'starlink', 'iss', 'tiangong', 'hubble', 'mir', 'skylab', 'salyut', 'sputnik'];
+const RING_IDS: ReadonlySet<BodyId | 'belt'> = new Set<RingId>(['leo', 'gps', 'geo', 'starlink']);
+/** Bodies only the Earth and Moon view draws. */
+const EARTH_ONLY: ReadonlySet<BodyId | 'belt'> = new Set(ORBIT_IDS);
 
 const KEYS: readonly [string, string][] = [
   ['Space', 'play or pause'], ['← →', 'slower, faster'], ['R', 'run time backwards'], ['T', 'today'],
-  ['V', 'from above / in motion'], ['1 … 0', 'the ten styles ([ ] step through)'], ['W', 'trails on or off'],
+  ['V', 'from above / in motion'], ['E', 'the Earth and Moon up close, and back'], ['1 … 0', 'the ten styles ([ ] step through)'], ['W', 'trails on or off'],
   ['L', 'names on or off'], ['+ −', 'zoom'], ['Z', 'reset the view'], ['J', 'jump to…'], ['G', 'guide'], ['Y', 'your travels'],
   ['H', 'hide the controls'], ['F', 'full screen'], ['Esc', 'close, deselect'],
 ];
@@ -119,24 +129,30 @@ export class Panel {
   }
 
   openBody(id: NonNullable<Selection>): void {
-    const c = BODIES[id], planet = id !== 'sun' && id !== 'moon' && id !== 'belt';
-    const actions = id === 'belt' ? '' : `<div class="card-actions">
+    const c = BODIES[id], planet = PLANET_IDS.includes(id as BodyId), ring = RING_IDS.has(id);
+    // the Earth and the Moon, seen in a plan, offer the view that shows them up close
+    const closer = NEIGHBOURS.has(id) && this.app.view !== 'earth' ? '<button type="button" class="act primary" data-act="earth-view">See the Earth and Moon up close</button>' : '';
+    const actions = id === 'belt' ? '' : ring ? `<div class="card-actions"><button type="button" class="act" data-act="frame-ring">Show it whole</button></div>` : `<div class="card-actions">
+      ${closer}
       <button type="button" class="act" data-act="zoom">Zoom in</button>
       <button type="button" class="act" data-act="follow" aria-pressed="${this.app.following}">Follow</button>
     </div>`;
+    const small = planet || id === 'moon' ? '<p class="small">Figures: NASA planetary fact sheets, rounded. Positions for the date: JPL mean orbital elements.</p>'
+      : EARTH_ONLY.has(id) ? '<p class="small">Figures: NASA, CMSA and J. McDowell’s satellite catalogue, rounded; see Sources in the guide. Heights and tilts are real; where a craft is along its orbit is illustrative.</p>' : '';
     const html = `<p class="intro">${esc(c.intro)}</p>
-      ${id === 'belt' ? '' : `<section class="now" aria-label="On the date shown"><h3>On <span data-live="date"></span></h3><div data-live="facts"></div></section>`}
+      ${id === 'belt' || ring ? '' : `<section class="now" aria-label="On the date shown"><h3>On <span data-live="date"></span></h3><div data-live="facts"></div></section>`}
       ${actions}
       ${c.facts.length ? `<h3>Key figures</h3>${facts(c.facts)}` : ''}
       ${c.orbit ? `<h3>Its orbit</h3><p>${esc(c.orbit)}</p>` : ''}
       ${c.fun.length ? `<h3>Did you know?</h3><ul class="fun">${c.fun.map(f => `<li>${esc(f)}</li>`).join('')}</ul>` : ''}
-      ${planet || id === 'moon' ? '<p class="small">Figures: NASA planetary fact sheets, rounded. Positions for the date: JPL mean orbital elements.</p>' : ''}`;
+      ${small}`;
     this.show({ kind: 'body', id }, c.kind, BODY_NAMES[id], html);
   }
 
   openGuide(section?: string): void {
     const bodies = `<div class="chiplist">${(['sun', ...PLANET_IDS.slice(0, 3), 'moon', ...PLANET_IDS.slice(3), 'belt'] as const)
       .map(id => `<button type="button" class="chip" data-body="${id}">${esc(BODY_NAMES[id])}</button>`).join('')}</div>`;
+    const round = `<div class="chiplist">${ORBIT_IDS.map(id => `<button type="button" class="chip" data-body="${id}">${esc(BODY_NAMES[id])}</button>`).join('')}</div>`;
     const sections = GUIDE.map(s => `<details class="guide" id="guide-${s.id}"${s.id === (section ?? 'orbits') ? ' open' : ''}>
         <summary><h3>${esc(s.title)}</h3></summary>
         ${s.intro ? `<p>${esc(s.intro)}</p>` : ''}
@@ -152,7 +168,7 @@ export class Panel {
         <ul class="sources">${SOURCES.map(s => `<li><a href="${esc(s.href)}" target="_blank" rel="noopener">${esc(s.label)}</a></li>`).join('')}</ul>
         <p class="small">The drawings are hand-sketch, deterministic Canvas 2D scenes drawn live in your browser. <a href="../">See the recorded pieces</a>.</p>
       </details>`;
-    this.show({ kind: 'guide' }, 'Guide', 'The solar system', `<p class="intro">Tap any body for its card:</p>${bodies}${sections}${keys}${sources}${sourcesIntro}`);
+    this.show({ kind: 'guide' }, 'Guide', 'The solar system', `<p class="intro">Tap any body for its card:</p>${bodies}<p class="intro">And round the Earth (the Earth and Moon view):</p>${round}${sections}${keys}${sources}${sourcesIntro}`);
   }
 
   /** How far you have travelled through space since your birthday, measured four ways. */
@@ -161,7 +177,7 @@ export class Panel {
     const options = LATITUDES.map(([v, label]) => `<option value="${v}"${v === lat ? ' selected' : ''}>${esc(label)}</option>`).join('');
     const html = `<p class="intro">You have never once sat still. Enter your birthday to see how far you have been carried through space since.</p>
       <div class="bday">
-        <label>Your birthday<input type="date" id="bday-in" min="1900-01-01" max="${isoDate(today())}" value="${esc(bday)}"></label>
+        <label>Your birthday<input type="date" id="bday-in" min="${BIRTHDAY_MIN}" max="${isoDate(today())}" value="${esc(bday)}"></label>
         <label>Where you have mostly lived<select id="lat-in">${options}</select></label>
       </div>
       <div data-live="travel"></div>
@@ -180,10 +196,10 @@ export class Panel {
     this.travelTimer = window.setInterval(() => this.tickTravel(), 1000);
   }
 
-  /** The viewer's birthday as a day count (noon UTC of that date), or null when none is set or it lies ahead. */
+  /** The viewer's birthday as a day count (noon of that date), or null when none is set, it lies ahead or before 1900. */
   private birthday(): number | null {
     const v = this.body.querySelector<HTMLInputElement>('#bday-in')?.value ?? '', day = parseIsoDate(v);
-    return day !== null && day <= today() ? day : null;
+    return day !== null && !isFuture(v) && v >= BIRTHDAY_MIN ? day : null;
   }
 
   /** Seconds lived: from the start of the birthday, local time, to now. */
@@ -237,16 +253,18 @@ export class Panel {
   }
 
   openJump(): void {
-    // "now and next" reads by the calendar: what is still ahead, and what has just passed
-    const now = today(), groups = new Map<string, Preset[]>();
-    for (const p of PRESETS) {
+    // "now and next" reads by the calendar: what is still ahead, and what has just passed; the moments of the view on
+    // show come first
+    const now = today(), groups = new Map<string, Preset[]>(), earth = this.app.view === 'earth';
+    const ordered = [...PRESETS].sort((a, b) => Number((a.view === 'earth') !== earth) - Number((b.view === 'earth') !== earth));
+    for (const p of ordered) {
       const g = p.group === 'Now and next' ? (p.day() >= now ? 'Coming up' : 'Recent milestones') : p.group;
       groups.set(g, [...(groups.get(g) ?? []), p]);
     }
     const html = [...groups].map(([g, ps]) => `<h3 class="group">${esc(g)}</h3><ul class="presets">${ps.map(p => `<li><button type="button" class="preset" data-preset="${p.id}">
-        <span class="p-title">${esc(p.title)}</span><span class="p-when">${esc(dateLong(p.day()))}</span><span class="p-kicker">${esc(p.kicker)}</span>
+        <span class="p-title">${esc(p.title)}</span><span class="p-when">${esc(dateLong(p.day(), true))}</span><span class="p-kicker">${esc(p.kicker)}</span>
       </button></li>`).join('')}</ul>`).join('');
-    this.show({ kind: 'jump' }, 'Jump to', 'Key moments', `<p class="intro">Set the sky to a real moment and see why it matters.</p>${html}`);
+    this.show({ kind: 'jump' }, 'Jump to', 'Key moments', `<p class="intro">Set the sky to a real moment and see why it matters: in space round the Earth, or out among the planets.</p>${html}`);
   }
 
   /** Open a preset's card; `apply` also sets the sky to its moment. */
@@ -258,6 +276,7 @@ export class Panel {
       <p class="intro">${esc(c.intro)}</p>
       <div class="card-actions">
         ${j ? `<button type="button" class="act primary" data-act="journey"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>${esc(j.label)}</button>` : ''}
+        ${p.related ? `<button type="button" class="act" data-preset="${p.related.id}">${esc(p.related.label)}</button>` : ''}
         <button type="button" class="act" data-act="moment">Back to the moment</button>
         <button type="button" class="act" data-act="list">All key moments</button>
       </div>
@@ -278,11 +297,13 @@ export class Panel {
     app.setDirection(1);
     app.jump(p.day());
     if (p.view) app.setView(p.view);
+    if (p.pace) app.setPace(p.pace);
     const target = p.focus?.body ?? p.select ?? null;
     app.select(target, false);
     if (p.focus) app.focusSelected(p.focus.zoom);
-    else if (p.frame) app.frameDesign(p.frame.fit, p.frame.at ?? [540, 540]);
-    else if (!app.atHome) app.resetView();
+    else if (p.frame) app.frameDesign(p.frame.fit, typeof p.frame.at === 'function' ? p.frame.at() : p.frame.at ?? [540, 540]);
+    // home, fitted into the room the card leaves
+    else app.resetView();
     this.pillText.textContent = p.title;
     this.pill.hidden = false;
   }
@@ -346,8 +367,12 @@ export class Panel {
     const app = this.app;
     if (t.dataset.body) {
       const id = t.dataset.body as NonNullable<Selection>;
+      // what flies round the Earth is only drawn up close
+      if (EARTH_ONLY.has(id) && app.view !== 'earth') app.setView('earth');
       app.select(id);
       this.openBody(id);
+      if (RING_IDS.has(id)) app.frameDesign(ringFit(id as RingId), [540, 540]);
+      else if (EARTH_ONLY.has(id)) app.focusSelected();
     } else if (t.dataset.preset) this.openPreset(t.dataset.preset);
     else if (t.dataset.act === 'zoom') app.focusSelected(Math.max(4, app.camera.zoom * 2));
     else if (t.dataset.act === 'follow') {
@@ -374,6 +399,13 @@ export class Panel {
       app.jump(day);
       if (!app.atHome) app.resetView();
       this.hooks.toast(`The sky on ${dateLong(day)}`);
+    } else if (t.dataset.act === 'earth-view') {
+      const id = this.mode?.kind === 'body' ? this.mode.id : 'earth';
+      app.setView('earth');
+      app.select(id, false);
+      this.openBody(id);
+    } else if (t.dataset.act === 'frame-ring' && this.mode?.kind === 'body') {
+      app.frameDesign(ringFit(this.mode.id as RingId), [540, 540]);
     } else if (t.dataset.act === 'welcome') {
       this.close();
       this.hooks.showWelcome();
@@ -384,15 +416,43 @@ export class Panel {
   }
 }
 
+/** Design radius to frame an orbit's height by (the ring and a little room round it). */
+function ringFit(id: RingId): number {
+  const alt = { leo: 2000, gps: 20180, geo: 35786, starlink: 480 }[id];
+  return ((6378 + alt) / (384400 / 440)) * 1.12;
+}
+
+/** "3 years, 41 days": how long since a day count. */
+function since(from: number, day: number): string {
+  const d = Math.floor(day - from), y = Math.floor(d / 365.25), rest = Math.floor(d - y * 365.25);
+  return y ? `${y} year${y === 1 ? '' : 's'}, ${rest} day${rest === 1 ? '' : 's'}` : `${d} day${d === 1 ? '' : 's'}`;
+}
+
 /** Figures for the date on screen. */
 function liveFacts(id: BodyId, day: number): { label: string; value: string }[] {
+  const craft = trackedById(id);
+  if (craft) {
+    const flyingNow = day >= craft.from && (craft.to === undefined || day < craft.to);
+    if (!flyingNow) return [{ label: 'In orbit', value: day < craft.from ? 'not yet launched' : 'no longer: it has come down' }];
+    const o = craft.orbit, sh = shape(o), alt = (o.peri + o.apo) / 2;
+    return [
+      { label: 'In orbit for', value: since(craft.from, day) },
+      { label: 'Laps a day', value: `~${(1 / sh.period).toFixed(1)}` },
+      { label: 'Speed', value: `~${circularSpeed(alt).toFixed(2)} km/s` },
+    ];
+  }
+  if (id === 'moon') {
+    const p = moonPhase(day), d = moonDistance(day);
+    return [
+      { label: 'Phase', value: `${p.name}, ${Math.round(p.lit * 100)}% lit` },
+      { label: 'From Earth', value: `${km(d)} (centre to centre)` },
+      { label: 'Light to Earth', value: `${(d / 299_792.458).toFixed(2)} s` },
+      { label: 'Earths in between', value: `~${(d / (2 * EARTH_R)).toFixed(1)} side by side` },
+    ];
+  }
   if (id === 'sun') {
     const d = fromSunAu('earth', day) * AU_KM;
     return [{ label: 'From Earth', value: km(d) }, { label: 'Sunlight takes', value: lightTime(d) }];
-  }
-  if (id === 'moon') {
-    const p = moonPhase(day);
-    return [{ label: 'Phase', value: `${p.name}, ${Math.round(p.lit * 100)}% lit` }, { label: 'Light to Earth', value: '~1.3 s' }];
   }
   if (id === 'earth') {
     const au = fromSunAu('earth', day);

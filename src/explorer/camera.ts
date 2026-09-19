@@ -2,12 +2,13 @@
  * The explorer's view camera: a uniform zoom and a pan over the drawn frame, in the stage's logical units, and nothing
  * else (no turning, no tilting: the sky keeps its angle). It is separate from the sky and the style, so it never
  * changes what is drawn, only which part of the frame fills the screen. Zoom goes towards a point (the cursor, a
- * pinch's centre). Zoomed in, the screen stays on the page; zoomed out below 1, the whole page shows as a sheet that
- * can slide about but never off the screen. Moves can be eased, and the view can follow a moving body.
+ * pinch's centre). The zoom never drops below 1, so the page always covers the screen and its edge never shows; zoomed
+ * in, the screen stays on the page. Moves can be eased, and the view can follow a moving body.
  */
 import type { View } from '../core/stage';
 
-export const ZOOM_MIN = 0.7;
+export const ZOOM_MIN = 1;
+/** Deepest zoom on the solar plans. */
 export const ZOOM_MAX = 16;
 
 const clamp = (x: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, x));
@@ -22,6 +23,9 @@ interface Glide {
 
 export class Camera {
   zoom = 1;
+  /** Widest and deepest zoom allowed (the Earth and Moon view, whose paper never moves, goes wider and far deeper). */
+  min = ZOOM_MIN;
+  max = ZOOM_MAX;
   /** Logical point at the centre of the screen. */
   x: number;
   y: number;
@@ -54,9 +58,9 @@ export class Camera {
     this.settle();
   }
 
-  /** Keep the screen on the page (zoomed in), or the page on the screen (zoomed out). */
+  /** Keep the screen on the page (zoomed in), or the page on the screen (zoomed out, where a view allows it). */
   private settle(): void {
-    this.zoom = clamp(this.zoom, ZOOM_MIN, ZOOM_MAX);
+    this.zoom = clamp(this.zoom, this.min, this.max);
     const hw = this.w / 2 / this.zoom, hh = this.h / 2 / this.zoom;
     this.x = clamp(this.x, Math.min(hw, this.w - hw), Math.max(hw, this.w - hw));
     this.y = clamp(this.y, Math.min(hh, this.h - hh), Math.max(hh, this.h - hh));
@@ -65,7 +69,7 @@ export class Camera {
   /** Zoom by `factor` keeping the logical point (`lx`, `ly`) where it is on the screen. */
   zoomAt(factor: number, lx: number, ly: number): void {
     this.glide = null;
-    const z = clamp(this.zoom * factor, ZOOM_MIN, ZOOM_MAX), k = this.zoom / z;
+    const z = clamp(this.zoom * factor, this.min, this.max), k = this.zoom / z;
     this.x = lx - (lx - this.x) * k;
     this.y = ly - (ly - this.y) * k;
     this.zoom = z;
@@ -89,7 +93,7 @@ export class Camera {
 
   /** Ease to a view over `duration` seconds (0 jumps). */
   glideTo(to: View, duration = 0.7): void {
-    const target = { zoom: clamp(to.zoom, ZOOM_MIN, ZOOM_MAX), x: to.x, y: to.y };
+    const target = { zoom: clamp(to.zoom, this.min, this.max), x: to.x, y: to.y };
     if (duration <= 0) {
       Object.assign(this, target);
       this.glide = null;

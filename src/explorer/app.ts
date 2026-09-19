@@ -9,29 +9,38 @@
  */
 import { toFrames } from '../core/scene';
 import type { View } from '../core/stage';
-import { sceneMarks, pick, type BodyId, type Pick, type Scene as Marks, type ViewId } from './bodies';
-import { Camera, ZOOM_MAX, ZOOM_MIN } from './camera';
+import { C as EARTH_C } from '../scenes/cislunar/common';
+import { sceneMarks, pick, type BodyId, type Mark, type Pick, type Scene as Marks, type ViewId } from './bodies';
+import { Camera } from './camera';
 import { LabelLayout } from './labels';
+import { drawNeighbourhood } from './neighbourhood';
 import { Renderer, type Size } from './renderer';
-import { clamp, Sim, YEAR } from './sim';
+import { clamp, Sim } from './sim';
 import { STYLES, type Style } from './styles';
+import { VIEWS } from './views';
 
 export type Selection = BodyId | 'belt' | null;
 
 export const BODY_NAMES: Readonly<Record<BodyId | 'belt', string>> = {
   sun: 'Sun', mercury: 'Mercury', venus: 'Venus', earth: 'Earth', moon: 'Moon', mars: 'Mars',
   jupiter: 'Jupiter', saturn: 'Saturn', uranus: 'Uranus', neptune: 'Neptune', belt: 'Asteroid belt',
+  iss: 'ISS', tiangong: 'Tiangong', hubble: 'Hubble', mir: 'Mir', skylab: 'Skylab', salyut: 'Salyut 1', sputnik: 'Sputnik 1',
+  leo: 'Low Earth orbit', gps: 'GPS · medium orbit', geo: 'Geostationary belt', starlink: 'Starlink',
 };
+
+/** Where the controls offer a view of the Earth and the Moon up close (their cards, the Earth's double-tap). */
+export const NEIGHBOURS: ReadonlySet<BodyId | 'belt'> = new Set(['earth', 'moon']);
 
 /** The draw-on has played. */
 const DONE = 1e9;
 
 /** Whose name wins when two would overlap. */
-const RANK: readonly BodyId[] = ['sun', 'earth', 'jupiter', 'saturn', 'mars', 'venus', 'uranus', 'neptune', 'mercury', 'moon'];
+const RANK: readonly BodyId[] = [
+  'sun', 'earth', 'jupiter', 'saturn', 'mars', 'venus', 'uranus', 'neptune', 'mercury', 'moon',
+  'iss', 'tiangong', 'hubble', 'mir', 'skylab', 'salyut', 'sputnik', 'geo', 'gps', 'leo', 'starlink',
+];
 
-/** Mercury's sidereal period, days: the fastest planet sets the drawing cadence. */
-const MERCURY_DAYS = 87.97;
-/** Most degrees Mercury may move between drawings before the cadence rises. */
+/** Most degrees the quickest motion on show may move between drawings before the cadence rises. */
 const STEP_DEG = 8;
 /** The cadence tops out at film rate: past it a faster planet only blurs, and resolution and battery matter more. */
 const MAX_FPS = 30;
@@ -39,14 +48,6 @@ const MAX_FPS = 30;
 const HAND_FPS = 30;
 /** Milliseconds an animation frame that draws nothing may spend sharpening zoomed textures. */
 const REFINE_MS = 6;
-/**
- * What home must show of each view, design units [x0, y0, x1, y1]: from above, the plan out to Neptune; in motion, the
- * tilted orbits round the Sun (which sits right of centre), a little of the wake behind them and room for names.
- */
-const HOME_EXTENT: Readonly<Record<ViewId, readonly [number, number, number, number]>> = {
-  sky: [38, 38, 1042, 1042],
-  wake: [440, 330, 960, 880],
-};
 /** CSS pixels kept clear round it, and round a framed moment (whose marks carry names outside the circle). */
 const HOME_MARGIN = 10;
 const FRAME_MARGIN = 16;
@@ -56,9 +57,21 @@ const HOME_SNAP = 0.07;
 /** Screens where the controls take a large share of the room: home is fitted to it (elsewhere the page fills the screen). */
 const COMPACT = matchMedia('(max-width: 980px), (max-height: 540px)');
 
-/** Trails the explorer starts with: short sweeps read best from above, longer wakes in motion; both at a light touch. */
-export const DEFAULT_SPANS: Readonly<Record<ViewId, number>> = { sky: YEAR / 8, wake: 4 * YEAR };
+/** Trails are drawn at a light touch to start with (their lengths are each view's own: `views.ts`). */
 export const DEFAULT_OPACITY = 0.6;
+/**
+ * Zooming on past the deepest zoom of a plan with the Earth near the pointer dives into the Earth and Moon view, and
+ * zooming out past its widest climbs back out: once the push past the limit adds up to this factor.
+ */
+const DIVE_PUSH = 1.4;
+/** Pixels from the Earth's centre on screen a dive may start. */
+const DIVE_REACH = 90;
+/** Seconds the view crossing takes on screen. */
+const DIVE_S = 0.75;
+/** The zoom the plan starts from, on the Earth, when climbing out of the Earth and Moon view. */
+const CLIMB_ZOOM = 12;
+/** Zoom that shows each body of the Earth and Moon view whole when flown to: the stations need low orbit to open up. */
+const FOCUS: Partial<Record<BodyId, number>> = { earth: 30, moon: 40, iss: 45, tiangong: 45, hubble: 40, mir: 45, skylab: 45, salyut: 45, sputnik: 30 };
 
 /** Something drawn over the scene in design units (a transfer orbit, sight lines). */
 export type Overlay = (ctx: CanvasRenderingContext2D, app: App) => void;
@@ -86,7 +99,13 @@ export class App {
   /** Camera moves jump instead of gliding (reduced motion). */
   reducedMotion = false;
   /** Each view keeps its own trail length: short sweeps read best from above, long wakes in motion. */
-  readonly spans: Record<ViewId, number> = { ...DEFAULT_SPANS };
+  readonly spans: Record<ViewId, number> = { sky: VIEWS.sky.span.start, wake: VIEWS.wake.span.start, earth: VIEWS.earth.span.start };
+  /** The two plans share a pace; the Earth and Moon view keeps its own. */
+  readonly paces: Record<'solar' | 'earth', number> = { solar: VIEWS.wake.pace.start, earth: VIEWS.earth.pace.start };
+  /** The plan the Earth and Moon view climbs back out to. */
+  private plan: ViewId = 'wake';
+  /** How far a zoom has pushed past the limit, towards a view crossing, and when it last pushed (ms). */
+  private push = { factor: 1, at: 0 };
   /** Extra drawing over the scene (the jump-to presets' geometry). */
   overlay: Overlay | null = null;
   /** A journey under way stops (and pauses) on this day. */
@@ -124,6 +143,11 @@ export class App {
     this.renderer.setHeavy(o.style.heavy);
     const { w, h } = this.renderer.logical;
     this.camera = new Camera(w, h);
+    this.camera.min = VIEWS[o.view].zoomMin;
+    this.camera.max = VIEWS[o.view].zoomMax;
+    if (o.view !== 'earth') this.plan = o.view;
+    o.sim.pace = clamp(o.sim.pace, VIEWS[o.view].pace.min, VIEWS[o.view].pace.max);
+    this.paces[VIEWS[o.view].family] = o.sim.pace;
     this.intro = o.skipIntro ? DONE : 0;
     this.sim.trails.span = this.spans[this.view];
     // names are measured once, in the page's own font once it has loaded
@@ -143,6 +167,9 @@ export class App {
 
   get scene() { return this.style.scenes[this.view]; }
 
+  /** What the current view needs of the controls. */
+  get spec() { return VIEWS[this.view]; }
+
   /** Seconds a camera move eases over. */
   private get glide(): number { return this.reducedMotion ? 0 : 0.7; }
 
@@ -156,16 +183,65 @@ export class App {
 
   /* ---------- choices ---------- */
 
+  /**
+   * Show another view. Between the two plans the camera glides to the new one's home; into or out of the Earth and Moon
+   * view it dives (or climbs) through the Earth: the old picture swells (or shrinks) into it and fades while the new one
+   * settles, and the pace and trails change to the new view's own.
+   */
   setView(view: ViewId): void {
     if (view === this.view) return;
-    this.spans[this.view] = this.sim.trails.span;
+    const from = this.view, crossing = VIEWS[from].family !== VIEWS[view].family;
+    const anchor = crossing ? this.earthOnScreen() : null;
+    this.spans[from] = this.sim.trails.span;
+    this.paces[VIEWS[from].family] = this.sim.pace;
     this.view = view;
+    if (view !== 'earth') this.plan = view;
     this.sim.trails.span = this.spans[view];
     this.sim.trails.reveal = 0;
     this.labelLayout.reset();
-    // home differs by view: glide to the new one's
-    if (this.homed) this.camera.glideTo(this.homeView(), this.glide);
+    this.camera.min = VIEWS[view].zoomMin;
+    this.camera.max = VIEWS[view].zoomMax;
+    this.push = { factor: 1, at: 0 };
+    if (!crossing) {
+      // home differs by view: glide to the new one's
+      if (this.homed) this.camera.glideTo(this.homeView(), this.glide);
+      this.changed();
+      return;
+    }
+    this.sim.pace = clamp(this.paces[VIEWS[view].family], VIEWS[view].pace.min, VIEWS[view].pace.max);
+    // a body the new view does not show is let go (the Earth and the Moon are in all three)
+    if (this.selected && !sceneMarks(view, this.sim.sky(), 1).bodies.some(b => b.id === this.selected)) this.selected = null;
+    this.following = false;
+    this.framed = null;
+    this.homed = true;
+    const diving = view === 'earth';
+    if (diving) this.camera.glideTo(this.homeView(), 0);
+    else {
+      // climbing out: start close on the Earth in the plan and pull back to its home
+      const m = this.markOf('earth', true), home = this.homeView();
+      if (m && !this.reducedMotion) {
+        const [lx, ly] = this.renderer.designToLogical(m.x, m.y);
+        this.camera.glideTo({ zoom: CLIMB_ZOOM, ...this.centreAt(lx, ly, CLIMB_ZOOM) }, 0);
+        this.camera.glideTo(home, DIVE_S * 1.4);
+      } else this.camera.glideTo(home, 0);
+    }
+    if (anchor && !this.reducedMotion) this.renderer.cross(anchor, this.earthOnScreen(), diving ? 3 : 0.3, DIVE_S);
     this.changed();
+  }
+
+  /** The Earth's centre on screen (CSS pixels) in the view as last drawn, or as it stands. */
+  private earthOnScreen(): [number, number] {
+    if (this.view === 'earth') return this.renderer.toScreen(EARTH_C[0], EARTH_C[1]);
+    const m = this.markOf('earth', true);
+    return m ? this.renderer.toScreen(m.x, m.y) : [innerWidth / 2, innerHeight / 2];
+  }
+
+  /** Whether zooming on in a plan would dive into the Earth and Moon view: the camera follows the Earth. */
+  get canDive(): boolean { return this.view !== 'earth' && this.following && this.selected === 'earth'; }
+
+  /** Dive into the Earth and Moon view, or climb back out to the plan it was entered from. */
+  toggleEarth(): void {
+    this.setView(this.view === 'earth' ? this.plan : 'earth');
   }
 
   setStyle(style: Style): void {
@@ -198,7 +274,8 @@ export class App {
   }
 
   setPace(pace: number): void {
-    this.sim.pace = pace;
+    this.sim.pace = clamp(pace, this.spec.pace.min, this.spec.pace.max);
+    this.paces[this.spec.family] = this.sim.pace;
     this.changed();
   }
 
@@ -218,7 +295,7 @@ export class App {
   journey(from: number, to: number, pace: number): void {
     this.sim.jump(from);
     this.sim.direction = 1;
-    this.sim.pace = pace;
+    this.sim.pace = clamp(pace, this.spec.pace.min, this.spec.pace.max);
     this.sim.playing = true;
     this.stopAt = to;
     this.changed();
@@ -251,13 +328,28 @@ export class App {
 
   /* ---------- camera ---------- */
 
-  /** Zoom by `factor` about a point on screen (CSS pixels), or the centre. */
+  /**
+   * Zoom by `factor` about a point on screen (CSS pixels), or the centre. Pushing on past a plan's deepest zoom with
+   * the Earth under the pointer dives into the Earth and Moon view; pushing out past that view's widest climbs back.
+   */
   zoomBy(factor: number, x?: number, y?: number): void {
     const [lx, ly] = x === undefined || y === undefined ? [this.camera.x, this.camera.y] : this.renderer.toLogical(x, y);
+    const atMax = this.camera.zoom >= this.camera.max - 1e-6, atMin = this.camera.zoom <= this.camera.min + 1e-6;
+    const earthward = this.view !== 'earth' && factor > 1 && atMax, outward = this.view === 'earth' && factor < 1 && atMin;
+    if (earthward || outward) {
+      const now = performance.now();
+      if (now - this.push.at > 600) this.push.factor = 1;
+      this.push = { factor: this.push.factor * factor, at: now };
+      const [ex, ey] = this.earthOnScreen(), px = x ?? innerWidth / 2, py = y ?? innerHeight / 2;
+      const onEarth = this.canDive || Math.hypot(px - ex, py - ey) <= DIVE_REACH;
+      if (earthward && this.push.factor >= DIVE_PUSH && onEarth) this.setView('earth');
+      else if (outward && this.push.factor <= 1 / DIVE_PUSH) this.setView(this.plan);
+      return;
+    }
     this.camera.zoomAt(factor, lx, ly);
     this.homed = false;
     this.framed = null;
-    if (this.camera.zoom <= ZOOM_MIN) this.following = false;
+    if (this.camera.zoom <= this.camera.min) this.following = false;
     this.changed();
   }
 
@@ -287,12 +379,14 @@ export class App {
    */
   homeView(): View {
     const { w, h } = this.renderer.logical, whole = { zoom: 1, x: w / 2, y: h / 2 };
-    const [x0, y0, x1, y1] = HOME_EXTENT[this.view], r = this.freeRect(), perDesign = this.renderer.designScale / this.camera.zoom;
+    const [x0, y0, x1, y1] = this.spec.home, r = this.freeRect(), perDesign = this.renderer.designScale / this.camera.zoom;
     const fit = Math.min((r.w - 2 * HOME_MARGIN) / ((x1 - x0) * perDesign), (r.h - 2 * HOME_MARGIN) / ((y1 - y0) * perDesign));
     // a wide screen shows the whole page unless even its controls would hide much of the system (a very short window)
-    if (!COMPACT.matches && fit >= 0.75) return whole;
-    const zoom = clamp(fit, ZOOM_MIN, COMPACT.matches ? HOME_ZOOM_MAX : 1);
-    if (Math.abs(zoom - 1) < HOME_SNAP) return whole;
+    if (!COMPACT.matches && fit >= 0.75 && !this.spec.fitHome) return whole;
+    const zoom = clamp(fit, this.spec.zoomMin, COMPACT.matches || this.spec.fitHome ? HOME_ZOOM_MAX : 1);
+    // a view fitted home may pull back only a little past it: pushing on climbs out of it
+    if (this.spec.fitHome) this.camera.min = Math.max(this.spec.zoomMin, Math.min(1, zoom * 0.85));
+    if (Math.abs(zoom - 1) < HOME_SNAP && !this.spec.fitHome) return whole;
     const [lx, ly] = this.renderer.designToLogical((x0 + x1) / 2, (y0 + y1) / 2), [cx, cy] = this.centreFor(lx, ly, zoom);
     return { zoom, x: cx, y: cy };
   }
@@ -318,10 +412,15 @@ export class App {
     return [lx - (r.x + r.w / 2 - innerWidth / 2) / k, ly - (r.y + r.h / 2 - innerHeight / 2) / k];
   }
 
+  private centreAt(lx: number, ly: number, zoom: number): { x: number; y: number } {
+    const [x, y] = this.centreFor(lx, ly, zoom);
+    return { x, y };
+  }
+
   /** Glide to fit a circle of `radius` design units round the design point `at` into the free part of the screen. */
   frameDesign(radius: number, at: readonly [number, number], glide = this.glide): void {
     const r = this.freeRect(), perDesign = this.renderer.designScale / this.camera.zoom;
-    const zoom = clamp((Math.min(r.w, r.h) - 2 * FRAME_MARGIN) / (2 * radius * perDesign), ZOOM_MIN, ZOOM_MAX);
+    const zoom = clamp((Math.min(r.w, r.h) - 2 * FRAME_MARGIN) / (2 * radius * perDesign), this.camera.min, this.camera.max);
     const [lx, ly] = this.renderer.designToLogical(at[0], at[1]), [cx, cy] = this.centreFor(lx, ly, zoom);
     this.following = false;
     this.homed = false;
@@ -357,11 +456,12 @@ export class App {
     this.changed();
   }
 
-  /** Glide in on the selected body and keep it centred. */
+  /** Glide in on the selected body and keep it centred (close enough, in the Earth and Moon view, to see it whole). */
   focusSelected(zoom = 4): void {
     const m = this.markOf(this.selected, true);
-    if (!m) return;
-    const z = clamp(Math.max(zoom, this.camera.zoom), ZOOM_MIN, ZOOM_MAX), [lx, ly] = this.renderer.designToLogical(m.x, m.y), [cx, cy] = this.centreFor(lx, ly, z);
+    if (!m || m.ring !== undefined) return;
+    const least = this.view === 'earth' ? (FOCUS[m.id] ?? 4) : 1;
+    const z = clamp(Math.max(zoom, least, this.camera.zoom), this.camera.min, this.camera.max), [lx, ly] = this.renderer.designToLogical(m.x, m.y), [cx, cy] = this.centreFor(lx, ly, z);
     this.following = true;
     this.homed = false;
     this.framed = null;
@@ -372,15 +472,15 @@ export class App {
   /* ---------- picking ---------- */
 
   /** Where a body is drawn: as last drawn, or `fresh` for the sky as it stands now (after a jump). */
-  private markOf(id: Selection, fresh = false): { x: number; y: number } | null {
+  private markOf(id: Selection, fresh = false): Mark | null {
     if (!id || id === 'belt') return null;
-    const marks = (!fresh && this.marks) || sceneMarks(this.view, this.sim.sky());
+    const marks = (!fresh && this.marks) || sceneMarks(this.view, this.sim.sky(), this.camera.target.zoom);
     return marks.bodies.find(b => b.id === id) ?? null;
   }
 
   /** The body under a point on screen (CSS pixels), as it was last drawn. */
   pickAt(x: number, y: number): Pick | null {
-    const marks = this.marks ?? sceneMarks(this.view, this.sim.sky());
+    const marks = this.marks ?? sceneMarks(this.view, this.sim.sky(), this.camera.zoom);
     return pick(marks, x, y, (dx, dy) => this.renderer.toScreen(dx, dy), this.renderer.designScale);
   }
 
@@ -397,7 +497,7 @@ export class App {
   /** Milliseconds between drawings at the current pace (paused, between drawings for a control or the camera). */
   get interval(): number {
     if (!this.sim.playing) return 1000 / HAND_FPS;
-    const degPerSecond = (this.sim.pace * 360) / MERCURY_DAYS;
+    const degPerSecond = (this.sim.pace * 360) / this.spec.quickest;
     return 1000 / clamp(degPerSecond / STEP_DEG, 12, MAX_FPS);
   }
 
@@ -418,7 +518,7 @@ export class App {
       this.stopAt = null;
       this.changed();
     }
-    const settling = this.sim.settling, moving = this.camera.moving;
+    const settling = this.sim.settling, moving = this.camera.moving || this.renderer.crossing;
     this.camera.step(dt);
     const rest = toFrames(this.scene.loopFrom ?? 0, 12), drawingOn = this.intro < rest;
     if (drawingOn) this.intro = Math.min(rest, this.intro + 12 * dt);
@@ -440,7 +540,7 @@ export class App {
 
   private draw(): void {
     const sky = this.sim.sky();
-    this.marks = sceneMarks(this.view, sky);
+    this.marks = sceneMarks(this.view, sky, this.camera.zoom);
     if (this.following) {
       const m = this.marks.bodies.find(b => b.id === this.selected);
       if (m) {
@@ -450,11 +550,12 @@ export class App {
         else this.camera.centre(...this.centreFor(lx, ly, this.camera.zoom));
       }
     }
-    const view: View = this.camera.view;
+    const view: View = this.camera.view, step = this.sim.playing ? (this.sim.velocity * this.interval) / 1000 : 0;
     this.renderer.draw(this.scene, this.intro, sky, view, ctx => {
       this.overlay?.(ctx, this);
+      if (this.view === 'earth') drawNeighbourhood(ctx, this, this.overlay !== null);
       this.drawSelection(ctx);
-    });
+    }, this.view === 'earth' ? { lens: true, step } : undefined);
     this.placeLabels();
     this.onDraw();
   }
@@ -468,6 +569,19 @@ export class App {
     const px = 1 / this.renderer.designScale, R = Math.max(m.reach, m.r) + 9 * px;
     ctx.save();
     ctx.lineCap = 'round';
+    if (m.ring !== undefined) {
+      // an orbit's height: the ring itself, traced over
+      for (const [color, width] of [['rgba(13,15,21,0.55)', 4.5], ['#e8a33d', 2]] as const) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width * px;
+        ctx.setLineDash([10 * px, 7 * px]);
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.ring, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.restore();
+      return;
+    }
     for (const [color, width] of [['rgba(13,15,21,0.55)', 4.5], ['#e8a33d', 2]] as const) {
       ctx.strokeStyle = color;
       ctx.lineWidth = width * px;
@@ -490,7 +604,7 @@ export class App {
   private placeLabels(): void {
     const marks = this.marks;
     if (!marks) return;
-    const s = this.renderer.designScale;
+    const s = this.renderer.designScale, free = this.freeRect();
     const rank = (id: BodyId): number => (id === this.selected ? -1 : RANK.indexOf(id));
     const inputs = [...marks.bodies].sort((a, b) => rank(a.id) - rank(b.id)).flatMap(m => {
       const el = this.labelEls.get(m.id);
@@ -500,16 +614,36 @@ export class App {
         w = el.offsetWidth || 60;
         this.labelWidth.set(m.id, w);
       }
+      if (m.ring !== undefined) {
+        // an orbit's height is named where its ring crosses the free part of the screen, towards the upper right
+        const at = this.ringLabelAt(m, free, w);
+        return at ? [{ id: m.id, x: at[0], y: at[1], r: 3, w, h: 18 }] : [];
+      }
       const [x, y] = this.renderer.toScreen(m.x, m.y);
       return [{ id: m.id, x, y, r: Math.max(m.id === 'sun' ? m.r : m.reach, m.r) * s, w, h: 18 }];
     });
     const { labels, pending } = this.labelLayout.place(inputs, innerWidth, performance.now());
     this.labelsPending = pending;
+    const placed = new Set<string>();
     for (const l of labels) {
       const el = this.labelEls.get(l.id as BodyId)!;
+      placed.add(l.id);
       el.style.transform = `translate(${l.left}px, ${l.top}px)`;
       el.classList.toggle('hid', !l.shown);
       el.classList.toggle('selected', l.id === this.selected);
     }
+    // names of bodies this view does not show (or has no room for) are put away
+    for (const [id, el] of this.labelEls) if (!placed.has(id)) el.classList.add('hid');
+  }
+
+  /** Where on screen to name a ring: the first of a few points round it that lies in the free room, with its name. */
+  private ringLabelAt(m: Mark, free: { x: number; y: number; w: number; h: number }, w: number): [number, number] | null {
+    const R = m.ring! * this.renderer.designScale, [cx, cy] = this.renderer.toScreen(m.x, m.y);
+    if (R < 26) return null;
+    for (const deg of [-38, -142, 38, 142, -64, -116, -90, 90, 0, 180]) {
+      const a = (deg * Math.PI) / 180, x = cx + Math.cos(a) * R, y = cy + Math.sin(a) * R;
+      if (x >= free.x + 8 && x + w + 12 <= free.x + free.w && y >= free.y + 14 && y <= free.y + free.h - 14) return [x, y];
+    }
+    return null;
   }
 }

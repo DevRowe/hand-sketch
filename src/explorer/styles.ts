@@ -1,8 +1,9 @@
 /**
- * The ten visual styles the explorer can draw in, each a pair of scenes (from above, "One Sky"; in motion, "One Wake")
- * with its catalogue words and a swatch from its palette.
+ * The ten visual styles the explorer can draw in, each a set of scenes (from above, "One Sky"; in motion, "One Wake";
+ * the Earth and Moon up close, "One Neighbourhood") with its catalogue words and a swatch from its palette.
  */
 import type { Scene } from '../core/scene';
+import { cislunarScenes } from '../scenes/cislunar';
 import { SOLAR_CATALOG, solarScenes } from '../scenes/solar';
 import { spiralScenes } from '../scenes/solar-spiral';
 import { SOLAR } from '../scenes/solar/palettes';
@@ -28,9 +29,9 @@ const paletteKey = (key: string): keyof typeof SOLAR => key.replace(/-(\w)/g, (_
 
 export const STYLES: readonly Style[] = SOLAR_CATALOG.map(e => {
   const key = e.scene.replace(/^solar-/, ''), pal = SOLAR[paletteKey(key)];
-  const sky = solarScenes[e.scene], wake = spiralScenes[`spiral-${key}`];
-  if (!sky || !wake) throw new Error(`style ${key} lacks a scene`);
-  return { key, title: e.title, theme: e.theme, line: e.line, swatch: [pal.paper, pal.ink, pal.accents[0] ?? pal.ink], scenes: { sky, wake }, heavy: HEAVY.has(key) };
+  const sky = solarScenes[e.scene], wake = spiralScenes[`spiral-${key}`], earth = cislunarScenes[key];
+  if (!sky || !wake || !earth) throw new Error(`style ${key} lacks a scene`);
+  return { key, title: e.title, theme: e.theme, line: e.line, swatch: [pal.paper, pal.ink, pal.accents[0] ?? pal.ink], scenes: { sky, wake, earth }, heavy: HEAVY.has(key) };
 });
 
 export const styleByKey = (key: string): Style | undefined => STYLES.find(s => s.key === key);

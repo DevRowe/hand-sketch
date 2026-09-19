@@ -215,6 +215,157 @@ export const BODIES: Readonly<Record<BodyId | 'belt', BodyCard>> = {
       'A year there lasts ~165 Earth years, so it completed its first orbit since its discovery only in 2011.',
     ],
   },
+  /* ---------- round the Earth: the Earth and Moon view ---------- */
+
+  iss: {
+    kind: 'Space station · crewed since 2000',
+    intro: 'The largest thing people have built in space: a football-field-sized laboratory, crewed without a break since Expedition 1 moved in on 2 November 2000.',
+    facts: [
+      { label: 'Height', value: '~413 to 422 km' },
+      { label: 'Speed', value: '~7.66 km/s (~27,600 km/h)' },
+      { label: 'One lap', value: '~93 minutes: ~15.5 a day' },
+      { label: 'Tilt to the equator', value: '51.6°' },
+      { label: 'Mass', value: '~420,000 kg' },
+      { label: 'First module', value: 'Zarya, 20 November 1998' },
+      { label: 'Visitors', value: '290 people from 26 countries (August 2025)' },
+    ],
+    orbit: 'Its orbit is tilted 51.6° to the equator, so it passes over everywhere from 51.6° north to 51.6° south. The thin air up there still drags on it, and it is boosted every few weeks to keep its height.',
+    fun: [
+      'Its crew sees about 16 sunrises and 16 sunsets every day.',
+      'The Moon is some 900 times farther away than the station: on this page, all of low Earth orbit is the thin halo round the Earth.',
+      'It is to fly through 2030; a SpaceX-built US Deorbit Vehicle is then to steer it down into the remote South Pacific around 2031 (NASA plan, 2026).',
+    ],
+  },
+  tiangong: {
+    kind: 'Space station · China · since 2021',
+    intro: 'China’s own station: the Tianhe core went up on 29 April 2021, and with the Wentian and Mengtian labs it was complete, in a T, by November 2022.',
+    facts: [
+      { label: 'Height', value: '~386 to 392 km' },
+      { label: 'Tilt to the equator', value: '41.5°' },
+      { label: 'Mass', value: '~100 tonnes' },
+      { label: 'Crew', value: 'usually 3, brought up by Shenzhou' },
+      { label: 'Design life', value: 'raised to 15 years or more' },
+    ],
+    fun: [
+      'China’s first astronaut, Yang Liwei, flew Shenzhou 5 on 15 October 2003: 14 orbits in about 21 hours.',
+      'The Shenzhou 23 crew, up since May 2026, includes Lai Ka-ying, the first astronaut from Hong Kong, and one of the three is to try China’s first year-long stay.',
+    ],
+  },
+  hubble: {
+    kind: 'Space telescope · since 1990',
+    intro: 'Set loose from the shuttle Discovery on 25 April 1990, and serviced by astronauts five times between 1993 and 2009: the only telescope built to be repaired in orbit.',
+    facts: [
+      { label: 'Height', value: '~614 km in 1990, ~470 km in 2026' },
+      { label: 'Tilt to the equator', value: '28.5°' },
+      { label: 'One lap', value: '~95 minutes' },
+      { label: 'Mirror', value: '2.4 m across' },
+    ],
+    fun: [
+      'It is slowly falling: with the Sun at its most active the upper air swells and drags harder, and estimates for its re-entry run from 2028 to the 2030s.',
+      'Its first images were blurred by a mirror ground a fraction of a hair’s width out of shape; the first servicing crew fitted corrective optics in December 1993.',
+    ],
+  },
+  mir: {
+    kind: 'Space station · 1986-2001',
+    intro: 'The Soviet, then Russian, station built up module by module from 1986: the first long-lived home in orbit, and where US astronauts first lived with Russian crews.',
+    facts: [
+      { label: 'Core launched', value: '19 February 1986' },
+      { label: 'Height', value: '~354 to 374 km' },
+      { label: 'Tilt to the equator', value: '51.6°' },
+      { label: 'Brought down', value: '23 March 2001, into the South Pacific' },
+    ],
+    fun: [
+      'Valeri Polyakov stayed aboard for 437 days in 1994-95, still the longest single spaceflight.',
+      'The space shuttle docked with it nine times between 1995 and 1998, a rehearsal for building the ISS together.',
+    ],
+  },
+  skylab: {
+    kind: 'Space station · 1973-1979',
+    intro: 'America’s first space station, launched on the last Saturn V to fly and lived in by three crews in 1973-74, some 171 days in all.',
+    facts: [
+      { label: 'Launched', value: '14 May 1973' },
+      { label: 'Height', value: '~434 to 442 km' },
+      { label: 'Tilt to the equator', value: '50°' },
+      { label: 'Fell', value: '11 July 1979' },
+    ],
+    fun: [
+      'It lost a solar wing and its sunshield on the way up; the first crew rigged a parasol and freed the jammed wing on a spacewalk.',
+      'It came down over the Indian Ocean and Western Australia; the shire of Esperance fined NASA A$400 for littering.',
+    ],
+  },
+  salyut: {
+    kind: 'The first space station · 1971',
+    intro: 'Salyut 1 went up on 19 April 1971. The Soyuz 11 crew, Georgy Dobrovolsky, Vladislav Volkov and Viktor Patsayev, lived aboard for 23 days and died when their capsule lost its air on the way home.',
+    facts: [
+      { label: 'Launched', value: '19 April 1971' },
+      { label: 'Height', value: '~200 to 222 km' },
+      { label: 'Tilt to the equator', value: '51.6°' },
+      { label: 'Re-entered', value: '11 October 1971' },
+    ],
+    fun: ['Every crewed station since, from Skylab and Mir to the ISS and Tiangong, has flown in low Earth orbit, within ~450 km of the ground.'],
+  },
+  sputnik: {
+    kind: 'The first satellite · 1957',
+    intro: 'A polished 58 cm ball with four whip aerials, launched by the Soviet Union on 4 October 1957: its beeping, picked up by radio amateurs round the world, opened the space age.',
+    facts: [
+      { label: 'Launched', value: '4 October 1957, 19:28 UTC' },
+      { label: 'Orbit', value: '~215 × 939 km, 65° tilt' },
+      { label: 'One lap', value: '96.2 minutes' },
+      { label: 'Mass', value: '83.6 kg' },
+      { label: 'Fell', value: '4 January 1958' },
+    ],
+    fun: ['Its batteries ran out on 26 October 1957; it circled silently for ten more weeks before burning up.'],
+  },
+  leo: {
+    kind: 'Low Earth orbit · ~160 to 2,000 km',
+    intro: 'Where every space station and most satellites fly. On this page it is the thin halo round the Earth: zoom in to see it open up.',
+    facts: [
+      { label: 'Speed', value: '~7.8 km/s at its low edge' },
+      { label: 'One lap', value: '~88 minutes at 160 km, ~2 hours at 2,000 km' },
+      { label: 'Where space begins', value: '100 km, the Kármán line (FAI)' },
+    ],
+    orbit: 'Low enough that the thin upper air still drags: without a push now and then, anything here spirals down, within weeks at 200 km and centuries at 1,000 km.',
+    fun: [
+      'Every crewed flight but Apollo’s, and Artemis’s, has stayed in low orbit.',
+      'The US counts space from 50 miles (~80 km); the FAI’s Kármán line is 100 km.',
+      'Gemini 11 reached 1,369 km in 1966, a height no crew beat until Polaris Dawn in 2024.',
+    ],
+  },
+  gps: {
+    kind: 'Medium Earth orbit · ~20,200 km',
+    intro: 'The GPS constellation: satellites in six tilted rings of orbits, arranged so that at least four are above the horizon anywhere on Earth.',
+    facts: [
+      { label: 'Height', value: '~20,200 km' },
+      { label: 'One lap', value: '11 h 58 min: twice a sidereal day' },
+      { label: 'Tilt to the equator', value: '55°' },
+      { label: 'Working satellites', value: '31 (24 slots, plus spares)' },
+      { label: 'Full service', value: '1995' },
+    ],
+    fun: ['Your phone times the signals from four or more of them; light covers 30 cm in a nanosecond, so the clocks aboard are atomic.', 'Europe’s Galileo, Russia’s GLONASS and China’s BeiDou fly similar orbits.'],
+  },
+  geo: {
+    kind: 'Geostationary orbit · 35,786 km',
+    intro: 'The one height where a lap takes exactly as long as the Earth takes to turn (23 h 56 min), so a satellite over the equator seems to hang still in the sky.',
+    facts: [
+      { label: 'Height', value: '35,786 km (42,164 km from Earth’s centre)' },
+      { label: 'Speed', value: '~3.07 km/s' },
+      { label: 'Working satellites', value: '~580 (2026)' },
+      { label: 'First', value: 'Syncom 3, 19 August 1964' },
+    ],
+    orbit: 'Drawn here as the ellipse in the equator’s plane: the equator is tipped 23.4° to the page, which looks down on the Earth’s orbit round the Sun.',
+    fun: ['Syncom 3 carried the 1964 Tokyo Olympics live to the United States; Early Bird (Intelsat I, 1965) was the first commercial one.', 'Arthur C. Clarke described the idea in 1945, so the belt is often called the Clarke orbit.'],
+  },
+  starlink: {
+    kind: 'Megaconstellation · since 2019',
+    intro: 'SpaceX’s internet satellites: the first 60 went up on 24 May 2019, and about two of every three working satellites in orbit are now Starlinks.',
+    facts: [
+      { label: 'In orbit', value: '11,127 (17 September 2026)' },
+      { label: 'Height', value: 'mostly ~450 to 490 km' },
+      { label: 'All working satellites', value: '16,810, 66% of them Starlinks' },
+      { label: 'Drawn here', value: 'one dot for ~20 satellites' },
+    ],
+    fun: ['In 2019 about 2,300 satellites were working in all; in 2026 there are more than seven times as many.'],
+  },
   belt: {
     kind: 'Between Mars and Jupiter',
     intro: 'Leftovers from the making of the planets, strewn between Mars and Jupiter and never gathered into a planet of their own, stirred up as they are by Jupiter’s pull.',
