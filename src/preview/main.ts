@@ -48,6 +48,8 @@ for (const id of PROGRAM_IDS) ui.program.add(new Option(id, id));
 // same trap as the aspect below: an id without a matching <option> would empty the select, so resolve it first
 const programId = q.get('program') ?? 'sequence';
 programById(programId);
+// the list offers every loop but only the demo's single passes: a valid `scene:<name>` gets its own option
+if (![...ui.program.options].some(o => o.value === programId)) ui.program.add(new Option(programId, programId));
 ui.program.value = programId;
 ui.strokes.value = q.get('strokes') === 'legacy' ? 'legacy' : 'engine';
 // read the aspect from the query string itself: assigning a value with no matching <option> empties the

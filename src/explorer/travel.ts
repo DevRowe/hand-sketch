@@ -134,3 +134,62 @@ function sig3(x: number): string {
   if (x >= 100) return count(x);
   return String(Number(x.toPrecision(3)));
 }
+
+/* ---------- your age on every planet ---------- */
+
+/**
+ * The planets' sidereal years, days: one lap against the stars (NASA planetary fact sheets; the outer four given there
+ * in Julian years). Your age on a planet is the laps it has made since you were born.
+ */
+export const PLANET_YEARS = [
+  { id: 'mercury', name: 'Mercury', days: 87.97 },
+  { id: 'venus', name: 'Venus', days: 224.7 },
+  { id: 'earth', name: 'Earth', days: 365.256 },
+  { id: 'mars', name: 'Mars', days: 686.98 },
+  { id: 'jupiter', name: 'Jupiter', days: 11.862 * 365.25 },
+  { id: 'saturn', name: 'Saturn', days: 29.457 * 365.25 },
+  { id: 'uranus', name: 'Uranus', days: 84.02 * 365.25 },
+  { id: 'neptune', name: 'Neptune', days: 164.8 * 365.25 },
+] as const;
+
+export type PlanetId = (typeof PLANET_YEARS)[number]['id'];
+
+export interface PlanetAge {
+  id: PlanetId;
+  name: string;
+  /** Your age there in its own years: the laps it has made round the Sun since you were born. */
+  age: number;
+  /** Days from your birth to your next birthday there. */
+  next: number;
+}
+
+/** Your age on each planet after `days` of life, Mercury first. */
+export const planetAges = (days: number): PlanetAge[] =>
+  PLANET_YEARS.map(p => {
+    const age = Math.max(0, days) / p.days;
+    return { id: p.id, name: p.name, age, next: (Math.floor(age) + 1) * p.days };
+  });
+
+/** "152", "36.6", "3.09", "0.44": an age to about three figures. */
+export const ageLabel = (age: number): string => (age >= 100 ? count(Math.floor(age)) : age >= 10 ? age.toFixed(1) : age.toFixed(2));
+
+/** "3 times", "once", "44% of the way": how far round a planet has gone. */
+export function lapsLabel(laps: number): string {
+  if (laps < 1) return `${Math.max(1, Math.round(laps * 100))}% of the way`;
+  const whole = Math.floor(laps);
+  return whole === 1 ? 'once' : whole === 2 ? 'twice' : `${count(whole)} times`;
+}
+
+/** "Jupiter has gone round 3 times, Saturn once, Uranus 44% of the way and Neptune 22%": the outer planets since a birth. */
+export function outerLaps(ages: readonly PlanetAge[]): string {
+  const outer = ages.filter(a => a.id === 'jupiter' || a.id === 'saturn' || a.id === 'uranus' || a.id === 'neptune');
+  let partial = false;
+  const words = outer.map((a, i) => {
+    let w = lapsLabel(a.age);
+    // after the first "of the way", the rest read as bare percentages
+    if (a.age < 1 && partial) w = w.replace(' of the way', '');
+    if (a.age < 1) partial = true;
+    return i === 0 ? `${a.name} has gone round ${w}` : `${a.name} ${w}`;
+  });
+  return words.length > 1 ? `${words.slice(0, -1).join(', ')} and ${words[words.length - 1]}` : (words[0] ?? '');
+}

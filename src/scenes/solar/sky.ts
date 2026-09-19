@@ -26,6 +26,11 @@ export interface TrailSpec {
   readonly reveal: number;
   /** 0..1: the strength trails are drawn at (they fade in and out). */
   readonly alpha: number;
+  /**
+   * A lifetime drawn in the wakes (the explorer's "your years"): no wake reaches back before `since`, and body `k`'s
+   * reaches all the way there, however many turns that takes.
+   */
+  readonly life?: { readonly since: number; readonly k: number };
 }
 
 export interface Sky {

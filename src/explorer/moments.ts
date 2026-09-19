@@ -1,7 +1,7 @@
 /**
  * Key moments: the best of the jump-to presets, always in view as a small timeline in date order (a rail down the
  * left of a wide screen, a strip of chips on a narrower one), so the dates worth seeing invite a click instead of
- * waiting behind the "Jump to" menu, which still lists them all. Moments with a journey to fly say so. The plans show
+ * waiting behind the Moments menu, which still lists them all. Moments with a journey to fly say so. The plans show
  * the solar system's moments; the Earth and Moon view the story of spaceflight.
  */
 import type { ViewId } from './bodies';

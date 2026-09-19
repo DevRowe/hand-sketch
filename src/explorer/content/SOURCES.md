@@ -53,3 +53,9 @@ When updating a figure, check the primary source again rather than a secondary p
 - The Sun round the Milky Way: ~230 km/s, one lap every ~230 million years; estimates run from ~220 to ~250 km/s (Reid et al. 2019, https://arxiv.org/abs/1910.03357, give 236 km/s for the circular speed there plus the Sun's own motion).
 - Against the cosmic microwave background: 369.82 ± 0.11 km/s towards galactic longitude 264°, latitude 48° (Leo and Crater), from the Planck 2018 results I, https://arxiv.org/abs/1807.06205.
 - The card measures each motion against its own reference and never adds them: they point in different directions, and the motion against the microwave background already includes the others.
+
+## Your age on every planet
+
+- Sidereal years (one lap against the stars) from NASA's planetary fact sheets (https://nssdc.gsfc.nasa.gov/planetary/factsheet/): Mercury 87.97 days, Venus 224.70, Earth 365.256, Mars 686.98; Jupiter 11.862 years, Saturn 29.457, Uranus 84.02 and Neptune 164.8 (Julian years of 365.25 days).
+- Your age on a planet is the days you have lived divided by its year, which is also how many times it has gone round the Sun since you were born; your next birthday there is the next whole lap.
+- The life's helix draws the Earth's wake back to the day you were born at the real positions of every date (JPL mean elements, as everywhere in the explorer), one coil a year.

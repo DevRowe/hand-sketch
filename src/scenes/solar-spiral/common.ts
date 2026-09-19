@@ -178,8 +178,9 @@ const COILS_MAX = 3;
 const MOON_COILS_MAX = 5;
 /** Aimed-for distance between neighbouring samples along a dated wake, design units (the loop's are 2 to 3.5). */
 const SPACING = 2.5;
-/** Most samples a dated wake may take. */
+/** Most samples a dated wake may take, and a lifetime's wake (all its turns, decades of them). */
 const MAX_SAMPLES = 2400;
+const LIFE_SAMPLES = 4800;
 /** Sky time a dated wake grid counts from (the year 1000): every key stays positive. */
 const ORIGIN = -365_242;
 
@@ -229,19 +230,22 @@ function loopPlan(m: number): WakePlan {
 function datedPlan(sky: Sky, spec: TrailSpec): WakePlan {
   // ruler ticks: whole Mercury years, about a dozen along the span
   const speed = DEPTH / spec.span, year = sky.period(0), ruler = Math.max(1, Math.round(spec.span / 12 / year));
-  const step: number[] = [], full: number[] = [], tick: number[] = [];
+  const step: number[] = [], full: number[] = [], tick: number[] = [], life = spec.life;
   for (let w = 0; w <= SUN_W; w++) {
     let reach = spec.span, pace = 0;
     if (w < SUN_W) {
       const P = sky.period(w), a = w === MOON_K ? MOON.a : PLANETS[w]!.a;
-      reach = Math.min(spec.span, (w === MOON_K ? MOON_COILS_MAX : COILS_MAX) * P);
+      // a lifetime's own wake runs its whole length; the others keep to a few turns
+      reach = life?.k === w ? spec.span : Math.min(spec.span, (w === MOON_K ? MOON_COILS_MAX : COILS_MAX) * P);
       // the Moon rides the Earth: bound its pace by the two together
       pace = (TAU * a) / P + (w === MOON_K ? (TAU * PLANETS[2]!.a) / sky.period(2) : 0);
     }
-    const ideal = Math.max(SPACING / Math.hypot(pace, speed), reach / MAX_SAMPLES), n = Math.max(2, Math.round(year / ideal));
+    const most = life?.k === w ? LIFE_SAMPLES : MAX_SAMPLES;
+    const ideal = Math.max(SPACING / Math.hypot(pace, speed), reach / most), n = Math.max(2, Math.round(year / ideal));
     step.push(year / n);
     tick.push(n * ruler);
-    full.push(reach / (year / n));
+    // nothing reaches back before a life began: the wake only shortens, its grid stays put, so its marks ride along
+    full.push(life ? Math.max(1, Math.min(reach, sky.now - life.since) / (year / n)) : reach / (year / n));
   }
   return { step, full, tick, speed, reveal: spec.reveal, alpha: spec.alpha, keyWrap: 0, origin: ORIGIN, dust: (speed * (sky.now - ORIGIN) * LOOP) / DUST_LEN };
 }

@@ -26,6 +26,8 @@ export const SPAN_MAX = 200 * YEAR;
 export const DAY_MIN = dayOf(Date.UTC(1000, 0, 1));
 export const DAY_MAX = dayOf(Date.UTC(3000, 0, 1));
 
+/** The Earth among the sky's bodies (planets 0..7, from Mercury). */
+const EARTH_K = 2;
 /** Seconds for the trails to fade in or out, and to unspool from their bodies. */
 const FADE = 0.45;
 const UNSPOOL = 1.4;
@@ -58,6 +60,8 @@ export class Sim {
   /** Ambient drawn frames: 12 a second while playing. */
   beat = 0;
   trails: Trails;
+  /** A lifetime the wakes draw (your years, from the day you were born): Earth's wake reaches all the way back to it. */
+  life: number | null = null;
 
   constructor(day: number, pace: number, trails: Pick<Trails, 'on' | 'span' | 'opacity'>) {
     this.day = clamp(day, DAY_MIN, DAY_MAX);
@@ -108,6 +112,7 @@ export class Sim {
   /** The sky to draw now. */
   sky(): Sky {
     const t = this.trails, eased = t.reveal * t.reveal * (3 - 2 * t.reveal);
-    return datedSky({ day: this.day, beat: this.beat, trails: { span: t.span, reveal: eased, alpha: t.alpha } });
+    const life = this.life === null ? {} : { life: { since: this.life, k: EARTH_K } };
+    return datedSky({ day: this.day, beat: this.beat, trails: { span: t.span, reveal: eased, alpha: t.alpha, ...life } });
   }
 }

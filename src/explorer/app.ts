@@ -13,6 +13,7 @@ import { C as EARTH_C } from '../scenes/cislunar/common';
 import { sceneMarks, pick, type BodyId, type Mark, type Pick, type Scene as Marks, type ViewId } from './bodies';
 import { Camera } from './camera';
 import { LabelLayout } from './labels';
+import { drawLife, lifeFrame, type Life } from './life';
 import { drawNeighbourhood } from './neighbourhood';
 import { Renderer, type Size } from './renderer';
 import { clamp, Sim } from './sim';
@@ -48,6 +49,8 @@ const MAX_FPS = 30;
 const HAND_FPS = 30;
 /** Milliseconds an animation frame that draws nothing may spend sharpening zoomed textures. */
 const REFINE_MS = 6;
+/** Ms the picture must rest before it is drawn again at full resolution. */
+const REST_MS = 350;
 /** CSS pixels kept clear round it, and round a framed moment (whose marks carry names outside the circle). */
 const HOME_MARGIN = 10;
 const FRAME_MARGIN = 16;
@@ -110,8 +113,13 @@ export class App {
   overlay: Overlay | null = null;
   /** A journey under way stops (and pauses) on this day. */
   private stopAt: number | null = null;
+  /** Your years, drawn in the In motion view while they are on screen (`flyLife`), and the wake length they replaced. */
+  life: Life | null = null;
+  private lifeSpan: number | null = null;
   /** The part of the screen the controls leave free (CSS pixels): framing centres things there. */
   freeRect: () => { x: number; y: number; w: number; h: number } = () => ({ x: 0, y: 0, w: innerWidth, h: innerHeight });
+  /** The open card, where one is (CSS pixels): the bodies it covers are not named through it. */
+  cardRect: () => DOMRect | null = () => null;
   /** Called after every drawing (readouts) and on every state change (controls). */
   onDraw: () => void = () => {};
   onChange: () => void = () => {};
@@ -124,6 +132,8 @@ export class App {
   /** The design circle the camera was last framed on (a moment's geometry), until the viewer moves it. */
   private framed: { radius: number; at: readonly [number, number] } | null = null;
   private lastDraw = -1e9;
+  /** When the sky, the camera and the trails last moved (ms). */
+  private stillSince = 0;
   /** The interval the last drawing was meant to keep (for the resolution governor). */
   private drawInterval = 1000 / 12;
   private last = 0;
@@ -304,6 +314,36 @@ export class App {
   /** Whether a journey is under way. */
   get journeying(): boolean { return this.stopAt !== null; }
 
+  /**
+   * Your years in motion, up to `to`: the Earth's wake drawn back to the day you were born, one coil a year, the whole
+   * life filling the wake's depth (a journey then flies it).
+   */
+  showLife(life: Life, to: number): void {
+    if (!this.life) this.lifeSpan = this.view === 'wake' ? this.sim.trails.span : this.spans.wake;
+    this.life = life;
+    this.sim.life = life.born;
+    this.setView('wake');
+    this.select(null, false);
+    this.setTrails(true);
+    this.setSpan(clamp(to - life.born, VIEWS.wake.span.min, VIEWS.wake.span.max));
+    // framed on the whole helix as it will stand at the end, so it never grows off the screen
+    const f = lifeFrame(life, to, this.sim.trails.span, true);
+    this.frameDesign(f.radius, f.at);
+  }
+
+  /** Put your years away: the wakes go back to the length they had. */
+  endLife(): void {
+    if (!this.life) return;
+    this.life = null;
+    this.sim.life = null;
+    if (this.lifeSpan !== null) {
+      this.spans.wake = this.lifeSpan;
+      if (this.view === 'wake') this.sim.trails.span = this.lifeSpan;
+    }
+    this.lifeSpan = null;
+    this.changed();
+  }
+
   setTrails(on: boolean): void {
     this.sim.trails.on = on;
     this.changed();
@@ -417,6 +457,26 @@ export class App {
     return { x, y };
   }
 
+  /**
+   * What a shared link keeps of the camera: the design point in the middle of the free part of the screen and the zoom,
+   * or null at home (whoever opens the link then gets the home that suits their screen).
+   */
+  get looking(): { at: [number, number]; zoom: number } | null {
+    if (this.homed) return null;
+    const r = this.freeRect(), [lx, ly] = this.renderer.toLogical(r.x + r.w / 2, r.y + r.h / 2), fr = this.renderer.fit;
+    return { at: [(lx - fr.ox) / fr.s, (ly - fr.oy) / fr.s], zoom: this.camera.target.zoom };
+  }
+
+  /** Show the design point `at` in the middle of the free part of the screen at `zoom` (a shared link's view). */
+  lookAt(at: readonly [number, number], zoom: number, glide = this.glide): void {
+    const z = clamp(zoom, this.camera.min, this.camera.max), [lx, ly] = this.renderer.designToLogical(at[0], at[1]), [cx, cy] = this.centreFor(lx, ly, z);
+    this.following = false;
+    this.homed = false;
+    this.framed = null;
+    this.camera.glideTo({ zoom: z, x: cx, y: cy }, glide);
+    this.changed();
+  }
+
   /** Glide to fit a circle of `radius` design units round the design point `at` into the free part of the screen. */
   frameDesign(radius: number, at: readonly [number, number], glide = this.glide): void {
     const r = this.freeRect(), perDesign = this.renderer.designScale / this.camera.zoom;
@@ -523,6 +583,9 @@ export class App {
     const rest = toFrames(this.scene.loopFrom ?? 0, 12), drawingOn = this.intro < rest;
     if (drawingOn) this.intro = Math.min(rest, this.intro + 12 * dt);
     else this.intro = DONE;
+    // a picture left at rest a moment is drawn again at full resolution
+    if (this.sim.playing || settling || moving || drawingOn) this.stillSince = now;
+    if (this.renderer.rest(now - this.stillSince > REST_MS)) this.dirty = true;
     // the sky keeps the pace's cadence; a control or the camera may draw sooner, but never above HAND_FPS
     const interval = this.dirty || moving ? Math.min(this.interval, 1000 / HAND_FPS) : this.interval;
     if ((this.dirty || this.sim.playing || settling || moving || drawingOn) && now - this.lastDraw >= interval - 3) {
@@ -551,13 +614,25 @@ export class App {
       }
     }
     const view: View = this.camera.view, step = this.sim.playing ? (this.sim.velocity * this.interval) / 1000 : 0;
-    this.renderer.draw(this.scene, this.intro, sky, view, ctx => {
-      this.overlay?.(ctx, this);
-      if (this.view === 'earth') drawNeighbourhood(ctx, this, this.overlay !== null);
-      this.drawSelection(ctx);
-    }, this.view === 'earth' ? { lens: true, step } : undefined);
+    this.renderer.draw(this.scene, this.intro, sky, view, ctx => this.decorate(ctx, true), this.view === 'earth' ? { lens: true, step } : undefined);
     this.placeLabels();
     this.onDraw();
+  }
+
+  /** What the explorer draws over the scene: a moment's geometry, your years, the Earth's neighbourhood, and the selection. */
+  private decorate(ctx: CanvasRenderingContext2D, selection: boolean): void {
+    this.overlay?.(ctx, this);
+    if (this.life && this.view === 'wake') drawLife(ctx, this, this.life);
+    if (this.view === 'earth') drawNeighbourhood(ctx, this, this.overlay !== null);
+    if (selection) this.drawSelection(ctx);
+  }
+
+  /**
+   * The picture on screen as a still, drawn afresh `scale` times its size in CSS pixels (sharp, not enlarged), whole
+   * (never part-way through a draw-on), without the selection ring.
+   */
+  still(scale: number): HTMLCanvasElement {
+    return this.renderer.still(scale, this.scene, this.sim.sky(), this.camera.view, ctx => this.decorate(ctx, false), this.view === 'earth' ? { lens: true, step: 0 } : undefined);
   }
 
   /** A ring round the selected body, the same width on screen at any zoom, legible on light and dark papers. */
@@ -604,7 +679,7 @@ export class App {
   private placeLabels(): void {
     const marks = this.marks;
     if (!marks) return;
-    const s = this.renderer.designScale, free = this.freeRect();
+    const s = this.renderer.designScale, free = this.freeRect(), card = this.cardRect();
     const rank = (id: BodyId): number => (id === this.selected ? -1 : RANK.indexOf(id));
     const inputs = [...marks.bodies].sort((a, b) => rank(a.id) - rank(b.id)).flatMap(m => {
       const el = this.labelEls.get(m.id);
@@ -620,6 +695,10 @@ export class App {
         return at ? [{ id: m.id, x: at[0], y: at[1], r: 3, w, h: 18 }] : [];
       }
       const [x, y] = this.renderer.toScreen(m.x, m.y);
+      // a body off the screen, or under the open card, names nothing: its name would hang over the edge or show
+      // through the card
+      if (x < 0 || x > innerWidth || y < 0 || y > innerHeight) return [];
+      if (card && x >= card.left && x <= card.right && y >= card.top && y <= card.bottom) return [];
       return [{ id: m.id, x, y, r: Math.max(m.id === 'sun' ? m.r : m.reach, m.r) * s, w, h: 18 }];
     });
     const { labels, pending } = this.labelLayout.place(inputs, innerWidth, performance.now());
