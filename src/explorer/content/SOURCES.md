@@ -54,6 +54,15 @@ When updating a figure, check the primary source again rather than a secondary p
 - Transits of Venus: https://eclipse.gsfc.nasa.gov/transit/venus0412.html
 - Planet parades: https://science.nasa.gov/solar-system/skywatching/planetary-alignments-and-planet-parades/
 
+## Beyond Neptune and Scale (the Scale menu)
+
+- Pluto: its place from the JPL mean elements above (the Pluto row), its distance measured in the planets' plane for the plan; its figures from NASA's Pluto fact sheet (https://nssdc.gsfc.nasa.gov/planetary/factsheet/plutofact.html) and NASA's Pluto pages (https://science.nasa.gov/dwarf-planets/pluto/).
+- The Kuiper belt: NASA's Kuiper belt page (https://science.nasa.gov/solar-system/kuiper-belt/) for its extent and population and for Arrokoth; the dots are illustrative, a few hundred bodies at seeded places in the plutino (~39.4 au) and classical (~42 to ~48 au) ranges, each on a Kepler orbit.
+- Sizes and distances in the line-up and the basketball model: NASA NSSDCA planetary fact sheets (equatorial diameters, mean distances from the Sun); Saturn's A ring reaches 136,775 km from its centre.
+- Proxima Centauri at 4.2465 light-years (ESO, NASA); Voyager 1 one light-day out on 18 November 2026 (NASA, above), receding at ~3.57 au a year (~17 km/s).
+- The Sun's path round the galaxy: the Guide's figures (Reid et al. 2019, GRAVITY 2022); ~20 km/s against the nearby stars (the standard solar motion, towards Hercules); the planets' plane is inclined ~60° to the galaxy's disc.
+- How the plan cheats: worked out from the plan's own radii (`src/scenes/solar/common.ts`) against the true sizes and distances above.
+
 ## How far you have travelled
 
 - Earth's spin: the WGS 84 equatorial radius, 6,378.137 km, and the sidereal day, 23 h 56 min 4.0905 s (86,164.0905 s), give ~0.465 km/s (~1,674 km/h) at the equator, scaled by the cosine of the latitude: https://nssdc.gsfc.nasa.gov/planetary/factsheet/earthfact.html

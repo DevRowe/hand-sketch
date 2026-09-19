@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#0d0f15">
   <title>Solar System Explorer · One Sun, Ten Hands</title>
-  <meta name="description" content="The solar system hand-sketched live in your browser, in ten visual styles, at the real positions for any date. Speed time up or run it backwards, trail the planets' wakes, zoom in, tap any world for the facts, and jump to launch windows, great conjunctions and the Voyager grand tour. Then dive into the Earth and Moon at true scale for the story of spaceflight, from Sputnik to Artemis.">
+  <meta name="description" content="The solar system hand-sketched live in your browser, in ten visual styles, at the real positions for any date. Speed time up or run it backwards, trail the planets' wakes, zoom in, tap any world for the facts, and jump to launch windows, great conjunctions and the Voyager grand tour, or take the guided tour. Line the planets up at true scale, find Pluto and the Kuiper belt, and dive into the Earth and Moon at true scale for the story of spaceflight, from Sputnik to Artemis.">
   <meta property="og:title" content="Solar System Explorer">
   <meta property="og:description" content="The solar system hand-sketched live, at the real positions for any date, in ten visual styles.">
   <meta property="og:type" content="website">
@@ -30,13 +30,14 @@
       <button type="button" role="radio" data-view="earth" aria-checked="false" title="Earth &amp; Moon: at true scale, with the story of spaceflight (E)"><svg class="vi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9.5" cy="13.5" r="6"/><circle cx="19" cy="5.5" r="2.1"/></svg><span class="v-text"><span>Earth &amp; Moon</span><small>Up close</small></span></button>
     </div>
     <nav class="menus" id="menus" aria-label="Menus">
-      <!-- the menus, each opening its sheet: Moments, Sky (what you can see from the Earth), then the home kept for
-           Tools (scale and depth) once it has something in it, then Look, You and the Guide -->
-      <button type="button" class="menu" id="moments-btn" data-menu="moments" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" title="Key moments and journeys (J)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2c.9 4.7 4.1 7.9 8.8 8.8-4.7.9-7.9 4.1-8.8 8.8-.9-4.7-4.1-7.9-8.8-8.8 4.7-.9 7.9-4.1 8.8-8.8z"/></svg><span>Moments</span></button>
-      <button type="button" class="menu" id="sky-btn" data-menu="sky" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" title="Sky: look up tonight, the Moon and eclipses, comets, seasons (K)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.6 4.2a7.9 7.9 0 1 0 6.3 11.9 6.4 6.4 0 0 1-6.3-11.9z"/><path d="M18.2 3.4v4M16.2 5.4h4"/></svg><span>Sky</span></button>
-      <button type="button" class="menu" id="look-btn" data-menu="look" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" title="Look: the visual style, trails, names and zoom (S)"><span class="sw" id="look-sw" aria-hidden="true"><i></i><i></i></span><span class="menu-text"><span>Look</span><small id="look-name">…</small></span></button>
-      <button type="button" class="menu" id="you-btn" data-menu="you" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" title="You: share this moment, save a picture, fly your years (Y)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.7"/><path d="M4.6 20.2c.9-4.1 3.8-6.3 7.4-6.3s6.5 2.2 7.4 6.3"/></svg><span>You</span></button>
-      <button type="button" class="menu" id="guide-btn" data-menu="guide" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" title="Guide: the bodies, how to read the views, keys and sources (G)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5C6.5 4 9.5 4 12 5.5 14.5 4 17.5 4 20 5.5V19c-2.5-1.5-5.5-1.5-8 0-2.5-1.5-5.5-1.5-8 0z"/><path d="M12 5.5V19"/></svg><span>Guide</span></button>
+      <!-- the menus, each opening its sheet: Moments (and the guided tour), Sky (what you can see from the Earth), Scale
+           (how big and how far), then Look, You and the Guide; every button has its word, and its tooltip its key -->
+      <button type="button" class="menu" id="moments-btn" data-menu="moments" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" data-i18n-title="menu.moments.title" title="Moments: key moments, journeys and the guided tour (J)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2c.9 4.7 4.1 7.9 8.8 8.8-4.7.9-7.9 4.1-8.8 8.8-.9-4.7-4.1-7.9-8.8-8.8 4.7-.9 7.9-4.1 8.8-8.8z"/></svg><span data-i18n="menu.moments">Moments</span></button>
+      <button type="button" class="menu" id="sky-btn" data-menu="sky" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" data-i18n-title="menu.sky.title" title="Sky: look up tonight, the Moon and eclipses, comets, seasons (K)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.6 4.2a7.9 7.9 0 1 0 6.3 11.9 6.4 6.4 0 0 1-6.3-11.9z"/><path d="M18.2 3.4v4M16.2 5.4h4"/></svg><span data-i18n="menu.sky">Sky</span></button>
+      <button type="button" class="menu" id="scale-btn" data-menu="scale" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" data-i18n-title="menu.scale.title" title="Scale: sizes side by side, true distances, beyond Neptune, the galaxy (C)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="2.4" cy="17.3" r="1.5"/><circle cx="8.3" cy="15.8" r="3"/><circle cx="18" cy="13.3" r="5.5"/><path d="M1 21.4h22"/></svg><span data-i18n="menu.scale">Scale</span></button>
+      <button type="button" class="menu" id="look-btn" data-menu="look" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" data-i18n-title="menu.look.title" title="Look: the visual style, trails, names, zoom and sound (S)"><span class="sw" id="look-sw" aria-hidden="true"><i></i><i></i></span><span class="menu-text"><span data-i18n="menu.look">Look</span><small id="look-name">…</small></span></button>
+      <button type="button" class="menu" id="you-btn" data-menu="you" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" data-i18n-title="menu.you.title" title="You: share this moment, save a picture or a clip, fly your years (Y)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.7"/><path d="M4.6 20.2c.9-4.1 3.8-6.3 7.4-6.3s6.5 2.2 7.4 6.3"/></svg><span data-i18n="menu.you">You</span></button>
+      <button type="button" class="menu" id="guide-btn" data-menu="guide" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" data-i18n-title="menu.guide.title" title="Guide: the bodies, how to read the views, keys and sources (G)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5C6.5 4 9.5 4 12 5.5 14.5 4 17.5 4 20 5.5V19c-2.5-1.5-5.5-1.5-8 0-2.5-1.5-5.5-1.5-8 0z"/><path d="M12 5.5V19"/></svg><span data-i18n="menu.guide">Guide</span></button>
     </nav>
   </header>
 
@@ -64,11 +65,13 @@
         <button type="button" class="link" id="reset-btn" title="Reset time, speed and view (Home)">Reset</button>
       </div>
     </div>
-    <button type="button" class="round small" id="reverse" aria-pressed="false" title="Run time backwards (R)" aria-label="Run time backwards"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6l-6 6 6 6M19 6l-6 6 6 6"/></svg></button>
     <input type="range" id="pace" min="0" max="1000" step="1" aria-label="Speed" title="Speed (arrow keys)">
     <output id="pace-out" class="pace-out">…</output>
-    <div class="chips" id="pace-chips" role="group" aria-label="Speed presets"></div>
-    <button type="button" class="more" id="more-btn" aria-expanded="false" aria-controls="dock-more" title="The speed slider and the year"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>More</span></button>
+    <div class="speeds">
+      <button type="button" class="chip rev" id="reverse" aria-pressed="false" title="Run time backwards (R)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 6l-6 6 6 6M19 6l-6 6 6 6"/></svg>Reverse</button>
+      <div class="chips" id="pace-chips" role="group" aria-label="Speed presets"></div>
+    </div>
+    <button type="button" class="more" id="more-btn" aria-expanded="false" aria-controls="dock-more" title="Speed, direction and the year"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg><span>More</span></button>
     <div class="dock-more" id="dock-more">
       <label class="mini year" title="Scrub through the years"><span>Year</span><input type="range" id="year" min="1900" max="2100" step="0.01" aria-label="Year"><output id="year-out">…</output></label>
       <div class="group zoom" id="dock-zoom" role="group" aria-label="Zoom">
@@ -108,6 +111,11 @@
           <button type="button" class="link" data-zoom="home" title="Back to the whole view (Z)">Reset view</button>
         </div>
       </div>
+      <h3>Sound</h3>
+      <div class="row">
+        <button type="button" class="toggle" id="sound-btn" aria-pressed="false" title="Sound of the orbits on or off (M)"><span class="dot" aria-hidden="true"></span>Sound of the orbits</button>
+      </div>
+      <p class="look-note" id="sound-note">Off unless you switch it on: each planet plays its own note as it passes a line from the Sun, so the inner planets patter and Neptune tolls once in 165 years.</p>
       <h3>Screen</h3>
       <div class="row">
         <button type="button" class="act" id="hide-btn" aria-pressed="false" title="Hide the controls (H)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.6A10 10 0 0 1 12 5.5C18 5.5 21.5 12 21.5 12a17 17 0 0 1-2.9 3.7M6.3 6.4C3.9 8.1 2.5 12 2.5 12S6 18.5 12 18.5c1.7 0 3.2-.5 4.5-1.2"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>Hide the controls</button>
@@ -130,6 +138,27 @@
     <button type="button" class="btn icon" id="jb-exit" aria-label="End the journey" title="End the journey (Esc)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </section>
 
+
+  <section class="tour-bar" id="tour-bar" aria-labelledby="tour-title" hidden>
+    <div class="tour-copy">
+      <p class="eyebrow tour-step" id="tour-step"></p>
+      <h2 class="tour-title" id="tour-title"></h2>
+      <p class="tour-text" id="tour-text" aria-live="polite"></p>
+    </div>
+    <div class="tour-nav">
+      <ol class="tour-dots" id="tour-dots" aria-label="The tour’s stops"></ol>
+      <div class="tour-buttons">
+        <button type="button" class="toggle tour-read" id="tour-read" aria-pressed="false" title="Read each stop aloud"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6M18 6.5a7.8 7.8 0 0 1 0 11"/></svg><span data-i18n="tour.read">Read aloud</span></button>
+        <button type="button" class="round small" id="tour-back" data-i18n-label="tour.back" aria-label="Previous stop" data-i18n-title="tour.back" title="Previous stop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg></button>
+        <button type="button" class="round primary" id="tour-play" aria-label="Pause the tour" title="Pause the tour (Space)">
+          <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>
+          <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>
+        </button>
+        <button type="button" class="round small tour-next" id="tour-next" aria-label="Next stop" title="Next stop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6l6 6-6 6"/></svg><span class="tour-finish" data-i18n="tour.finish">Done</span></button>
+        <button type="button" class="btn icon" id="tour-exit" data-i18n-label="tour.exit" aria-label="End the tour" title="End the tour (Esc)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </div>
+    </div>
+  </section>
 
   <div class="pill chrome" id="preset-pill" hidden>
     <button type="button" class="pill-open" id="pill-open" title="Show this moment's card"><span class="pill-dot" aria-hidden="true"></span><span id="pill-text"></span></button>
@@ -156,11 +185,13 @@
       <ul class="tips" id="welcome-tips"></ul>
       <div class="welcome-actions">
         <button type="button" class="act primary" id="welcome-go">Start exploring</button>
+        <button type="button" class="act" id="welcome-tour"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg><span data-i18n="tour.start">Take the guided tour</span></button>
         <button type="button" class="link" id="welcome-guide">Open the guide</button>
       </div>
     </div>
   </div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <div class="sr" id="announce" aria-live="polite"></div>
   <noscript><p class="noscript">The explorer draws the solar system live with JavaScript. <a href="../">Watch the recorded pieces instead.</a></p></noscript>
   <script type="module" src="../src/explorer/main.ts"></script>
 </body>

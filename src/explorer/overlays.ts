@@ -10,6 +10,12 @@ export const GOLD = '#e8a33d';
 export const HALO = 'rgba(13,15,21,0.6)';
 export const INK = '#fff4dc';
 
+/** "#rrggbb" (or "#rgb") at an opacity. */
+export function rgba(hex: string, a: number): string {
+  const h = hex.replace('#', ''), n = parseInt(h.length === 3 ? [...h].map(c => c + c).join('') : h, 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
 /** Screen pixels to design units at the current zoom. */
 const px = (app: App): number => 1 / app.renderer.designScale;
 
@@ -119,6 +125,9 @@ export function text(ctx: CanvasRenderingContext2D, app: App, at: Vec2, s: strin
   if (left < EDGE) x += EDGE - left;
   else if (left + w > innerWidth - EDGE) x -= left + w - innerWidth + EDGE;
   y = Math.round(y);
+  // the names of the bodies keep clear of it
+  const x0 = align === 'left' ? x : align === 'right' ? x - w : x - w / 2;
+  app.captions.push([x0 - 2, y - 12, x0 + w + 2, y + 4]);
   ctx.textAlign = align;
   ctx.textBaseline = 'alphabetic';
   ctx.lineJoin = 'round';

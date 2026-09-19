@@ -5,6 +5,8 @@
 import './explorer.css';
 import { App, BODY_NAMES, DEFAULT_OPACITY } from './app';
 import type { ViewId } from './bodies';
+import { CLIP_S, recordClip } from './clip';
+import { BODIES } from './content/bodies';
 import { wireControls } from './controls';
 import { dateLabel, isoDate, today } from './format';
 import { JourneyBar } from './journey';
@@ -14,6 +16,9 @@ import { wireMoments } from './moments';
 import { savePicture, shareMoment, type Moment } from './share';
 import { Sim } from './sim';
 import { styleByKey, STYLES } from './styles';
+import { Sonification } from './sound';
+import { Tour } from './tour';
+import { localize, setLocale, t } from './i18n';
 import { hashOf, readUrl, writeUrl } from './url';
 import { VIEWS } from './views';
 import { wireWelcome } from './welcome';
@@ -24,6 +29,10 @@ const DEFAULT_STYLE = 'pastel';
  * Sun in about six seconds, the Moon circles Earth in two).
  */
 const DEFAULT_VIEW: ViewId = 'wake';
+
+// the page's words, from the table for its language
+setLocale(document.documentElement.lang || 'en');
+localize();
 
 const motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
 let reduceMotion = motionQuery.matches;
@@ -48,6 +57,7 @@ if (url.span) app.setSpan(url.span);
 if (url.tonight) app.layers.tonight = true;
 if (url.seasons) app.layers.seasons = true;
 if (url.comets === false) app.layers.comets = false;
+if (url.dwarfs === false) app.layers.dwarfs = false;
 // reduced motion: trails switch and the camera moves at once, without easing
 sim.instant = reduceMotion;
 app.reducedMotion = reduceMotion;
@@ -63,21 +73,66 @@ function toast(text: string, ms = 4200): void {
   toastTimer = window.setTimeout(() => toastEl.classList.remove('show'), ms);
 }
 
-/* ---------- panel, journeys, welcome ---------- */
+/** A quiet word for screen readers (what stepping through the bodies has picked out). */
+const announceEl = document.getElementById('announce')!;
+function announce(text: string): void {
+  announceEl.textContent = '';
+  requestAnimationFrame(() => (announceEl.textContent = text));
+}
+
+/* ---------- panel, journeys, the tour, welcome ---------- */
 
 const compactQuery = matchMedia('(max-width: 980px), (max-height: 540px)');
-// the panel starts journeys and the journey bar closes the panel: each calls into the other
+// the panel starts journeys and the tour, and they close the panel: each calls into the others
 let journeyBar: JourneyBar;
-const welcome = wireWelcome({ openGuide: () => panel.openGuide() });
+let tour: Tour;
+const welcome = wireWelcome({ openGuide: () => panel.openGuide(), startTour: () => tour.start() });
 const panel = new Panel(app, {
   toast,
-  startJourney: (j, play) => journeyBar.start(j, play),
-  endJourney: () => journeyBar.end(),
+  startJourney: (j, play) => {
+    tour.end();
+    journeyBar.start(j, play);
+  },
+  endJourney: () => tour.end() || journeyBar.end(),
   showWelcome: () => welcome.show(),
   share: () => void share(),
   savePicture: () => void picture(),
+  recordClip: () => void clip(),
+  startTour: () => tour.start(),
 });
 journeyBar = new JourneyBar(app, { makeRoom: () => panel.close() });
+tour = new Tour(app, {
+  setMoment: id => panel.setMoment(id),
+  clearMoment: () => panel.clearPreset(),
+  makeRoom: () => {
+    journeyBar.end();
+    panel.close();
+  },
+  toast,
+});
+
+/* ---------- sound ---------- */
+
+/** The orbits as sound: off at every visit until switched on (Look, or M). */
+const sound = new Sonification();
+const soundBtn = document.getElementById('sound-btn') as HTMLButtonElement;
+if (!sound.available) {
+  soundBtn.disabled = true;
+  document.getElementById('sound-note')!.textContent = t('sound.none');
+}
+async function toggleSound(): Promise<void> {
+  if (!sound.available) {
+    toast(t('sound.none'));
+    return;
+  }
+  const on = await sound.set(!sound.on);
+  app.soundLine = on;
+  app.invalidate();
+  soundBtn.setAttribute('aria-pressed', String(on));
+  // at a slow pace the planets pass their line only now and then: say so, or silence reads as broken
+  toast(on ? (app.spec.family === 'solar' && app.sim.pace >= 30 ? t('sound.on') : t('sound.slow')) : t('sound.off'));
+}
+soundBtn.addEventListener('click', () => void toggleSound());
 
 /* ---------- controls ---------- */
 
@@ -94,6 +149,7 @@ function settle(): void {
 }
 
 function reset(): void {
+  tour.end();
   journeyBar.end();
   panel.clearPreset();
   panel.close();
@@ -106,17 +162,29 @@ function reset(): void {
   if (!reduceMotion) app.redrawIntro();
 }
 
-const moments = wireMoments({ open: id => panel.openPreset(id), openAll: () => panel.openJump() });
+const moments = wireMoments({ open: id => panel.openPreset(id), openAll: () => panel.openJump(), tour: () => tour.start() });
 
 const controls = wireControls(app, {
   toggleMenu: id => panel.toggleMenu(id),
   openMenu: id => panel.openMenu(id),
-  endJourney: () => journeyBar.end(),
+  endJourney: () => tour.end() || journeyBar.end(),
   openBody: id => panel.openBody(id),
   closePanel: () => panel.close(),
   reset,
   toast,
   relayout: () => settle(),
+  togglePlay: () => (tour.on ? tour.togglePause() : app.play(!app.sim.playing)),
+  toggleSound: () => void toggleSound(),
+  stepBody: dir => {
+    const id = app.stepSelection(dir);
+    if (!id) {
+      announce(t('announce.none'));
+      return;
+    }
+    panel.openBody(id);
+    app.reveal();
+    announce(t('announce.body', { name: BODY_NAMES[id], facts: BODIES[id].kind }));
+  },
 });
 
 /* ---------- address bar ---------- */
@@ -148,6 +216,7 @@ function stateOf(sharing: boolean): Record<string, string | number | boolean | u
     tonight: app.layers.tonight,
     seasons: app.layers.seasons,
     comets: app.layers.comets ? undefined : '0',
+    dwarfs: app.layers.dwarfs ? undefined : '0',
   };
 }
 
@@ -172,10 +241,10 @@ function moment(): Moment {
 
 async function share(): Promise<void> {
   const m = moment(), result = await shareMoment(m);
-  if (result === 'copied') toast(`Link copied. It opens paused on ${dateLabel(app.sim.day)}, just as you see it.`);
+  if (result === 'copied') toast(t('toast.copied', { date: dateLabel(app.sim.day) }));
   else if (result === 'failed') {
     panel.showLink(m.url);
-    toast('Copy the link below to share this moment.');
+    toast(t('toast.copyBelow'));
   }
 }
 
@@ -183,16 +252,34 @@ let drawing = false;
 async function picture(): Promise<void> {
   if (drawing) return;
   drawing = true;
-  toast('Drawing your picture…', 20_000);
+  toast(t('toast.drawing'), 20_000);
   // let the toast show before the drawing holds the page for a moment
   await new Promise(r => requestAnimationFrame(() => setTimeout(r, 30)));
   try {
     const result = await savePicture(app, moment());
-    if (result === 'saved') toast('Picture saved to your downloads.');
-    else if (result === 'failed') toast('The picture could not be made here.');
+    if (result === 'saved') toast(t('toast.pictureSaved'));
+    else if (result === 'failed') toast(t('toast.pictureFailed'));
     else toastEl.classList.remove('show');
   } finally {
     drawing = false;
+  }
+}
+
+/** A few seconds of the sky as it moves (set going for the clip if it was paused, and paused again after). */
+async function clip(): Promise<void> {
+  if (drawing) return;
+  drawing = true;
+  const paused = !app.sim.playing;
+  if (paused) app.play(true);
+  toast(t('clip.recording', { s: CLIP_S }), (CLIP_S + 4) * 1000);
+  try {
+    const result = await recordClip(app, canvas, moment(), CLIP_S);
+    if (result === 'saved') toast(t('clip.saved'));
+    else if (result === 'failed') toast(t('clip.failed'));
+    else toastEl.classList.remove('show');
+  } finally {
+    drawing = false;
+    if (paused) app.play(false);
   }
 }
 
@@ -206,13 +293,15 @@ const LIGHT_PAPER = new Set(STYLES.filter(st => {
 let earthTold = false;
 
 app.onChange = () => {
-  if (app.view === 'earth' && !earthTold && !document.body.classList.contains('welcoming')) {
+  // (not while the tour shows the view: its own words say what it is)
+  if (app.view === 'earth' && !earthTold && !document.body.classList.contains('welcoming') && !tour.on) {
     earthTold = true;
-    toast('The Earth and the Moon at true scale: the Moon is ~30 Earths away. Zoom in on the Earth to see where the stations fly.', 6500);
+    toast(t('toast.earth'), 6500);
   }
   controls.refresh();
   panel.refresh();
   journeyBar.refresh();
+  tour.refresh();
   moments.refresh(panel.preset, app.view);
   document.body.classList.toggle('light-paper', LIGHT_PAPER.has(app.style));
   syncUrl();
@@ -221,6 +310,7 @@ app.onDraw = () => {
   controls.onDraw();
   panel.tick();
   journeyBar.onDraw();
+  sound.tick(app);
 };
 
 /* ---------- the room the controls leave ---------- */
@@ -252,7 +342,8 @@ app.freeRect = () => {
     if (m && m.width < W / 3) left = m.right + gap;
     else if (m) top = Math.max(top, m.bottom + gap);
   }
-  const j = journey ? box('journey-bar') : null;
+  // a journey's bar, or the tour's
+  const j = journey ? box('journey-bar') ?? box('tour-bar') : null;
   if (j) bottom = Math.min(bottom, j.top - gap);
   const p = box('panel');
   if (p) {
@@ -276,6 +367,8 @@ function measure(entry?: ResizeObserverEntry): void {
   const devW = box ? box.inlineSize : Math.round(cssW * devicePixelRatio), devH = box ? box.blockSize : Math.round(cssH * devicePixelRatio);
   app.resize({ cssW, cssH, devW: Math.max(1, devW), devH: Math.max(1, devH) });
   settle();
+  // an open sheet's figures follow its new width
+  panel.refresh();
 }
 measure();
 try {
@@ -302,7 +395,7 @@ if (url.born !== undefined) {
   const to = url.day ?? today(), life = lifeOf(isoDate(url.born), to);
   if (life) panel.flyLife(life, to, false);
 }
-if (reduceMotion) toast('Paused, as your device asks for reduced motion. Press play to set the planets moving.', 6500);
+if (reduceMotion) toast(t('toast.reduced'), 6500);
 // the device's wish can change while the page is open: follow it
 motionQuery.addEventListener('change', () => {
   reduceMotion = motionQuery.matches;
@@ -310,7 +403,7 @@ motionQuery.addEventListener('change', () => {
   app.reducedMotion = reduceMotion;
   if (reduceMotion && app.sim.playing) {
     app.play(false);
-    toast('Paused, as your device now asks for reduced motion. Press play to set the planets moving.', 6500);
+    toast(t('toast.reducedNow'), 6500);
   }
 });
 
@@ -330,7 +423,7 @@ document.body.classList.toggle('light-paper', LIGHT_PAPER.has(app.style));
 declare global {
   interface Window {
     /** The running explorer, for tests and the curious. */
-    __explorer?: { app: App; panel: Panel; styles: typeof STYLES };
+    __explorer?: { app: App; panel: Panel; tour: Tour; sound: Sonification; styles: typeof STYLES };
   }
 }
-window.__explorer = { app, panel, styles: STYLES };
+window.__explorer = { app, panel, tour, sound, styles: STYLES };

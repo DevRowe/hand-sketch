@@ -12,13 +12,15 @@ import type { View } from '../core/stage';
 import { C as EARTH_C } from '../scenes/cislunar/common';
 import type { Sky } from '../scenes/solar/sky';
 import { sceneMarks, pick, type BodyId, type Mark, type Pick, type Scene as Marks, type ViewId } from './bodies';
+import { drawDwarfs, dwarfMarks } from './beyond';
 import { Camera } from './camera';
 import { cometMarks, drawComets, type CometId } from './comets';
-import { LabelLayout } from './labels';
+import { LabelLayout, type Box } from './labels';
 import { drawLife, lifeFrame, type Life } from './life';
 import { drawNeighbourhood } from './neighbourhood';
 import { Renderer, type Size } from './renderer';
 import { drawSeasons } from './seasons';
+import { drawSoundLine } from './sound';
 import { clamp, Sim } from './sim';
 import { STYLES, type Style } from './styles';
 import { drawTonight } from './tonight';
@@ -31,7 +33,7 @@ export const BODY_NAMES: Readonly<Record<BodyId | 'belt', string>> = {
   jupiter: 'Jupiter', saturn: 'Saturn', uranus: 'Uranus', neptune: 'Neptune', belt: 'Asteroid belt',
   iss: 'ISS', tiangong: 'Tiangong', hubble: 'Hubble', mir: 'Mir', skylab: 'Skylab', salyut: 'Salyut 1', sputnik: 'Sputnik 1',
   leo: 'Low Earth orbit', gps: 'GPS · medium orbit', geo: 'Geostationary belt', starlink: 'Starlink',
-  halley: 'Halley’s Comet', atlas: '3I/ATLAS',
+  halley: 'Halley’s Comet', atlas: '3I/ATLAS', pluto: 'Pluto', kuiper: 'Kuiper belt',
 };
 
 /** Where the controls offer a view of the Earth and the Moon up close (their cards, the Earth's double-tap). */
@@ -42,8 +44,8 @@ const DONE = 1e9;
 
 /** Whose name wins when two would overlap. */
 const RANK: readonly BodyId[] = [
-  'sun', 'earth', 'jupiter', 'saturn', 'mars', 'venus', 'uranus', 'neptune', 'mercury', 'moon', 'halley', 'atlas',
-  'iss', 'tiangong', 'hubble', 'mir', 'skylab', 'salyut', 'sputnik', 'geo', 'gps', 'leo', 'starlink',
+  'sun', 'earth', 'jupiter', 'saturn', 'mars', 'venus', 'uranus', 'neptune', 'mercury', 'moon', 'halley', 'atlas', 'pluto',
+  'iss', 'tiangong', 'hubble', 'mir', 'skylab', 'salyut', 'sputnik', 'geo', 'gps', 'leo', 'starlink', 'kuiper',
 ];
 
 /** Most degrees the quickest motion on show may move between drawings before the cadence rises. */
@@ -85,13 +87,15 @@ const FOCUS: Partial<Record<BodyId, number>> = { earth: 30, moon: 40, iss: 45, t
 export type Overlay = (ctx: CanvasRenderingContext2D, app: App) => void;
 
 /**
- * What the Sky menu draws over the From above view: tonight's sight-lines from the Earth, the seasons (the axis, the
- * solstices and equinoxes) and the comets (on by default).
+ * What the menus draw over the From above view: the Sky menu's sight-lines from the Earth tonight, the seasons (the
+ * axis, the solstices and equinoxes) and the comets (on by default); the Scale menu's dwarf planets beyond Neptune
+ * (Pluto and the Kuiper belt, on by default).
  */
 export interface Layers {
   tonight: boolean;
   seasons: boolean;
   comets: boolean;
+  dwarfs: boolean;
 }
 
 export interface AppOptions {
@@ -126,8 +130,10 @@ export class App {
   private push = { factor: 1, at: 0 };
   /** Extra drawing over the scene (the jump-to presets' geometry). */
   overlay: Overlay | null = null;
-  /** The Sky menu's layers over the From above view. */
-  readonly layers: Layers = { tonight: false, seasons: false, comets: true };
+  /** The line the planets sound on, drawn over the From above view while the sound is on. */
+  soundLine = false;
+  /** The menus' layers over the From above view. */
+  readonly layers: Layers = { tonight: false, seasons: false, comets: true, dwarfs: true };
   /** A journey under way stops (and pauses) on this day. */
   private stopAt: number | null = null;
   /** Your years, drawn in the In motion view while they are on screen (`flyLife`), and the wake length they replaced. */
@@ -161,6 +167,8 @@ export class App {
   private readonly labelLayout = new LabelLayout();
   /** A name is waiting to fade in or out: place them again even if nothing is drawn. */
   private labelsPending = false;
+  /** Where the overlays set captions in the last drawing (CSS pixels): the names give way to them. */
+  captions: Box[] = [];
 
   constructor(private readonly o: AppOptions) {
     this.sim = o.sim;
@@ -289,10 +297,11 @@ export class App {
     this.changed();
   }
 
-  /** Switch one of the Sky menu's layers on or off (a comet selected goes with its layer). */
+  /** Switch one of the menus' layers on or off (a body selected goes with its layer). */
   setLayer(layer: keyof Layers, on: boolean): void {
     this.layers[layer] = on;
     if (layer === 'comets' && !on && (this.selected === 'halley' || this.selected === 'atlas')) this.select(null);
+    if (layer === 'dwarfs' && !on && (this.selected === 'pluto' || this.selected === 'kuiper')) this.select(null);
     this.changed();
   }
 
@@ -555,9 +564,10 @@ export class App {
 
   /* ---------- picking ---------- */
 
-  /** Every body a view draws under `sky`, with the comets where the Sky menu shows them. */
+  /** Every body a view draws under `sky`, with the comets and the dwarf planets where the menus show them. */
   private marksAt(view: ViewId, sky: Sky, zoom: number): Marks {
     const marks = sceneMarks(view, sky, zoom);
+    if (view === 'sky' && this.layers.dwarfs) marks.bodies.push(...dwarfMarks(sky.now));
     if (view === 'sky' && this.layers.comets) marks.bodies.push(...cometMarks(sky.now));
     return marks;
   }
@@ -567,6 +577,19 @@ export class App {
     if (!id || id === 'belt') return null;
     const marks = (!fresh && this.marks) || this.marksAt(this.view, this.sim.sky(), this.camera.target.zoom);
     return marks.bodies.find(b => b.id === id) ?? null;
+  }
+
+  /**
+   * Pick out the body after the selected one (or before it) among those the view draws, in their order out from the
+   * Sun (or the Earth), for stepping through them from the keyboard; null where the view draws none.
+   */
+  stepSelection(dir: 1 | -1): BodyId | null {
+    const ids = (this.marks ?? this.marksAt(this.view, this.sim.sky(), this.camera.zoom)).bodies.map(b => b.id), n = ids.length;
+    if (!n) return null;
+    const i = this.selected && this.selected !== 'belt' ? ids.indexOf(this.selected) : -1;
+    const next = ids[i < 0 ? (dir === 1 ? 0 : n - 1) : (i + dir + n) % n]!;
+    this.select(next, false);
+    return next;
   }
 
   /** The body under a point on screen (CSS pixels), as it was last drawn. */
@@ -645,6 +668,7 @@ export class App {
       }
     }
     const view: View = this.camera.view, step = this.sim.playing ? (this.sim.velocity * this.interval) / 1000 : 0;
+    this.captions = [];
     this.renderer.draw(this.scene, this.intro, sky, view, ctx => this.decorate(ctx, true), this.view === 'earth' ? { lens: true, step } : undefined);
     this.placeLabels();
     this.onDraw();
@@ -656,9 +680,11 @@ export class App {
    */
   private decorate(ctx: CanvasRenderingContext2D, selection: boolean): void {
     if (this.view === 'sky') {
+      if (this.layers.dwarfs) drawDwarfs(ctx, this, this.selected === 'pluto');
       if (this.layers.seasons) drawSeasons(ctx, this);
       if (this.layers.tonight) drawTonight(ctx, this);
       if (this.layers.comets) drawComets(ctx, this, (id: CometId) => id === this.selected);
+      if (this.soundLine) drawSoundLine(ctx, this);
     }
     this.overlay?.(ctx, this);
     if (this.life && this.view === 'wake') drawLife(ctx, this, this.life);
@@ -671,7 +697,11 @@ export class App {
    * (never part-way through a draw-on), without the selection ring.
    */
   still(scale: number): HTMLCanvasElement {
-    return this.renderer.still(scale, this.scene, this.sim.sky(), this.camera.view, ctx => this.decorate(ctx, false), this.view === 'earth' ? { lens: true, step: 0 } : undefined);
+    // the still's captions are its own: the names on screen keep to the last drawing's
+    const captions = this.captions;
+    const still = this.renderer.still(scale, this.scene, this.sim.sky(), this.camera.view, ctx => this.decorate(ctx, false), this.view === 'earth' ? { lens: true, step: 0 } : undefined);
+    this.captions = captions;
+    return still;
   }
 
   /** A ring round the selected body, the same width on screen at any zoom, legible on light and dark papers. */
@@ -740,7 +770,7 @@ export class App {
       if (card && x >= card.left && x <= card.right && y >= card.top && y <= card.bottom) return [];
       return [{ id: m.id, x, y, r: Math.max(m.id === 'sun' ? m.r : m.reach, m.r) * s, w, h: 18 }];
     });
-    const { labels, pending } = this.labelLayout.place(inputs, innerWidth, performance.now());
+    const { labels, pending } = this.labelLayout.place(inputs, innerWidth, performance.now(), this.captions);
     this.labelsPending = pending;
     const placed = new Set<string>();
     for (const l of labels) {

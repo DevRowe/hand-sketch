@@ -20,7 +20,7 @@ import type { App } from './app';
 import type { Mark } from './bodies';
 import { dateLabel } from './format';
 import { planPoint } from './orbits';
-import { drawMark, GOLD, haloStroke, polyline, text } from './overlays';
+import { drawMark, GOLD, haloStroke, polyline, rgba, text } from './overlays';
 import type { Preset } from './presets';
 
 export type CometId = 'halley' | 'atlas';
@@ -225,12 +225,6 @@ export function cometMarks(day: number): Mark[] {
     const p = cometOnPlan(COMETS[id], day);
     return p ? [{ id, x: p[0], y: p[1], r: 3.5, reach: 6 }] : [];
   });
-}
-
-/** "#rrggbb" at an opacity. */
-function rgba(hex: string, a: number): string {
-  const h = hex.replace('#', ''), n = parseInt(h.length === 3 ? [...h].map(c => c + c).join('') : h, 16);
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
 
 /**

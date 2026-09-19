@@ -1,6 +1,6 @@
 /**
- * The guide: short, sourced sections on orbits, moons, satellites, spaceflight, the far reaches and scale, plus an
- * honest word on the drawings themselves. Figures as of September 2026 (sources: SOURCES.md beside this file).
+ * The guide: a map of the explorer, then short, sourced sections on orbits, moons, satellites, spaceflight, the far
+ * reaches and scale, plus an honest word on the drawings themselves. Figures as of September 2026 (sources: SOURCES.md beside this file).
  */
 
 export interface Item {
@@ -17,6 +17,19 @@ export interface Section {
 }
 
 export const GUIDE: readonly Section[] = [
+  {
+    id: 'finding',
+    title: 'Finding your way',
+    intro: 'Three views along the top, time along the foot, and six menus for everything else.',
+    items: [
+      { title: 'Views', text: 'In motion: the Sun carrying its planets through space. From above: the planets’ real places on the date. Earth & Moon: the two at true scale, with the story of spaceflight.' },
+      { title: 'Time', text: 'Play or pause, pick a date, go back to today, choose a speed or run time in reverse; More holds the finer speed slider and the year.' },
+      { title: 'Moments', text: 'Real moments to set the sky to, many with a journey to fly, and the guided tour through the best of them.' },
+      { title: 'Sky', text: 'What you can see from the Earth: tonight’s planets, the Moon and eclipses, comets, and the seasons.' },
+      { title: 'Scale', text: 'How big and how far: the bodies side by side, true distances, Pluto and the Kuiper belt, and the Sun’s path round the galaxy.' },
+      { title: 'Look, You and the Guide', text: 'Look: the ten styles, the trails, names, zoom and the sound of the orbits. You: share this moment, save a picture or a clip, and fly your own years. The Guide: this.' },
+    ],
+  },
   {
     id: 'orbits',
     title: 'Orbits',
@@ -112,7 +125,7 @@ export const GUIDE: readonly Section[] = [
     intro: 'Nothing here is drawn to scale, and that is the only way it fits on a screen.',
     items: [
       { title: 'Light takes time', text: 'Sunlight takes 8 min 19 s to reach Earth, 3 min 13 s to Mercury, 43 min to Jupiter and 4 h 10 min to Neptune. A radio message to Mars takes 3 to 22 minutes each way, so rovers there must drive themselves.' },
-      { title: 'If the Sun were a 1 m ball', text: 'Earth would be a 9 mm pea 108 m away, Jupiter a 10 cm ball at 560 m, and Neptune a 3.6 cm marble 3.2 km off.' },
+      { title: 'If the Sun were a basketball', text: 'Earth would be a 2.2 mm mustard seed 26 m away, Jupiter a 2.5 cm walnut at 134 m, and Neptune an 8.5 mm pea 779 m off; the nearest star would be another basketball ~6,900 km away. The Scale menu lines them all up.' },
       { title: 'Room between Earth and the Moon', text: 'About 30 Earths would fit side by side in the 384,400 km to the Moon.' },
       { title: 'How the drawing cheats', text: 'The orbits here are spaced for the eye, not by distance (Neptune is 78 times as far out as Mercury), drawn as circles, and the planets are drawn huge. What is real is where each planet sits on its orbit, and the Moon round Earth, for the date shown, from JPL’s orbital elements.' },
     ],
@@ -144,6 +157,8 @@ export const SOURCES: readonly Source[] = [
   { label: 'Jonathan McDowell’s satellite statistics', href: 'https://planet4589.org/space/stats/active.html' },
   { label: 'NASA: International Space Station facts and figures', href: 'https://www.nasa.gov/international-space-station/space-station-facts-and-figures/' },
   { label: 'NASA: Earth’s Moon facts', href: 'https://science.nasa.gov/moon/facts/' },
+  { label: 'NASA: Pluto fact sheet (NSSDCA)', href: 'https://nssdc.gsfc.nasa.gov/planetary/factsheet/plutofact.html' },
+  { label: 'NASA Science: the Kuiper belt', href: 'https://science.nasa.gov/solar-system/kuiper-belt/' },
   { label: 'GPS.gov: the space segment', href: 'https://www.gps.gov/space-segment' },
   { label: 'NASA: Artemis II crew breaks the distance record', href: 'https://www.nasa.gov/news-release/nasas-artemis-ii-crew-eclipses-record-for-farthest-human-spaceflight' },
   { label: 'NASA: Artemis III in 2027, crew named', href: 'https://www.nasa.gov/news-release/nasa-marches-toward-artemis-iii-mission-in-2027-names-crew-members/' },

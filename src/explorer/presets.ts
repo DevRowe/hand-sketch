@@ -20,6 +20,7 @@ import { DAY, WEEK, YEAR } from './sim';
 import { SPACEFLIGHT } from './spaceflight';
 import { COMET_PRESETS } from './comets';
 import { ECLIPSES } from './eclipse';
+import { plutoAt } from './beyond';
 
 /** Days from J2000.0 of a UTC date and time. */
 export const utc = (y: number, m: number, d: number, h = 0, min = 0): number => dayOf(Date.UTC(y, m - 1, d, h, min));
@@ -212,10 +213,6 @@ const CASSINI = new Flight([
   wp('saturn', utc(2004, 7, 1, 2, 48), 'Saturn 2004'),
 ]);
 
-const plutoAt = (day: number): Polar => {
-  const h = heliocentric('pluto', day);
-  return { r: h.r * Math.cos(h.lat), lon: h.lon };
-};
 const NEW_HORIZONS = new Flight([
   wp('earth', utc(2006, 1, 19, 19), ''),
   wp('jupiter', utc(2007, 2, 28, 5, 44), 'Jupiter 2007'),
@@ -225,9 +222,9 @@ const NEW_HORIZONS = new Flight([
 const CURIOSITY = new Flight([wp('earth', utc(2011, 11, 26, 15, 2), 'Launch'), wp('mars', utc(2012, 8, 6, 5, 18), 'Landing')]);
 const PERSEVERANCE = new Flight([wp('earth', utc(2020, 7, 30, 11, 50), 'Launch'), wp('mars', utc(2021, 2, 18, 20, 44), 'Landing')]);
 
-/** Pluto marked on the plan, for New Horizons. */
+/** Pluto marked on the plan, for New Horizons (where Pluto is not drawn already, with its name). */
 function plutoMark(ctx: CanvasRenderingContext2D, app: App): void {
-  if (app.view !== 'sky') return;
+  if (app.view !== 'sky' || app.layers.dwarfs) return;
   drawMark(ctx, app, planPoint(plutoAt(app.sim.day)), 'Pluto', true);
 }
 
