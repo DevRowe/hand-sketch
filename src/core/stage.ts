@@ -99,6 +99,45 @@ interface Page {
   scaled: { canvas: HTMLCanvasElement; steps: Iterator<void> | null } | null;
   /** When it was last laid through a magnified view (performance.now()). */
   laidAt: number;
+  /** A texture (paper, tooth) that runs on, mirrored, where the view shows past the page's edge. */
+  bleed: boolean;
+  /**
+   * The part of `canvas` that holds anything, [x0, y0, x1, y1] output pixels: measured once it is drawn in full
+   * (undefined until then), null when it is empty. A still that fills a corner of the page is laid by that part only.
+   */
+  extent?: Extent | null | undefined;
+}
+
+type Extent = readonly [number, number, number, number];
+
+/**
+ * Compositing under which a transparent source pixel leaves the destination as it is: a layer laid with one of these
+ * may be laid by the part that holds anything, pixel for pixel the same.
+ */
+const TRANSPARENT_KEEPS = new Set<string>([
+  'source-over', 'source-atop', 'destination-over', 'destination-out', 'lighter', 'xor', 'multiply', 'screen', 'overlay',
+  'darken', 'lighten', 'color-dodge', 'color-burn', 'hard-light', 'soft-light', 'difference', 'exclusion', 'hue',
+  'saturation', 'color', 'luminosity',
+]);
+
+/** Where a canvas holds any pixel that is not fully transparent, or null if it holds none. */
+function measureExtent(canvas: HTMLCanvasElement): Extent | null {
+  const { width: W, height: H } = canvas, g = canvas.getContext('2d');
+  if (!g || !W || !H) return [0, 0, W, H];
+  const a = g.getImageData(0, 0, W, H).data;
+  let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  for (let y = 0; y < H; y++) {
+    const row = y * W * 4;
+    let first = -1, last = -1;
+    for (let x = 0; x < W; x++) if (a[row + x * 4 + 3]) { first = x; break; }
+    if (first < 0) continue;
+    for (let x = W - 1; x >= first; x--) if (a[row + x * 4 + 3]) { last = x; break; }
+    if (first < x0) x0 = first;
+    if (last > x1) x1 = last;
+    if (y < y0) y0 = y;
+    y1 = y;
+  }
+  return x1 < 0 ? null : [x0, y0, x1 + 1, y1 + 1];
 }
 
 /** Run a page build to its end. */
@@ -210,16 +249,18 @@ export class Stage implements FrameSize {
    * A page layer: `build` draws it once, in logical units over the whole page as the home view shows it, and it is
    * kept whatever the view does. Lay it with `lay` (or `blit`), which maps it through the view. `build` must draw only
    * page-locked content, and set transforms only through `reset` (never to the identity): it also draws sharp copies,
-   * under the live view and shifted by a margin.
+   * under the live view and shifted by a margin. A `bleed` layer is a texture that may run on past the page's edge:
+   * where the live view shows beyond the page (the explorer lets it slide under its controls), `lay` continues it
+   * mirrored across the edge, so paper and tooth meet their reflection without a seam; content (a still) stops there.
    */
-  pageLayer(key: string, build: PageBuild): HTMLCanvasElement {
+  pageLayer(key: string, build: PageBuild, bleed = false): HTMLCanvasElement {
     const id = `${key}@${this.outW}x${this.outH}`;
     const found = this.pages.get(id);
     if (found) return found.canvas;
     const canvas = document.createElement('canvas');
     canvas.width = this.outW;
     canvas.height = this.outH;
-    const page: Page = { canvas, build, sharp: null, next: null, scaled: null, laidAt: -1e9 };
+    const page: Page = { canvas, build, sharp: null, next: null, scaled: null, laidAt: -1e9, bleed };
     this.pages.set(id, page);
     this.pageOf.set(canvas, page);
     this.builds++;
@@ -267,6 +308,7 @@ export class Stage implements FrameSize {
       if (done) {
         this.pageOf.delete(page.canvas);
         page.canvas = sc.canvas;
+        page.extent = undefined;
         this.pageOf.set(page.canvas, page);
         page.scaled = null;
         finished = true;
@@ -373,22 +415,76 @@ export class Stage implements FrameSize {
     dx += this.shift;
     dy += this.shift;
     ctx.save();
-    const page = this.home ? undefined : this.pageOf.get(layer);
+    const known = this.pageOf.get(layer), page = this.home ? undefined : known;
+    // a still is laid by the part that holds anything (a Sun in the middle of the page costs its own size, not the page's)
+    const ext = known && !known.bleed && !known.scaled && TRANSPARENT_KEEPS.has(ctx.globalCompositeOperation) ? this.extentOf(known) : undefined;
+    if (ext === null) {
+      ctx.restore();
+      return;
+    }
     const sharp = page && this.sharpFor(page);
     if (page && !this.shift) page.laidAt = performance.now();
     if (sharp) {
       // drawn for this zoom: only shifted, by whole pixels so it stays crisp
-      const k = this.base * this.camera.zoom, v = sharp.view;
+      const k = this.base * this.camera.zoom, v = sharp.view, zoom = v.zoom;
+      const x = Math.round((v.x - this.camera.x) * k) - sharp.margin + dx, y = Math.round((v.y - this.camera.y) * k) - sharp.margin + dy;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.drawImage(sharp.canvas, Math.round((v.x - this.camera.x) * k) - sharp.margin + dx, Math.round((v.y - this.camera.y) * k) - sharp.margin + dy);
+      if (ext) {
+        // the extent, mapped onto the copy (drawn under `v`, a margin in), with room for its softer edges
+        const ox = this.base * (this.w / 2 - zoom * v.x) + sharp.margin, oy = this.base * (this.h / 2 - zoom * v.y) + sharp.margin;
+        const r = this.within(sharp.canvas, ext[0] * zoom + ox, ext[1] * zoom + oy, ext[2] * zoom + ox, ext[3] * zoom + oy, 2 + 2 * zoom);
+        if (r) ctx.drawImage(sharp.canvas, r[0], r[1], r[2], r[3], x + r[0], y + r[1], r[2], r[3]);
+      } else ctx.drawImage(sharp.canvas, x, y);
     } else if (page) {
       const { zoom, x, y } = this.camera;
       ctx.setTransform(zoom, 0, 0, zoom, this.base * (this.w / 2 - zoom * x) + dx, this.base * (this.h / 2 - zoom * y) + dy);
-      ctx.drawImage(layer, 0, 0, this.outW, this.outH);
+      const r = ext && this.within(layer, ext[0], ext[1], ext[2], ext[3], 2);
+      if (r) ctx.drawImage(layer, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]);
+      else if (!ext) ctx.drawImage(layer, 0, 0, this.outW, this.outH);
     } else {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.drawImage(layer, dx, dy, this.outW, this.outH);
+      if (ext) ctx.drawImage(layer, ext[0], ext[1], ext[2] - ext[0], ext[3] - ext[1], ext[0] + dx, ext[1] + dy, ext[2] - ext[0], ext[3] - ext[1]);
+      else ctx.drawImage(layer, dx, dy, this.outW, this.outH);
     }
+    if (page?.bleed) this.bleed(ctx, page.canvas, dx, dy);
     ctx.restore();
+  }
+
+  /** A page layer's extent, measured the first time it is laid whole. */
+  private extentOf(page: Page): Extent | null {
+    if (page.extent === undefined) page.extent = measureExtent(page.canvas);
+    return page.extent;
+  }
+
+  /** The box [x0, y0, x1, y1] grown by `pad` and rounded out to whole pixels, within `canvas`: [x, y, w, h], or null. */
+  private within(canvas: HTMLCanvasElement, x0: number, y0: number, x1: number, y1: number, pad: number): [number, number, number, number] | null {
+    const a = Math.max(0, Math.floor(x0 - pad)), b = Math.max(0, Math.floor(y0 - pad));
+    const c = Math.min(canvas.width, Math.ceil(x1 + pad)), d = Math.min(canvas.height, Math.ceil(y1 + pad));
+    return c > a && d > b ? [a, b, c - a, d - b] : null;
+  }
+
+  /** Continue a page texture mirrored across each edge of the page the view shows, outside the page only. */
+  private bleed(ctx: Ctx, layer: HTMLCanvasElement, dx: number, dy: number): void {
+    const { zoom, x, y } = this.camera, W = ctx.canvas.width, H = ctx.canvas.height;
+    const x0 = this.base * (this.w / 2 - zoom * x) + dx, y0 = this.base * (this.h / 2 - zoom * y) + dy;
+    const x1 = x0 + zoom * this.outW, y1 = y0 + zoom * this.outH;
+    if (x0 <= 0 && y0 <= 0 && x1 >= W && y1 >= H) return;
+    // mirrored about lines a pixel inside the edge, so the copies overlap the page's soft last pixel and no seam of
+    // the desk shows between them
+    const e = 1, [mx0, my0, mx1, my1] = [x0 + e, y0 + e, x1 - e, y1 - e];
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.beginPath();
+    ctx.rect(0, 0, W, H);
+    ctx.rect(mx0, my0, mx1 - mx0, my1 - my0);
+    ctx.clip('evenodd');
+    for (const i of [-1, 0, 1]) {
+      if ((i < 0 && x0 <= 0) || (i > 0 && x1 >= W)) continue;
+      for (const j of [-1, 0, 1]) {
+        if ((!i && !j) || (j < 0 && y0 <= 0) || (j > 0 && y1 >= H)) continue;
+        // a copy flipped about the line it lies beyond: page point p lands at 2 * line - p
+        ctx.setTransform(i ? -zoom : zoom, 0, 0, j ? -zoom : zoom, i < 0 ? 2 * mx0 - x0 : i > 0 ? 2 * mx1 - x0 : x0, j < 0 ? 2 * my0 - y0 : j > 0 ? 2 * my1 - y0 : y0);
+        ctx.drawImage(layer, 0, 0, this.outW, this.outH);
+      }
+    }
   }
 }

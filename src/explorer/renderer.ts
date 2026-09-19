@@ -13,7 +13,9 @@
  * - Stages are kept per backing size, with their caches: stepping the resolution and back, or returning to a style,
  *   costs no rebuild.
  * - The heaviest styles draw to a smaller pixel budget on dense screens and let the browser scale up: hand-drawn marks
- *   bear it far better than the governor's deeper steps.
+ *   bear it far better than the governor's deeper steps. A phone's budget is smaller still, and smallest In motion,
+ *   whose every plate is redrawn as the Sun travels; there the governor also keeps each frame short of a long task, so
+ *   a touch is never kept waiting behind a drawing.
  * - A lens scene (the Earth and Moon view) is handed the view instead of drawn through it: the stage stays home, so its
  *   paper stays put, and the scene maps its own geometry (`scenes/cislunar/lens.ts`).
  * - Crossing between the plans and the Earth and Moon view, the last picture swells or shrinks into the new one and
@@ -22,7 +24,9 @@
 import { DEFAULT_SETTINGS, drawScene, ON_TWOS, toFrames, type Scene } from '../core/scene';
 import { Stage, type View } from '../core/stage';
 import type { Sky } from '../scenes/solar/sky';
-import { enter, frameFit, type Frame } from '../scenes/solar/common';
+import { enter, frameFit, type DesignBox, type Frame } from '../scenes/solar/common';
+import { halftone } from '../scenes/gallery/common';
+import type { ViewId } from './bodies';
 
 /** Resolution levels, as fractions of the full backing size. */
 const LEVELS = [1, 0.84, 0.7, 0.58, 0.48, 0.4];
@@ -30,6 +34,19 @@ const LEVELS = [1, 0.84, 0.7, 0.58, 0.48, 0.4];
 const MAX_DPR = 2;
 /** Most backing pixels for the heaviest styles (about a 1440-wide screen at 1.5 device pixels per CSS pixel). */
 const HEAVY_PIXELS = 2.5e6;
+/** A phone: a screen whose short side is at most this many CSS pixels. */
+const PHONE_SIDE = 540;
+/**
+ * Most backing pixels on a phone, by view: for the heaviest styles, then the rest (about 1.2 and 1.6 device pixels per
+ * CSS pixel In motion on a 390-wide phone; an upright phone's canvas holds ~0.33 million CSS pixels).
+ */
+const PHONE_PIXELS: Readonly<Record<ViewId, readonly [heavy: number, light: number]>> = {
+  wake: [0.5e6, 0.8e6],
+  sky: [0.8e6, Infinity],
+  earth: [Infinity, Infinity],
+};
+/** Most milliseconds a phone's frame may take: past 50 ms it is a long task, and a touch waits behind it. */
+const PHONE_FRAME_MS = 48;
 /** Stages (with their caches) kept for recent backing sizes. */
 const KEEP_STAGES = 3;
 /** Laid under every drawing, so nothing of the last one shows through a scene that leaves a gap. */
@@ -39,6 +56,8 @@ const DESK = '#0b0d12';
 export interface DrawOptions {
   lens: boolean;
   step: number;
+  /** The sheet a plan's fixed pieces keep to: the room the controls leave, design units (`RoomFrame`). */
+  room?: DesignBox | undefined;
 }
 
 interface Crossing {
@@ -89,7 +108,8 @@ class Governor {
   observe(scene: string, cost: number, js: number, interval: number, dt: number): boolean {
     this.clock += dt;
     this.cooldown -= dt;
-    this.recent.push({ slow: cost > interval * 1.3 + 4, roomy: cost <= interval * 1.1 + 2 && js < interval * 0.3 });
+    // slow: it missed its slot; roomy: it left a quarter of it free, little of it in script
+    this.recent.push({ slow: cost > interval + 2, roomy: cost <= interval * 0.75 && js < interval * 0.3 });
     if (this.recent.length > 10) this.recent.shift();
     if (this.cooldown > 0 || this.recent.length < 10) return false;
     const slow = this.recent.filter(f => f.slow).length;
@@ -116,8 +136,8 @@ export class Renderer {
   private last: Stage | null = null;
   /** Stages by backing size, most recent last. */
   private readonly stages = new Map<string, Stage>();
-  /** Backing pixels the current style may use at most. */
-  private budget = Infinity;
+  /** What is drawn, for the pixel budget: one of the heaviest styles, in which view. */
+  private load: { heavy: boolean; view: ViewId } = { heavy: false, view: 'wake' };
   /** The last draw built caches (its cost is no guide to the steady one). */
   private built = false;
   private size: Size = { cssW: 1, cssH: 1, devW: 1, devH: 1 };
@@ -134,6 +154,8 @@ export class Renderer {
   private resting = false;
 
   constructor(readonly canvas: HTMLCanvasElement) {
+    // moving halftones are redrawn every frame here: filled as patterns, not dot by dot
+    halftone.live = true;
     const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) throw new Error('2D canvas context unavailable');
     this.ctx = ctx;
@@ -149,12 +171,20 @@ export class Renderer {
     this.stages.clear();
   }
 
-  /** Whether the style drawn is one of the heaviest, which draw to a smaller pixel budget. */
-  setHeavy(on: boolean): void {
-    const budget = on ? HEAVY_PIXELS : Infinity;
-    if (budget === this.budget) return;
-    this.budget = budget;
-    this.stage = null;
+  /** What is drawn: whether the style is one of the heaviest, and the view; both set the pixel budget. */
+  setLoad(heavy: boolean, view: ViewId): void {
+    const before = this.budget;
+    this.load = { heavy, view };
+    if (this.budget !== before) this.stage = null;
+  }
+
+  /** Whether the screen is a phone's. */
+  private get phone(): boolean { return Math.min(this.size.cssW, this.size.cssH) <= PHONE_SIDE; }
+
+  /** Backing pixels the drawing may use at most (a phone's smaller budget is for motion: at rest it draws sharp). */
+  private get budget(): number {
+    const { heavy, view } = this.load, desk = heavy ? HEAVY_PIXELS : Infinity;
+    return this.phone && !this.resting ? Math.min(desk, PHONE_PIXELS[view][heavy ? 0 : 1]) : desk;
   }
 
   /** The stage for the current size, budget and resolution level. */
@@ -255,7 +285,7 @@ export class Renderer {
     ctx.fillStyle = DESK;
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     const rest = toFrames(scene.loopFrom ?? 0, ON_TWOS.fps);
-    drawScene(ctx, stage, scene, Math.min(rest, Math.max(0, intro)), ON_TWOS, DEFAULT_SETTINGS, o?.lens ? { sky, lens: view, step: o.step } : { sky });
+    drawScene(ctx, stage, scene, Math.min(rest, Math.max(0, intro)), ON_TWOS, DEFAULT_SETTINGS, o?.lens ? { sky, lens: view, step: o.step } : o?.room ? { sky, room: o.room } : { sky });
     if (overlay) {
       ctx.save();
       const k = stage.base * view.zoom;
@@ -307,7 +337,7 @@ export class Renderer {
     this.drawStart = -1;
     // a drawing at rest keeps no pace, and one that built caches says nothing of the steady cost
     if (this.built || this.resting) return false;
-    if (this.governor.observe(this.sceneName, cost, this.drawJs, interval, dt)) {
+    if (this.governor.observe(this.sceneName, cost, this.drawJs, this.phone ? Math.min(interval, PHONE_FRAME_MS) : interval, dt)) {
       this.stage = null;
       return true;
     }
@@ -348,13 +378,15 @@ export class Renderer {
 
   /**
    * Whether the picture is at rest (paused, the camera and the trails still). At rest nothing has a pace to keep, so it
-   * is drawn at full resolution (a heavy style's paper sharpening in idle slices); the level the governor chose for
-   * motion comes back the moment anything moves, its stage kept. True when that changes the resolution.
+   * is drawn at full resolution, past a phone's motion budget (a heavy style's paper sharpening in idle slices); the
+   * level the governor chose for motion comes back the moment anything moves, its stage kept. True when that changes
+   * the resolution.
    */
   rest(on: boolean): boolean {
     if (on === this.resting) return false;
+    const budget = this.budget;
     this.resting = on;
-    if (this.governor.level === 0) return false;
+    if (this.governor.level === 0 && this.budget === budget) return false;
     this.stage = null;
     return true;
   }

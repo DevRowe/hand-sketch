@@ -228,6 +228,59 @@ export function once<T>(build: () => T): () => T {
   return () => (v ??= build());
 }
 
+/** A box in design units: [x0, y0, x1, y1]. */
+export type DesignBox = readonly [number, number, number, number];
+
+/**
+ * The live explorer hands a scene the room its controls leave clear (at its home view, in design units) as `room`:
+ * the sheet a viewer sees. A print's fixed pieces (a seal, a colour block) keep to its corners there, and a field
+ * composed to stop at the design box's margin runs on to the page's edges. Renders hand in no room: their sheet is the
+ * design box, pixel for pixel as it always was.
+ */
+export interface RoomFrame {
+  room?: DesignBox;
+}
+
+/** The room a scene is drawn for, or null in a render. */
+export const roomOf = (f: SceneFrame): DesignBox | null => (f as RoomFrame).room ?? null;
+
+/** The sheet a scene's fixed pieces are placed on: the live room, or the design box. */
+export const sheetOf = (f: SceneFrame): DesignBox => roomOf(f) ?? [0, 0, BOX, BOX];
+
+/** How far a piece composed in the design box's top-right corner moves to keep to the sheet's (nothing in a render). */
+export function topRight(f: SceneFrame): Vec2 {
+  const r = roomOf(f);
+  return r ? [r[2] - BOX, r[1]] : [0, 0];
+}
+
+/** The whole page (the stage's logical frame) in design units. */
+export function pageOf(fr: Frame, w: number, h: number): DesignBox {
+  return [-fr.ox / fr.s, -fr.oy / fr.s, (w - fr.ox) / fr.s, (h - fr.oy) / fr.s];
+}
+
+const beyond = new Map<string, [number, number, number][]>();
+
+/**
+ * Stars for the part of `page` beyond the design box, where a live field runs on past it: `perBox` to each box's worth
+ * of area, seeded, none within the box (its own stars stay as they are); [x, y, size], sizes as the box's are drawn.
+ */
+export function starsBeyond(page: DesignBox, perBox: number, seed: number): readonly [number, number, number][] {
+  const [x0, y0, x1, y1] = page.map(Math.round) as unknown as DesignBox, key = `${x0}:${y0}:${x1}:${y1}:${perBox}:${seed}`;
+  let out = beyond.get(key);
+  if (!out) {
+    out = [];
+    const r = rng(seed), n = Math.round((perBox * ((x1 - x0) * (y1 - y0) - BOX * BOX)) / (BOX * BOX));
+    // a page barely wider than the box may have no room for them: give up after a fair search
+    for (let tries = 0; out.length < n && tries < 200 * n; tries++) {
+      const x = x0 + 10 + r() * (x1 - x0 - 20), y = y0 + 10 + r() * (y1 - y0 - 20), size = 1.2 + Math.pow(r(), 2) * 3.4;
+      if (x > -10 && x < BOX + 10 && y > -10 && y < BOX + 10) continue;
+      out.push([x, y, size]);
+    }
+    beyond.set(key, out);
+  }
+  return out;
+}
+
 /** Enter the design box on `ctx` (callers wrap it in save/restore). */
 export function enter(ctx: CanvasRenderingContext2D, fr: Frame): void {
   ctx.translate(fr.ox, fr.oy);

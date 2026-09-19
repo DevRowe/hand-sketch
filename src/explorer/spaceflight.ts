@@ -8,7 +8,8 @@
  * "~" marks roundings. Paths are representative (`trajectories.ts`): real dates, heights and tilts, simplest orbits.
  */
 import type { Vec2 } from '../core/math';
-import { EARTH_EQ, EARTH_R, hiddenByEarth, moonAt, onPage, units, utc } from '../scenes/cislunar/common';
+import { EARTH_EQ, EARTH_R, hiddenByEarth, moonAt, onPage, orbitAt, units, utc, type V3 } from '../scenes/cislunar/common';
+import { flying, trackedById } from '../scenes/cislunar/objects';
 import type { App } from './app';
 import { drawCraft, drawMark, drawPath } from './overlays';
 import type { Preset } from './presets';
@@ -175,7 +176,12 @@ export const FLIGHTS = { VOSTOK_1, FRIENDSHIP_7, GEMINI_11, SHENZHOU_5, APOLLO_8
 
 /* ---------- the moments ---------- */
 
-export const SPACEFLIGHT: readonly Preset[] = [
+/** A moment, with the flight it draws (and the craft's name) if it follows one. */
+interface Moment extends Preset {
+  flight?: readonly [Flight, string];
+}
+
+const MOMENTS: readonly Moment[] = [
   {
     id: 'sputnik', group: 'The space age', title: 'Sputnik 1', kicker: 'The first satellite.',
     day: () => utc(1957, 10, 4, 19, 28), view: 'earth', frame: upTo(1100), select: 'sputnik', pace: MINUTE,
@@ -195,7 +201,7 @@ export const SPACEFLIGHT: readonly Preset[] = [
     id: 'gagarin', group: 'The space age', title: 'Yuri Gagarin', kicker: 'The first person in space: one lap of the Earth.',
     day: () => utc(1961, 4, 12, 6, 7), view: 'earth', frame: upTo(450), pace: MINUTE,
     journey: () => ({ from: utc(1961, 4, 12, 6, 7), to: utc(1961, 4, 12, 7, 55), pace: 6 * MINUTE, label: 'Fly the 108 minutes' }),
-    overlay: flightOverlay(VOSTOK_1, 'Vostok 1'),
+    flight: [VOSTOK_1, 'Vostok 1'],
     card: () => ({
       when: '12 April 1961, 06:07 to 07:55 UTC',
       intro: 'Vostok 1 carried Yuri Gagarin once round the Earth, ~181 to ~327 km up, in 108 minutes from launch to landing. He ejected at about 7 km and came down by parachute near Saratov.',
@@ -215,7 +221,7 @@ export const SPACEFLIGHT: readonly Preset[] = [
     id: 'glenn', group: 'The space age', title: 'John Glenn, Friendship 7', kicker: 'The first American in orbit: three laps in Mercury.',
     day: () => utc(1962, 2, 20, 14, 47), view: 'earth', frame: upTo(350), pace: 2 * MINUTE,
     journey: () => ({ from: utc(1962, 2, 20, 14, 47), to: utc(1962, 2, 20, 19, 42), pace: 16 * MINUTE, label: 'Fly the three laps' }),
-    overlay: flightOverlay(FRIENDSHIP_7, 'Friendship 7'),
+    flight: [FRIENDSHIP_7, 'Friendship 7'],
     card: () => ({
       when: '20 February 1962, from 14:47 UTC',
       intro: 'Mercury’s one-person capsule carried John Glenn three times round the Earth in 4 hours 55 minutes, ~161 to ~261 km up.',
@@ -248,7 +254,7 @@ export const SPACEFLIGHT: readonly Preset[] = [
   {
     id: 'gemini-11', group: 'The space age', title: 'Gemini 11’s record orbit', kicker: 'Two laps 1,369 km up: the highest crewed Earth orbit until 2024.',
     day: () => utc(1966, 9, 14, 2, 12), view: 'earth', frame: upTo(1450), pace: 2 * MINUTE,
-    overlay: flightOverlay(GEMINI_11, 'Gemini 11'),
+    flight: [GEMINI_11, 'Gemini 11'],
     card: () => ({
       when: '14 September 1966',
       intro: 'Pete Conrad and Dick Gordon fired the engine of the Agena target they had docked with and climbed to 1,369 km, twice round the Earth on a stretched orbit, before coming back down.',
@@ -264,7 +270,7 @@ export const SPACEFLIGHT: readonly Preset[] = [
     id: 'apollo-8', group: 'To the Moon', title: 'Apollo 8', kicker: 'The first people round the Moon, and Earthrise.',
     day: () => utc(1968, 12, 24, 9, 59), view: 'earth', pace: 6 * HOUR,
     journey: () => ({ from: utc(1968, 12, 21, 12, 51), to: utc(1968, 12, 27, 15, 52), pace: 8 * HOUR, label: 'Fly the six days' }),
-    overlay: flightOverlay(APOLLO_8, 'Apollo 8'),
+    flight: [APOLLO_8, 'Apollo 8'],
     card: () => ({
       when: 'In lunar orbit 24-25 December 1968',
       intro: 'Frank Borman, Jim Lovell and Bill Anders were the first people to leave Earth orbit. They circled the Moon ten times, and on the fourth lap Anders photographed the Earth rising over its horizon.',
@@ -281,7 +287,7 @@ export const SPACEFLIGHT: readonly Preset[] = [
     day: () => utc(1969, 7, 20, 20, 17), view: 'earth', pace: 6 * HOUR,
     related: { id: 'apollo-11', label: 'See it among the planets' },
     journey: () => ({ from: utc(1969, 7, 16, 13, 32), to: utc(1969, 7, 24, 16, 51), pace: 12 * HOUR, label: 'Fly the eight days' }),
-    overlay: flightOverlay(APOLLO_11, 'Apollo 11'),
+    flight: [APOLLO_11, 'Apollo 11'],
     card: () => ({
       when: 'Landing: 20 July 1969, 20:17 UTC',
       intro: 'After a lap and a half of the Earth in a ~185 km parking orbit, the third stage fired at 16:16 UTC and sent Armstrong, Aldrin and Collins towards where the Moon would be three days later, at ~10.8 km/s (~39,000 km/h).',
@@ -302,7 +308,7 @@ export const SPACEFLIGHT: readonly Preset[] = [
     id: 'apollo-13', group: 'To the Moon', title: 'Apollo 13', kicker: '“Houston, we’ve had a problem”: home round the far side.',
     day: () => utc(1970, 4, 15, 0, 21), view: 'earth', pace: 6 * HOUR,
     journey: () => ({ from: utc(1970, 4, 11, 19, 13), to: utc(1970, 4, 17, 18, 8), pace: 8 * HOUR, label: 'Fly the six days' }),
-    overlay: flightOverlay(APOLLO_13, 'Apollo 13'),
+    flight: [APOLLO_13, 'Apollo 13'],
     card: () => ({
       when: 'Round the Moon: 15 April 1970, 00:21 UTC',
       intro: 'An oxygen tank burst 56 hours out. Jim Lovell, Jack Swigert and Fred Haise shut down the command module, lived in the lunar module and swung round the far side, 254 km up, to fall back to Earth.',
@@ -318,7 +324,7 @@ export const SPACEFLIGHT: readonly Preset[] = [
     id: 'apollo-17', group: 'To the Moon', title: 'Apollo 17', kicker: 'The last people on the Moon, and the Blue Marble.',
     day: () => utc(1972, 12, 11, 19, 55), view: 'earth', pace: 6 * HOUR,
     journey: () => ({ from: utc(1972, 12, 7, 5, 33), to: utc(1972, 12, 19, 19, 25), pace: 16 * HOUR, label: 'Fly the twelve days' }),
-    overlay: flightOverlay(APOLLO_17, 'Apollo 17'),
+    flight: [APOLLO_17, 'Apollo 17'],
     card: () => ({
       when: 'Landing: 11 December 1972, 19:55 UTC',
       intro: 'Eugene Cernan and Harrison Schmitt, the only geologist to walk on the Moon, spent three days in the valley of Taurus-Littrow while Ronald Evans circled overhead. On the way out the crew took the Blue Marble, the whole sunlit Earth.',
@@ -445,7 +451,7 @@ export const SPACEFLIGHT: readonly Preset[] = [
     id: 'shenzhou-5', group: 'The space age', title: 'Shenzhou 5', kicker: 'Yang Liwei, China’s first astronaut.',
     day: () => utc(2003, 10, 15, 1, 0), view: 'earth', frame: upTo(420), pace: 2 * MINUTE,
     journey: () => ({ from: utc(2003, 10, 15, 1, 0), to: utc(2003, 10, 15, 22, 23), pace: 75 * MINUTE, label: 'Fly the 14 laps' }),
-    overlay: flightOverlay(SHENZHOU_5, 'Shenzhou 5'),
+    flight: [SHENZHOU_5, 'Shenzhou 5'],
     card: () => ({
       when: '15 October 2003, from 01:00 UTC',
       intro: 'China became the third country to fly a person into orbit on its own: Yang Liwei made 14 laps in 21 hours 23 minutes, ~332 to 336 km up.',
@@ -498,7 +504,7 @@ export const SPACEFLIGHT: readonly Preset[] = [
     id: 'artemis-1', group: 'To the Moon', title: 'Artemis I', kicker: 'Orion flies past the Moon, uncrewed, and loops beyond it.',
     day: () => utc(2022, 11, 28, 21, 52), view: 'earth', pace: 12 * HOUR,
     journey: () => ({ from: utc(2022, 11, 16, 6, 48), to: utc(2022, 12, 11, 17, 40), pace: 1.5 * DAY, label: 'Fly the 25 days' }),
-    overlay: flightOverlay(ARTEMIS_1, 'Orion'),
+    flight: [ARTEMIS_1, 'Orion'],
     card: () => ({
       when: 'Launched 16 November 2022, 06:47 UTC',
       intro: 'The first flight of NASA’s SLS rocket sent an empty Orion capsule past the Moon’s far side, 130 km up, into a distant retrograde orbit, looping the Moon against its own motion, for about six days.',
@@ -514,7 +520,7 @@ export const SPACEFLIGHT: readonly Preset[] = [
     id: 'artemis-2', group: 'To the Moon', title: 'Artemis II', kicker: 'The first people round the Moon since 1972, and farther than ever.',
     day: () => utc(2026, 4, 6, 23, 2), view: 'earth', pace: 6 * HOUR,
     journey: () => ({ from: utc(2026, 4, 1, 22, 35), to: utc(2026, 4, 11, 0, 7), pace: 12 * HOUR, label: 'Fly the nine days' }),
-    overlay: flightOverlay(ARTEMIS_2, 'Orion'),
+    flight: [ARTEMIS_2, 'Orion'],
     card: () => ({
       when: 'Round the Moon: 6 April 2026',
       intro: 'Reid Wiseman, Victor Glover, Christina Koch and Jeremy Hansen spent a day in a high orbit round the Earth (~192 × 70,174 km), then flew a free return round the Moon’s far side, 6,545 km up.',
@@ -562,6 +568,19 @@ export const SPACEFLIGHT: readonly Preset[] = [
     }),
   },
 ];
+
+export const SPACEFLIGHT: readonly Preset[] = MOMENTS.map(({ flight, ...p }) => (flight ? { ...p, overlay: flightOverlay(...flight) } : p));
+
+/**
+ * Where a moment's subject is at `day`, km (ecliptic): its flight's craft while it flies, or the station it selects while
+ * that is in orbit; null for a moment about a height or a crowd.
+ */
+export function subjectAt(id: string, day: number): V3 | null {
+  const m = MOMENTS.find(q => q.id === id), f = m?.flight?.[0];
+  if (f) return day >= f.start && day <= f.end ? f.at(day) : null;
+  const t = m?.select ? trackedById(m.select) : undefined;
+  return t && flying(t, day) ? orbitAt(t.orbit, day) : null;
+}
 
 /** The spaceflight timeline, with the short name each goes by. */
 export const SPACEFLIGHT_FEATURED: readonly [id: string, short: string][] = [

@@ -1,11 +1,11 @@
 /**
  * Where the bodies' names go, drawing after drawing, without flicker. Each name sits beside its body, on the right
- * unless that would run off the screen; where a more important name already stands it waits, faded out, until the
- * bodies part. Three kinds of hysteresis keep names from popping as the bodies move:
+ * unless that would run out of the room the controls leave; where a more important name already stands (or a caption,
+ * or a control floating over the picture) it waits, faded out, until the bodies part. Three kinds of hysteresis keep names from popping as the bodies move:
  *
  * - space: a name on show keeps its place while it overlaps a neighbour by a few pixels, and a hidden one returns only
  *   once there is clear room round it;
- * - side: a name moved to the left at the screen's edge returns to the right only once it clearly fits there;
+ * - side: a name moved to the left at the room's edge returns to the right only once it clearly fits there;
  * - time: a name must want to hide (or to return) for a moment before it does, so a body grazing another does not
  *   blink it on and off, and the change itself is a CSS fade.
  *
@@ -45,7 +45,7 @@ const ROOM = 5;
 /** Milliseconds a name must want to hide, or to return, before it does. */
 const HIDE_AFTER = 160;
 const SHOW_AFTER = 650;
-/** Gap between a body's edge and its name, and between a name and the screen's right edge. */
+/** Gap between a body's edge and its name, and between a name and the room's right edge. */
 const GAP = 6;
 const EDGE = 4;
 
@@ -64,12 +64,13 @@ export class LabelLayout {
   }
 
   /**
-   * Place `labels`, given in order of importance (the first wins any clash), on a screen `width` pixels wide at time
-   * `now` (ms), clear of `blocked` (captions drawn into the picture, which every name gives way to). Names not handed in
-   * this time are forgotten. `pending` says some name is waiting to change: place again a little later even if nothing
-   * moves.
+   * Place `labels`, given in order of importance (the first wins any clash), within `room` (the part of the screen the
+   * controls leave) at time `now` (ms), clear of `blocked` (captions drawn into the picture and controls floating over
+   * it, which every name gives way to). Names not handed in this time are forgotten. `pending` says some name is
+   * waiting to change: place again a little later even if nothing moves.
    */
-  place(labels: readonly LabelIn[], width: number, now: number, blocked: readonly Box[] = []): { labels: LabelOut[]; pending: boolean } {
+  place(labels: readonly LabelIn[], room: Box, now: number, blocked: readonly Box[] = []): { labels: LabelOut[]; pending: boolean } {
+    const width = room[2];
     const placed: Box[] = [...blocked], out: LabelOut[] = [], seen = new Set<string>();
     let pending = false;
     for (const l of labels) {

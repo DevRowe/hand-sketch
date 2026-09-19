@@ -12,7 +12,7 @@ import { noise1, rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { drawStroke, prepareStroke, type PreparedStroke, type StrokeStyle } from '../../core/stroke';
 import { circle, composite, ground, ink, knockOut, polyPath, still, toothMask } from '../gallery/common';
-import { annulus, brushChar, C, dayHalf, disc, enter, frameFit, LOOP, MOON, moonOffset, once, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type PlanetName } from './common';
+import { annulus, BOX, brushChar, C, dayHalf, disc, enter, frameFit, LOOP, MOON, moonOffset, once, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, pageOf, rockAt, roomOf, sheetOf, SUN_R, sunward, topRight, URANUS_RING, type DesignBox, type Frame, type PlanetName } from './common';
 import { skyOf } from './sky';
 import { orbitTrail } from './trails';
 import { SOLAR } from './palettes';
@@ -33,7 +33,6 @@ interface Layout {
   rims: PreparedStroke[];
   sun: PreparedStroke[];
   rings: PreparedStroke[]; uranusRing: PreparedStroke; moon: PreparedStroke;
-  frame: PreparedStroke[];
   rays: Vec2[][];
 }
 
@@ -52,16 +51,31 @@ const layout = once((): Layout => {
   const rings = [RINGS.inner, RINGS.outer].map((r, k) => prepareStroke(ellipsePoints(0, 0, r, r * RINGS.squash, { rotation: RINGS.angle, start: 0, n: 60 }), { ...CUT, size: 1.9, taperStart: 1, taperEnd: 1 }, 1250 + k, { closed: true }));
   const uranusRing = prepareStroke(ellipsePoints(0, 0, URANUS_RING.rx, URANUS_RING.ry, { rotation: URANUS_RING.angle, start: 0, n: 40 }), { ...CUT, size: 1.5, taperStart: 1, taperEnd: 1 }, 1255, { closed: true });
   const moon = prepareStroke(circle(0, 0, MOON.r, 14), { ...CUT, size: 1.4, taperStart: 1, taperEnd: 1 }, 1256, { closed: true });
-  // the border rule, the cartouche (upper right) and a kento registration mark in the lower-left margin
-  const b = BORDER, e = 1080 - BORDER;
-  const frame = ([
-    [[b, b], [e, b], [e, e], [b, e], [b, b]],
-    [[980, 34], [1042, 34], [1042, 238], [980, 238], [980, 34]],
-    [[986, 40], [1036, 40], [1036, 232], [986, 232], [986, 40]],
-    [[b - 4, e + 16], [b + 44, e + 16]], [[b - 4, e + 16], [b - 4, e - 22]],
-  ] as Vec2[][]).map((pts, k) => prepareStroke(pts, { ...CUT, size: k === 0 ? 3.2 : 2, wobble: 0.3, taperStart: 2, taperEnd: 2 }, 1260 + k));
-  return { orbits, rims, sun, rings, uranusRing, moon, frame, rays: haloRays() };
+  return { orbits, rims, sun, rings, uranusRing, moon, rays: haloRays() };
 });
+
+/** The key block's frame on each sheet (see `frameOn`). */
+const frames = new Map<string, PreparedStroke[]>();
+
+/**
+ * The key block's frame on a sheet (the design box in a render, a live room in the explorer): the border rule inset
+ * from its edges, the cartouche in its top-right corner and a kento registration mark in its lower-left margin.
+ */
+function frameOn([x0, y0, x1, y1]: DesignBox): PreparedStroke[] {
+  const key = `${x0}:${y0}:${x1}:${y1}`;
+  let out = frames.get(key);
+  if (!out) {
+    const l = x0 + BORDER, t = y0 + BORDER, r = x1 - BORDER, b = y1 - BORDER, dx = x1 - BOX, dy = y0;
+    out = ([
+      [[l, t], [r, t], [r, b], [l, b], [l, t]],
+      [[980 + dx, 34 + dy], [1042 + dx, 34 + dy], [1042 + dx, 238 + dy], [980 + dx, 238 + dy], [980 + dx, 34 + dy]],
+      [[986 + dx, 40 + dy], [1036 + dx, 40 + dy], [1036 + dx, 232 + dy], [986 + dx, 232 + dy], [986 + dx, 40 + dy]],
+      [[l - 4, b + 16], [l + 44, b + 16]], [[l - 4, b + 16], [l - 4, b - 22]],
+    ] as Vec2[][]).map((pts, k) => prepareStroke(pts, { ...CUT, size: k === 0 ? 3.2 : 2, wobble: 0.3, taperStart: 2, taperEnd: 2 }, 1260 + k));
+    frames.set(key, out);
+  }
+  return out;
+}
 
 /** Invented characters in the cartouche, top to bottom, and the publisher's seal below it. */
 const TITLE = once(() => [0, 1, 2, 3].flatMap(k => brushChar(1011, 66 + k * 46, 30, 1270 + k)).map((pts, k) => prepareStroke(catmullRom(pts, 4), { ...CUT, size: 3.6, thinning: 0.6, taperStart: 4, taperEnd: 6 }, 1280 + k)));
@@ -72,6 +86,12 @@ const SEAL_CUT: Vec2[][] = [
   [[1000, 259], [1024, 259], [1024, 268], [1004, 268], [1004, 281], [1024, 281]],
   [[1012, 268], [1012, 276]],
 ];
+
+/** Where a block is printed: the design box and a half-box bleed round it, and live the whole page as well. */
+function blockOf(g: SceneFrame, fr: Frame): DesignBox {
+  const p = roomOf(g) ? pageOf(fr, g.stage.w, g.stage.h) : null;
+  return p ? [Math.min(-540, p[0]), Math.min(-540, p[1]), Math.max(1620, p[2]), Math.max(1620, p[3])] : [-540, -540, 1620, 1620];
+}
 
 function blueBlock(g: SceneFrame, fr: Frame): void {
   const c = g.ctx;
@@ -85,7 +105,9 @@ function blueBlock(g: SceneFrame, fr: Frame): void {
   grad.addColorStop(0.68, DEEP);
   grad.addColorStop(1, DEEP);
   c.fillStyle = grad;
-  c.fillRect(-540, -540, 2160, 2160);
+  // live, the block covers the whole page, however wide (a render's is the design box and its bleed)
+  const [x0, y0, x1, y1] = blockOf(g, fr);
+  c.fillRect(x0, y0, x1 - x0, y1 - y0);
   // the wipe is by hand: a soft uneven edge where the pigment was cut back
   c.globalCompositeOperation = 'destination-out';
   c.fillStyle = WASHI;
@@ -121,9 +143,17 @@ export const woodblockScene: Scene = {
   poster: POSTER_M / 12,
   draw(f) {
     const { stage } = f;
-    const fr = frameFit(stage.w, stage.h), L = layout(), sky = skyOf(f, 0);
+    const fr = frameFit(stage.w, stage.h), L = layout(), sky = skyOf(f, 0), [cx, cy] = topRight(f);
+    // the cartouche and the seal keep to the sheet's top-right corner (a live room's, or the design box's)
+    const corner = (c: CanvasRenderingContext2D, draw: () => void): void => {
+      if (!cx && !cy) return draw();
+      c.save();
+      c.translate(cx, cy);
+      draw();
+      c.restore();
+    };
     ground(f, WASHI, { seed: 1200, texture: 1.3 });
-    still(f, 's02-blue', g => blueBlock(g, fr), { blend: 'multiply', offset: REG_BLUE });
+    still(f, roomOf(f) ? 's02-blue:page' : 's02-blue', g => blueBlock(g, fr), { blend: 'multiply', offset: REG_BLUE });
 
     // colour blocks: the Sun and its halo, the planets, the Saturn ring, the Moon
     ink(f, 's02-colour', g => {
@@ -185,9 +215,9 @@ export const woodblockScene: Scene = {
       }
       // cartouche ground and the seal
       c.fillStyle = '#e9d9ae';
-      c.fillRect(986, 40, 50, 192);
+      c.fillRect(986 + cx, 40 + cy, 50, 192);
       c.fillStyle = VERMILION;
-      c.fillRect(989, 247, 46, 46);
+      c.fillRect(989 + cx, 247 + cy, 46, 46);
     }, { tooth: { seed: 1294, density: 30, size: 1.5, alpha: 0.28 }, blend: 'source-over' });
 
     // the key block, a hair out of register
@@ -196,8 +226,8 @@ export const woodblockScene: Scene = {
       enter(c, fr);
       for (const s of L.orbits) drawStroke(c, s, 1);
       for (const s of L.sun) drawStroke(c, s, 1);
-      for (const s of L.frame) drawStroke(c, s, 1);
-      for (const s of TITLE()) drawStroke(c, s, 1);
+      for (const s of frameOn(sheetOf(f))) drawStroke(c, s, 1);
+      for (const s of TITLE()) corner(c, () => drawStroke(c, s, 1));
       // the belt: a scatter of round punches in the key
       c.fillStyle = KEY;
       c.beginPath();
@@ -224,9 +254,10 @@ export const woodblockScene: Scene = {
     }, { tooth: { seed: 1295, density: 26, size: 1.4, alpha: 0.3 }, offset: REG_KEY });
 
     // the seal's character: paper cut out of the vermilion
-    still(f, 's02-seal', g => {
+    still(f, cx || cy ? `s02-seal:${cx}:${cy}` : 's02-seal', g => {
       const c = g.ctx;
       enter(c, fr);
+      if (cx || cy) c.translate(cx, cy);
       c.strokeStyle = WASHI;
       c.lineWidth = 3.2;
       c.lineCap = 'square';

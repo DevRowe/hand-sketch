@@ -59,7 +59,7 @@ export function travelled(seconds: number, latitude = 0): { days: number; laps: 
         against: 'Earth’s axis',
         speed: spin,
         km: spin * t,
-        compare: `${count(turns)} turns of Earth`,
+        compare: `${ofWhole(turns, 'turn')} of Earth`,
       },
       {
         id: 'orbit',
@@ -67,7 +67,7 @@ export function travelled(seconds: number, latitude = 0): { days: number; laps: 
         against: 'the Sun',
         speed: ORBIT_KM_S,
         km: ORBIT_KM_S * t,
-        compare: `${lapCount(laps)} laps of the Sun`,
+        compare: `${ofWhole(laps, 'lap', lapCount)} of the Sun`,
       },
       {
         id: 'galaxy',
@@ -75,7 +75,7 @@ export function travelled(seconds: number, latitude = 0): { days: number; laps: 
         against: 'the galaxy’s centre',
         speed: GALAXY_KM_S,
         km: galaxyKm,
-        compare: `${count(galaxyKm / AU_KM)} au, yet only ${fractionOfLap(years / GALACTIC_YEAR)} of one lap`,
+        compare: `${galaxyKm >= AU_KM ? `${count(galaxyKm / AU_KM)} au, yet` : 'not yet an au:'} only ${fractionOfLap(years / GALACTIC_YEAR)} of one lap`,
       },
       {
         id: 'cmb',
@@ -91,6 +91,31 @@ export function travelled(seconds: number, latitude = 0): { days: number; laps: 
 
 /** "36.5" laps under a hundred, whole ones beyond. */
 export const lapCount = (laps: number): string => (laps < 100 ? laps.toFixed(1) : count(laps));
+
+/** "0.4%", "44%": a part of one whole, to two significant figures (never "0%" for something begun). */
+export function percent(f: number): string {
+  const pct = Math.max(0, f) * 100;
+  if (pct >= 10) return `${Math.round(pct)}%`;
+  if (pct <= 0) return '0%';
+  return `${Number(pct.toPrecision(2))}%`;
+}
+
+/** "3,412 turns", "1 turn", "44% of a turn": how many of `unit`, or how far through the first. */
+export function ofWhole(n: number, unit: string, format: (n: number) => string = count): string {
+  if (n < 1) return `${percent(n)} of a ${unit}`;
+  const s = format(n);
+  return `${s} ${unit}${s === '1' || s === '1.0' ? '' : 's'}`;
+}
+
+/**
+ * "You are 13,410 days old: 36.7 trips round the Sun." The days are whole days lived (a count, never rounded up), and
+ * a life under a day or a year reads as such; bold marks the figures (HTML, the caller escapes nothing else in it).
+ */
+export function ageLine(days: number, laps: number): string {
+  const whole = Math.floor(Math.max(0, days)), trips = laps < 1 ? `<b>${percent(laps)}</b> of a trip round the Sun` : `<b>${lapCount(laps)}</b> trips round the Sun`;
+  if (whole < 1) return `You were born today: ${trips} so far.`;
+  return `You are <b>${count(whole)} ${whole === 1 ? 'day' : 'days'}</b> old: ${trips}.`;
+}
 
 /** "12,345": whole numbers with thousands separators. */
 export const count = (n: number): string => Math.round(n).toLocaleString('en-GB');
@@ -109,12 +134,13 @@ export function speed(kmS: number): string {
   return kmS < 1 ? `${count(kmS * 3600)} km/h` : `${sig3(kmS)} km/s`;
 }
 
-/** How long light takes to cover `km`: "16.5 days", "3.2 hours", "1.2 years". */
+/** How long light takes to cover `km`: "16.5 days", "3.2 hours", "1.2 years", "57.7 seconds". */
 export function lightTime(km: number): string {
-  const days = (km / LIGHT_YEAR_KM) * 365.25;
+  const days = (km / LIGHT_YEAR_KM) * 365.25, hours = days * 24;
   if (days >= 365.25) return plural(days / 365.25, 'year');
   if (days >= 1) return plural(days, 'day');
-  return plural(days * 24, 'hour');
+  if (hours >= 1) return plural(hours, 'hour');
+  return hours * 60 >= 1 ? plural(hours * 60, 'minute') : plural(hours * 3600, 'second');
 }
 
 const plural = (n: number, unit: string): string => {
@@ -122,9 +148,13 @@ const plural = (n: number, unit: string): string => {
   return `${s} ${unit}${s === '1' ? '' : 's'}`;
 };
 
-/** "0.000016%" style: a tiny fraction as a percentage with two significant figures. */
+/**
+ * "0.000016%" style: a tiny fraction as a percentage with two significant figures; past a ten-millionth, which only
+ * zeros would show, as "1 part in 83 billion".
+ */
 function fractionOfLap(f: number): string {
   if (f <= 0) return '0%';
+  if (f < 1e-7) return `1 part in ${distance(1 / f).replace(/ km$/, '')}`;
   const pct = f * 100, digits = Math.max(0, 1 - Math.floor(Math.log10(pct)));
   return `${pct.toFixed(Math.min(12, digits))}%`;
 }
@@ -138,8 +168,8 @@ function sig3(x: number): string {
 /* ---------- your age on every planet ---------- */
 
 /**
- * The planets' sidereal years, days: one lap against the stars (NASA planetary fact sheets; the outer four given there
- * in Julian years). Your age on a planet is the laps it has made since you were born.
+ * The planets' sidereal years, days: one lap against the stars (NASA planetary fact sheets; Jupiter, Saturn and
+ * Neptune given there in Julian years, Uranus in days). Your age on a planet is the laps it has made since you were born.
  */
 export const PLANET_YEARS = [
   { id: 'mercury', name: 'Mercury', days: 87.97 },
@@ -148,7 +178,7 @@ export const PLANET_YEARS = [
   { id: 'mars', name: 'Mars', days: 686.98 },
   { id: 'jupiter', name: 'Jupiter', days: 11.862 * 365.25 },
   { id: 'saturn', name: 'Saturn', days: 29.457 * 365.25 },
-  { id: 'uranus', name: 'Uranus', days: 84.02 * 365.25 },
+  { id: 'uranus', name: 'Uranus', days: 30_685.4 },
   { id: 'neptune', name: 'Neptune', days: 164.8 * 365.25 },
 ] as const;
 
@@ -175,7 +205,7 @@ export const ageLabel = (age: number): string => (age >= 100 ? count(Math.floor(
 
 /** "3 times", "once", "44% of the way": how far round a planet has gone. */
 export function lapsLabel(laps: number): string {
-  if (laps < 1) return `${Math.max(1, Math.round(laps * 100))}% of the way`;
+  if (laps < 1) return `${percent(laps)} of the way`;
   const whole = Math.floor(laps);
   return whole === 1 ? 'once' : whole === 2 ? 'twice' : `${count(whole)} times`;
 }

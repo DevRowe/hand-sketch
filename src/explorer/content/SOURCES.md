@@ -73,6 +73,6 @@ When updating a figure, check the primary source again rather than a secondary p
 
 ## Your age on every planet
 
-- Sidereal years (one lap against the stars) from NASA's planetary fact sheets (https://nssdc.gsfc.nasa.gov/planetary/factsheet/): Mercury 87.97 days, Venus 224.70, Earth 365.256, Mars 686.98; Jupiter 11.862 years, Saturn 29.457, Uranus 84.02 and Neptune 164.8 (Julian years of 365.25 days).
+- Sidereal years (one lap against the stars) from NASA's planetary fact sheets (https://nssdc.gsfc.nasa.gov/planetary/factsheet/): Mercury 87.97 days, Venus 224.70, Earth 365.256, Mars 686.98; Jupiter 11.862 years, Saturn 29.457 and Neptune 164.8 (Julian years of 365.25 days); Uranus 30,685.4 days (84.01 years).
 - Your age on a planet is the days you have lived divided by its year, which is also how many times it has gone round the Sun since you were born; your next birthday there is the next whole lap.
 - The life's helix draws the Earth's wake back to the day you were born at the real positions of every date (JPL mean elements, as everywhere in the explorer), one coil a year.

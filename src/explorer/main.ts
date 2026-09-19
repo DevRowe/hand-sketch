@@ -318,9 +318,9 @@ app.onDraw = () => {
 /** Where the dock's top rests with its extras folded away: home is framed for that, not for a passing look at More. */
 let restingDockTop: number | null = null;
 
-app.freeRect = () => {
+app.freeRect = (o = {}) => {
   const W = innerWidth, H = innerHeight, gap = 12, body = document.body.classList;
-  const hidden = body.contains('hide-ui'), journey = body.contains('journey');
+  const hidden = body.contains('hide-ui'), journey = body.contains('journey') && !o.resting;
   let top = 0, bottom = H, left = 0, right = W;
   const box = (id: string): DOMRect | null => {
     const el = document.getElementById(id);
@@ -328,6 +328,14 @@ app.freeRect = () => {
     const cs = getComputedStyle(el);
     if (cs.display === 'none' || cs.visibility === 'hidden') return null;
     return el.getBoundingClientRect();
+  };
+  // a card slides in (its entrance animates a shift it rests without): measure it where it will rest, or a moment
+  // framed as it opens lands off the room's centre, and a body revealed above a phone's sheet ends up under it
+  const resting = (r: DOMRect | null, id: string): DOMRect | null => {
+    const t = r && getComputedStyle(document.getElementById(id)!).transform;
+    if (!r || !t || t === 'none') return r;
+    const m = new DOMMatrixReadOnly(t);
+    return new DOMRect(r.x - m.e, r.y - m.f, r.width, r.height);
   };
   // a journey trades the dock and the moments (and on a compact screen the top bar) for its own small bar
   if (!hidden) {
@@ -345,7 +353,7 @@ app.freeRect = () => {
   // a journey's bar, or the tour's
   const j = journey ? box('journey-bar') ?? box('tour-bar') : null;
   if (j) bottom = Math.min(bottom, j.top - gap);
-  const p = box('panel');
+  const p = o.resting ? null : resting(box('panel'), 'panel');
   if (p) {
     // a side panel on a wide or short screen, a sheet along the bottom on an upright phone
     if (p.width < W * 0.7) right = p.left - gap;
@@ -354,8 +362,17 @@ app.freeRect = () => {
   return { x: left, y: top, w: Math.max(80, right - left), h: Math.max(80, bottom - top) };
 };
 
-const panelEl = document.getElementById('panel')!;
-app.cardRect = () => (panelEl.hidden ? null : panelEl.getBoundingClientRect());
+/** The controls that float over the picture itself: the moment's pill, the Whole view pill and a toast while it shows. */
+const floatingEls = ['preset-pill', 'home-pill'].map(id => document.getElementById(id)!);
+app.floating = () => {
+  const out: [number, number, number, number][] = [];
+  for (const el of [...floatingEls, toastEl]) {
+    if (el.hidden || (el === toastEl && !el.classList.contains('show'))) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width && r.height) out.push([r.left - 4, r.top - 4, r.right + 4, r.bottom + 4]);
+  }
+  return out;
+};
 
 /* ---------- size ---------- */
 

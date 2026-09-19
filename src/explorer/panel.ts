@@ -24,7 +24,7 @@ import { t } from './i18n';
 import { drawFigures, scaleHtml } from './scale';
 import { guessLatitude, moonHtml, seasonsHtml, SKY_LATITUDES, tonightHtml } from './skysheet';
 import { clamp, MONTH, PACE_MAX } from './sim';
-import { ageLabel, CMB_KM_S, count, distance, GALAXY_KM_S, lapCount, ORBIT_KM_S, outerLaps, planetAges, speed, travelled } from './travel';
+import { ageLabel, ageLine, CMB_KM_S, count, distance, GALAXY_KM_S, ORBIT_KM_S, outerLaps, planetAges, speed, travelled } from './travel';
 
 export interface PanelHooks {
   toast(text: string): void;
@@ -169,6 +169,8 @@ export class Panel {
     if (opening) this.el.focus({ preventScroll: true });
     // the names under the card are put away (and come back once it closes) on the next drawing
     if (opening) this.app.invalidate();
+    // the room the card leaves is where the page must stay
+    this.app.syncRoom();
     this.tick(true);
   }
 
@@ -453,7 +455,7 @@ export class Panel {
       ${agesHtml(t.days, day)}
       <p>Since you were born, ${esc(outerLaps(ages))}.</p>
       <h3>How far you have travelled</h3>
-      <p class="age">You are <b>${count(t.days)} days</b> old: <b>${lapCount(t.laps)}</b> trips round the Sun.</p>
+      <p class="age">${ageLine(t.days, t.laps)}</p>
       <ul class="frames">${t.frames.map(f => `<li><div class="f-head"><span class="f-title">${esc(f.title)}</span><span class="f-speed">~${esc(speed(f.speed))}${f.id === 'spin' ? (lat ? ` at ~${lat}°` : ' at the equator') : ''}</span></div>
         <span class="f-km">~${esc(distance(f.km))}</span><span class="f-note">${esc(f.compare)} · measured against ${esc(f.against)}</span></li>`).join('')}</ul>
       <p class="ticker">Since you opened this card: <b data-live="since">0 km</b> round the Sun, <b data-live="since-cmb">0 km</b> through the cosmos.</p>`;
@@ -539,6 +541,7 @@ export class Panel {
     const target = p.focus?.body ?? p.select ?? null;
     app.select(target, false);
     if (p.focus) app.focusSelected(p.focus.zoom);
+    else if (p.frame && 'box' in p.frame) app.frameBox(p.frame.box());
     else if (p.frame) app.frameDesign(p.frame.fit, typeof p.frame.at === 'function' ? p.frame.at() : p.frame.at ?? [540, 540]);
     // home, fitted into the room the card leaves
     else app.resetView();
@@ -573,6 +576,7 @@ export class Panel {
     if (this.look.parentElement === this.body) this.lookHome.append(this.look);
     document.body.classList.remove('panel-open');
     this.markMenus(null);
+    this.app.syncRoom();
     this.app.invalidate();
     return true;
   }

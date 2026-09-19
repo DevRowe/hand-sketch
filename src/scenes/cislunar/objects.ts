@@ -3,7 +3,8 @@
  * crowds (the GPS constellation, the geostationary belt, Starlink) as counts that grow over the years.
  *
  * Orbits are representative: the real height and tilt of each, with its node drifting at the real rate, but the place
- * along the orbit on a given day is illustrative (no live tracking). Dates are UTC; sources in
+ * along the orbit on a given day is illustrative (no live tracking), its phase picked so that each moment featuring it
+ * opens with it on the near side of the Earth (a test holds this). Dates are UTC; sources in
  * `src/explorer/content/SOURCES.md`.
  */
 import { rng } from '../../core/random';
@@ -25,15 +26,15 @@ export interface Tracked {
 const EPOCH = utc(2000, 1, 1);
 
 export const TRACKED: readonly Tracked[] = [
-  { id: 'sputnik', name: 'Sputnik 1', kind: 'satellite', from: utc(1957, 10, 4, 19, 28), to: utc(1958, 1, 4), orbit: { peri: 215, apo: 939, inc: 65.1, node: 40, argp: 58, m0: 10, epoch: EPOCH } },
-  { id: 'salyut', name: 'Salyut 1', kind: 'station', from: utc(1971, 4, 19, 1, 40), to: utc(1971, 10, 11), orbit: { peri: 200, apo: 222, inc: 51.6, node: 120, m0: 200, epoch: EPOCH } },
-  { id: 'skylab', name: 'Skylab', kind: 'station', from: utc(1973, 5, 14, 17, 30), to: utc(1979, 7, 11, 16, 37), orbit: { peri: 434, apo: 442, inc: 50, node: 300, m0: 80, epoch: EPOCH } },
-  { id: 'mir', name: 'Mir', kind: 'station', from: utc(1986, 2, 19, 21, 28), to: utc(2001, 3, 23, 5, 59), orbit: { peri: 354, apo: 374, inc: 51.6, node: 20, m0: 300, epoch: EPOCH } },
+  { id: 'sputnik', name: 'Sputnik 1', kind: 'satellite', from: utc(1957, 10, 4, 19, 28), to: utc(1958, 1, 4), orbit: { peri: 215, apo: 939, inc: 65.1, node: 40, argp: 58, m0: 280, epoch: EPOCH } },
+  { id: 'salyut', name: 'Salyut 1', kind: 'station', from: utc(1971, 4, 19, 1, 40), to: utc(1971, 10, 11), orbit: { peri: 200, apo: 222, inc: 51.6, node: 120, m0: 275, epoch: EPOCH } },
+  { id: 'skylab', name: 'Skylab', kind: 'station', from: utc(1973, 5, 14, 17, 30), to: utc(1979, 7, 11, 16, 37), orbit: { peri: 434, apo: 442, inc: 50, node: 300, m0: 225, epoch: EPOCH } },
+  { id: 'mir', name: 'Mir', kind: 'station', from: utc(1986, 2, 19, 21, 28), to: utc(2001, 3, 23, 5, 59), orbit: { peri: 354, apo: 374, inc: 51.6, node: 20, m0: 250, epoch: EPOCH } },
   // deployed at ~614 km in 1990, sinking since (~470 km in 2026): drawn at its height of the early 2020s
-  { id: 'hubble', name: 'Hubble', kind: 'telescope', from: utc(1990, 4, 25), orbit: { peri: 530, apo: 540, inc: 28.5, node: 200, m0: 150, epoch: EPOCH } },
+  { id: 'hubble', name: 'Hubble', kind: 'telescope', from: utc(1990, 4, 25), orbit: { peri: 530, apo: 540, inc: 28.5, node: 200, m0: 350, epoch: EPOCH } },
   // flown through 2030, then steered into the South Pacific by the US Deorbit Vehicle (planned)
-  { id: 'iss', name: 'ISS', kind: 'station', from: utc(1998, 11, 20, 6, 40), to: utc(2031, 1, 1), orbit: { peri: 413, apo: 422, inc: 51.64, node: 250, m0: 0, epoch: EPOCH } },
-  { id: 'tiangong', name: 'Tiangong', kind: 'station', from: utc(2021, 4, 29, 3, 23), orbit: { peri: 386, apo: 392, inc: 41.47, node: 90, m0: 120, epoch: EPOCH } },
+  { id: 'iss', name: 'ISS', kind: 'station', from: utc(1998, 11, 20, 6, 40), to: utc(2031, 1, 1), orbit: { peri: 413, apo: 422, inc: 51.64, node: 250, m0: 85, epoch: EPOCH } },
+  { id: 'tiangong', name: 'Tiangong', kind: 'station', from: utc(2021, 4, 29, 3, 23), orbit: { peri: 386, apo: 392, inc: 41.47, node: 90, m0: 270, epoch: EPOCH } },
 ];
 
 export const trackedById = (id: string): Tracked | undefined => TRACKED.find(t => t.id === id);

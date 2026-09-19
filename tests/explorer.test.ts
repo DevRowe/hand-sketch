@@ -4,7 +4,7 @@ import { Camera, ZOOM_MAX, ZOOM_MIN } from '../src/explorer/camera';
 import { LabelLayout } from '../src/explorer/labels';
 import { birthdays, lifeOf } from '../src/explorer/life';
 import { stillScale } from '../src/explorer/share';
-import { ageLabel, distance, lapsLabel, lightTime, outerLaps, planetAges, speed, SPIN_KM_S, travelled } from '../src/explorer/travel';
+import { ageLabel, ageLine, distance, lapsLabel, lightTime, outerLaps, planetAges, speed, SPIN_KM_S, travelled } from '../src/explorer/travel';
 import { dateLabel, isoDate, paceFromSlider, paceLabel, paceToSlider, parseIsoDate, spanLabel } from '../src/explorer/format';
 import { DAY_MAX, MONTH, Sim, WEEK, YEAR } from '../src/explorer/sim';
 import { STYLES } from '../src/explorer/styles';
@@ -171,42 +171,52 @@ describe('explorer words', () => {
 
 describe('explorer names', () => {
   const at = (x: number, y = 100) => ({ id: 'a', x, y, r: 10, w: 60, h: 18 });
+  const ROOM_1000 = [0, 0, 1000, 800] as const, ROOM_600 = [0, 0, 600, 800] as const;
 
   it('keeps a name steady while its body grazes a more important one, and fades it only after a moment', () => {
     const layout = new LabelLayout(), sun = { ...at(100), id: 'sun' }, moon = (y: number) => ({ ...at(100, y), id: 'moon' });
     // apart: both show
-    let out = layout.place([sun, moon(160)], 1000, 0).labels;
+    let out = layout.place([sun, moon(160)], ROOM_1000, 0).labels;
     expect(out.map(l => l.shown)).toEqual([true, true]);
     // a brush of a few pixels does not hide a name on show
-    out = layout.place([sun, moon(100 + 18 - 3)], 1000, 50).labels;
+    out = layout.place([sun, moon(100 + 18 - 3)], ROOM_1000, 50).labels;
     expect(out[1]!.shown).toBe(true);
     // a real overlap hides it, but only once it has lasted
-    const over = layout.place([sun, moon(104)], 1000, 100);
+    const over = layout.place([sun, moon(104)], ROOM_1000, 100);
     expect(over.labels[1]!.shown).toBe(true);
     expect(over.pending).toBe(true);
-    expect(layout.place([sun, moon(104)], 1000, 400).labels[1]!.shown).toBe(false);
+    expect(layout.place([sun, moon(104)], ROOM_1000, 400).labels[1]!.shown).toBe(false);
     // clear again for a moment only: it waits, faded, rather than blinking back
-    expect(layout.place([sun, moon(125)], 1000, 450).labels[1]!.shown).toBe(false);
-    expect(layout.place([sun, moon(104)], 1000, 500).labels[1]!.shown).toBe(false);
+    expect(layout.place([sun, moon(125)], ROOM_1000, 450).labels[1]!.shown).toBe(false);
+    expect(layout.place([sun, moon(104)], ROOM_1000, 500).labels[1]!.shown).toBe(false);
     // clear for long enough: it returns
-    layout.place([sun, moon(160)], 1000, 600);
-    expect(layout.place([sun, moon(160)], 1000, 1400).labels[1]!.shown).toBe(true);
+    layout.place([sun, moon(160)], ROOM_1000, 600);
+    expect(layout.place([sun, moon(160)], ROOM_1000, 1400).labels[1]!.shown).toBe(true);
   });
 
   it('puts a name on the left only at the screen edge, and brings it back once it clearly fits', () => {
     const layout = new LabelLayout();
-    expect(layout.place([at(500)], 600, 0).labels[0]!.left).toBe(516);
-    const edge = layout.place([at(560)], 600, 10).labels[0]!;
+    expect(layout.place([at(500)], ROOM_600, 0).labels[0]!.left).toBe(516);
+    const edge = layout.place([at(560)], ROOM_600, 10).labels[0]!;
     expect(edge.left).toBe(560 - 10 - 6 - 60);
     // a pixel back from the edge is not enough to flip again
-    expect(layout.place([at(522)], 600, 20).labels[0]!.left).toBe(522 - 10 - 6 - 60);
-    expect(layout.place([at(500)], 600, 30).labels[0]!.left).toBe(516);
+    expect(layout.place([at(522)], ROOM_600, 20).labels[0]!.left).toBe(522 - 10 - 6 - 60);
+    expect(layout.place([at(500)], ROOM_600, 30).labels[0]!.left).toBe(516);
+  });
+
+  it('keeps a name inside the room a card leaves, and clear of a control floating over the picture', () => {
+    const layout = new LabelLayout(), room = [0, 60, 420, 700] as const;
+    // the card begins at 420: a name that would run under it goes to the left
+    expect(layout.place([at(380)], room, 0).labels[0]!.left).toBe(380 - 10 - 6 - 60);
+    // a pill over the picture is an obstacle like a caption
+    const pill = [300, 90, 460, 120] as const, fresh = new LabelLayout();
+    expect(fresh.place([{ ...at(250, 105), id: 'b' }], room, 0, [pill]).labels[0]!.shown).toBe(false);
   });
 });
 
 describe('explorer travels', () => {
   const YEAR_S = 365.25 * 86_400;
-  const PLANET_DAYS: Record<string, number> = { mercury: 87.97, venus: 224.7, earth: 365.256, mars: 686.98, jupiter: 11.862 * 365.25, saturn: 29.457 * 365.25, uranus: 84.02 * 365.25, neptune: 164.8 * 365.25 };
+  const PLANET_DAYS: Record<string, number> = { mercury: 87.97, venus: 224.7, earth: 365.256, mars: 686.98, jupiter: 11.862 * 365.25, saturn: 29.457 * 365.25, uranus: 30_685.4, neptune: 164.8 * 365.25 };
 
   it('measures a lifetime four ways, at the speeds the card states', () => {
     const t = travelled(36.5 * YEAR_S);
@@ -243,7 +253,21 @@ describe('explorer travels', () => {
     }
     expect(outerLaps(ages)).toBe('Jupiter has gone round 3 times, Saturn once, Uranus 43% of the way and Neptune 22%');
     expect(lapsLabel(2.4)).toBe('twice');
-    expect(lapsLabel(0.004)).toBe('1% of the way');
+    // a lap barely begun reads as what it is, not rounded up to 1%
+    expect(lapsLabel(0.004)).toBe('0.4% of the way');
+    expect(lapsLabel(0.000006)).toBe('0.0006% of the way');
+  });
+
+  it('speaks of a newborn as one, and counts days lived rather than rounding up', () => {
+    const half = travelled(0.54 * 86_400), [spin, orbit, galaxy, cmb] = half.frames;
+    expect(ageLine(half.days, half.laps)).toBe('You were born today: <b>0.15%</b> of a trip round the Sun so far.');
+    expect(spin!.compare).toBe('54% of a turn of Earth');
+    expect(orbit!.compare).toBe('0.15% of a lap of the Sun');
+    expect(galaxy!.compare).toBe('not yet an au: only 1 part in 156 billion of one lap');
+    expect(cmb!.compare).toBe('as far as light travels in ~57.6 seconds');
+    expect(ageLine(1.2, 1.2 / 365.256)).toBe('You are <b>1 day</b> old: <b>0.33%</b> of a trip round the Sun.');
+    // 13,410.54 days: a day not yet over is not counted
+    expect(ageLine(13_410.54, 36.7)).toBe('You are <b>13,410 days</b> old: <b>36.7</b> trips round the Sun.');
   });
 
   it('counts the birthdays of a life, a leap-day birthday on the 28th in other years', () => {
@@ -289,5 +313,6 @@ describe('explorer travels', () => {
     expect(speed(369.82)).toBe('370 km/s');
     expect(lightTime(2.59e10 * 3)).toBe('3 days');
     expect(lightTime(9.461e12 * 1.5)).toBe('1.5 years');
+    expect(lightTime(299_792.458 * 90)).toBe('1.5 minutes');
   });
 });

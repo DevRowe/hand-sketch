@@ -5,6 +5,7 @@
  */
 import type { Vec2 } from '../core/math';
 import type { App } from './app';
+import type { Box } from './labels';
 
 export const GOLD = '#e8a33d';
 export const HALO = 'rgba(13,15,21,0.6)';
@@ -108,26 +109,41 @@ export function drawSight(ctx: CanvasRenderingContext2D, app: App, from: Vec2, t
   haloStroke(ctx, px(app), width, () => polyline(ctx, [from, end]), color, dash);
 }
 
-/** Screen pixels a caption keeps from the screen's sides. */
+/** Screen pixels a caption keeps from the sides of the room the controls leave. */
 const EDGE = 6;
+/** Steps (CSS pixels, a line at a time) a caption may move up or down to stand clear of another or of a control. */
+const NUDGE = [0, 14, -14, 28, -28];
+
+const overlapping = (a: Box, b: Box): boolean => a[0] < b[2] && a[2] > b[0] && a[1] < b[3] && a[3] > b[1];
 
 /**
- * A small caption in the explorer's type, haloed; slid sideways as needed to stay on the screen. It is set in screen
- * pixels (whatever the zoom, type is never scaled from a fraction of a design unit).
+ * A small caption in the explorer's type, haloed; kept in the room the controls leave (slid sideways as needed, and
+ * left out where it would stand under a control), and stepped up or down a line to stand clear of the captions already
+ * set and of the controls floating over the picture. It is set in screen pixels (whatever the zoom, type is never
+ * scaled from a fraction of a design unit).
  */
 export function text(ctx: CanvasRenderingContext2D, app: App, at: Vec2, s: string, align: CanvasTextAlign, alpha = 1, bold = false, color = INK): void {
   let [x, y] = app.renderer.toScreen(at[0], at[1]);
+  const room = app.captionRoom?.room ?? [0, 0, innerWidth, innerHeight], ui = app.captionRoom?.ui ?? [];
   ctx.save();
   ctx.setTransform(app.renderer.cssScale, 0, 0, app.renderer.cssScale, 0, 0);
   ctx.globalAlpha *= alpha;
   ctx.font = `${bold ? 600 : 500} 12px Inter, system-ui, sans-serif`;
   const w = ctx.measureText(s).width, left = align === 'left' ? x : align === 'right' ? x - w : x - w / 2;
-  if (left < EDGE) x += EDGE - left;
-  else if (left + w > innerWidth - EDGE) x -= left + w - innerWidth + EDGE;
+  if (left < room[0] + EDGE) x += room[0] + EDGE - left;
+  else if (left + w > room[2] - EDGE) x -= left + w - room[2] + EDGE;
   y = Math.round(y);
+  const x0 = align === 'left' ? x : align === 'right' ? x - w : x - w / 2, box = (dy: number): Box => [x0 - 2, y + dy - 12, x0 + w + 2, y + dy + 4];
+  const taken = [...app.captions, ...ui], dy = NUDGE.find(d => !taken.some(b => overlapping(box(d), b))) ?? 0;
+  const b = box(dy);
+  // under the top bar or the dock it could not be read: it is left out
+  if (b[3] < room[1] || b[1] > room[3]) {
+    ctx.restore();
+    return;
+  }
+  y += dy;
   // the names of the bodies keep clear of it
-  const x0 = align === 'left' ? x : align === 'right' ? x - w : x - w / 2;
-  app.captions.push([x0 - 2, y - 12, x0 + w + 2, y + 4]);
+  app.captions.push(b);
   ctx.textAlign = align;
   ctx.textBaseline = 'alphabetic';
   ctx.lineJoin = 'round';
