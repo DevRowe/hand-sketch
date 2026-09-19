@@ -18,6 +18,7 @@
     "solar": "vite build && node scripts/solar.mjs",
     "solar:site": "node scripts/solar-site.mjs",
     "spiral": "vite build && node scripts/solar-spiral.mjs",
+    "promo": "node scripts/promo.mjs",
     "requiem": "vite build && node scripts/requiem.mjs",
     "explorer": "node scripts/explorer.mjs"
   },

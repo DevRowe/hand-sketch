@@ -127,6 +127,20 @@ ${set.rest.map(e => piece(e, false)).join('\n')}
         </div>
       </section>`;
 
+// The explorer's promo (`node scripts/promo.mjs` publishes it to docs/promo/): offered under the explorer's card once it is there.
+function promo() {
+  const dir = path.join(docs, 'promo'), mp4 = 'solar-explorer-promo.mp4';
+  if (!existsSync(path.join(dir, mp4))) return '';
+  const mb = (statSync(path.join(dir, mp4)).size / 1e6).toFixed(0);
+  return `        <figure class="promo">
+          <video controls playsinline preload="none" width="1920" height="1080" poster="promo/solar-explorer-promo-poster.jpg" aria-label="The Solar System Explorer in half a minute: its three views, ten hand-drawn styles, planet cards, key moments and your life's helix, with music">
+            <source src="promo/${mp4}" type="video/mp4">
+          </video>
+          <figcaption><b>Watch the trailer</b> · the explorer in half a minute, with sound · <a href="promo/${mp4}" download>Download</a> <span>1080p · ${mb} MB</span></figcaption>
+        </figure>
+`;
+}
+
 writeFileSync(path.join(docs, 'index.html'), `<!doctype html>
 <html lang="en">
 <head>
@@ -177,6 +191,12 @@ writeFileSync(path.join(docs, 'index.html'), `<!doctype html>
     .explore-text p:not(.eyebrow) { margin: 16px 0 0; color: var(--muted); font-size: 16.5px; }
     .explore-go { display: inline-flex; align-items: center; gap: 10px; margin-top: 22px; padding: 11px 18px; border-radius: 999px; background: var(--gold); color: #1b1307; font: 600 15px/1 var(--sans); }
     .explore-card:hover .explore-go { background: #f0b458; }
+    .promo { margin: 22px 0 0; aspect-ratio: auto; overflow: visible; border-radius: 0; background: none; box-shadow: none; }
+    .promo video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: contain; cursor: auto; border-radius: 14px; border: 1px solid var(--rule); background: #000; }
+    .promo figcaption { margin-top: 12px; color: var(--muted); font-size: 14.5px; }
+    .promo figcaption b { color: var(--ink); font-weight: 500; }
+    .promo figcaption a { color: var(--gold); }
+    .promo figcaption span { opacity: .75; }
     .live-dot { display: inline-block; width: 8px; height: 8px; margin-right: 8px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 4px rgb(232 163 61 / .22); vertical-align: 1px; }
     .set-head { padding: 64px 0 40px; }
     .set + .set .set-head { padding-top: 88px; border-top: 1px solid var(--rule); }
@@ -263,7 +283,7 @@ writeFileSync(path.join(docs, 'index.html'), `<!doctype html>
             <span class="explore-go">Open the explorer <span aria-hidden="true">\u2192</span></span>
           </div>
         </a>
-      </section>
+${promo()}      </section>
 ${SETS.map((set, i) => section(set, i === 0)).join('\n')}
     </main>
     <footer>

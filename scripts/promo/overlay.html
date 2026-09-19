@@ -1,0 +1,223 @@
+<!doctype html>
+<!--
+  The promo's overlay: captions, the tap ring, the style names and the end card, drawn over the captured footage.
+  `setup(sheet)` takes the cue sheet (`output/promo/cues.json`) and `renderFrame(f)` draws frame `f` as a pure function
+  of `f`, on a transparent ground; `scripts/promo/capture.mjs` screenshots each frame and ffmpeg lays them over the edit.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Promo overlay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;1,9..144,300&family=Inter:wght@400;500;600&display=block" rel="stylesheet">
+<style>
+  :root { --gold: #e8a33d; --cream: #f6eedc; --night: #0b0d14; --serif: 'Fraunces', Georgia, serif; --sans: 'Inter', system-ui, sans-serif; }
+  html, body { margin: 0; background: transparent; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; font-family: var(--sans); color: var(--cream); }
+  #stage > * { position: absolute; }
+  .scrim { inset: 0; background: radial-gradient(ellipse 1150px 620px at 0% 100%, rgb(8 10 18 / .92), rgb(8 10 18 / .66) 45%, rgb(8 10 18 / 0) 72%); }
+  .scrim.ui { background: radial-gradient(ellipse 1000px 275px at 0% 66%, rgb(8 10 18 / .92), rgb(8 10 18 / .66) 45%, rgb(8 10 18 / 0) 72%); }
+  .scrim.pale { background: radial-gradient(ellipse 1150px 620px at 0% 100%, rgb(246 238 220 / .96), rgb(246 238 220 / .8) 45%, rgb(246 238 220 / 0) 72%); }
+  .scrim.pale.ui { background: radial-gradient(ellipse 1000px 275px at 0% 66%, rgb(246 238 220 / .92), rgb(246 238 220 / .6) 45%, rgb(246 238 220 / 0) 72%); }
+  .pale { color: #17181f; }
+  .pale .kicker { color: #b06f12; }
+  .pale .head, .pale .sub, .brand.pale { text-shadow: 0 1px 22px rgb(246 238 220 / .9); }
+  .pale .sub { color: rgb(23 24 31 / .85); }
+  .caption { left: 112px; }
+  .kicker { font: 600 23px/1 var(--sans); letter-spacing: .24em; text-transform: uppercase; color: var(--gold); margin: 0 0 22px 4px; white-space: nowrap; }
+  .head { font: 300 104px/1.04 var(--serif); letter-spacing: -.022em; margin: 0; white-space: nowrap; text-shadow: 0 2px 28px rgb(8 10 18 / .55); }
+  .head.name { font-style: italic; }
+  .head span { display: inline-block; white-space: pre; will-change: transform; }
+  .rule { display: block; margin: 10px 0 0 2px; overflow: visible; }
+  .sub { font: 400 31px/1.3 var(--sans); color: rgb(246 238 220 / .88); margin: 18px 0 0 4px; white-space: nowrap; text-shadow: 0 1px 16px rgb(8 10 18 / .6); }
+  .brand { left: 56px; top: 44px; display: flex; align-items: center; gap: 14px; font: 400 25px/1 var(--serif); letter-spacing: .005em; text-shadow: 0 1px 14px rgb(8 10 18 / .7); }
+  .brand svg { filter: drop-shadow(0 1px 8px rgb(8 10 18 / .6)); }
+  .cursor { width: 68px; height: 68px; margin: -34px 0 0 -34px; border-radius: 50%; box-sizing: border-box; background: rgb(255 255 255 / .38); border: 3px solid rgb(255 255 255 / .95); box-shadow: 0 0 0 1.5px rgb(8 10 18 / .5), 0 6px 26px rgb(8 10 18 / .5); }
+  .ring { width: 200px; height: 200px; margin: -100px 0 0 -100px; border-radius: 50%; border: 5px solid var(--gold); box-sizing: border-box; }
+  .end { inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+    background: radial-gradient(ellipse 1300px 760px at 50% 50%, rgb(8 10 18 / .84), rgb(8 10 18 / .62) 60%, rgb(8 10 18 / .5)); }
+  .end .title { font: 300 132px/1.02 var(--serif); letter-spacing: -.025em; margin: 26px 0 0; }
+  .end .title span { display: inline-block; white-space: pre; }
+  .end .tag { font: 300 italic 38px/1.2 var(--serif); color: rgb(246 238 220 / .82); margin: 22px 0 0; }
+  .end .url { font: 500 44px/1 var(--sans); letter-spacing: .01em; color: var(--gold); margin: 64px 0 0; }
+  .end .free { font: 500 21px/1 var(--sans); letter-spacing: .24em; text-transform: uppercase; color: rgb(246 238 220 / .7); margin: 34px 0 0; }
+  .black { inset: 0; background: #000; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+'use strict';
+const stage = document.getElementById('stage');
+const clamp = (x, lo = 0, hi = 1) => Math.min(hi, Math.max(lo, x));
+const out3 = t => 1 - (1 - clamp(t)) ** 3;
+const outBack = t => { t = clamp(t); const c = 1.4; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
+const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html !== undefined) e.innerHTML = html; return e; };
+
+// seeded, so the hand's wobble is the same on every run
+function rng(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 2 ** 32); }
+
+/** A hand-drawn rule `w` wide: two passes of a slightly wandering line, revealed by dash offset. */
+function rule(w, seed, weight = 5) {
+  const r = rng(seed), NS = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('class', 'rule'); svg.setAttribute('width', w); svg.setAttribute('height', 24); svg.setAttribute('viewBox', `0 0 ${w} 24`);
+  const paths = [];
+  for (let pass = 0; pass < 2; pass++) {
+    const n = Math.max(3, Math.round(w / 130)), y0 = 9 + pass * 5;
+    let d = `M ${pass * 9} ${y0 + (r() - .5) * 4}`;
+    for (let i = 1; i <= n; i++) {
+      const x = (w - pass * 40) * (i / n), y = y0 + (r() - .5) * 7;
+      d += ` S ${x - w / n / 2} ${y + (r() - .5) * 6}, ${x} ${y}`;
+    }
+    const p = document.createElementNS(NS, 'path');
+    p.setAttribute('d', d); p.setAttribute('fill', 'none'); p.setAttribute('stroke', '#e8a33d');
+    p.setAttribute('stroke-width', pass ? weight * .45 : weight); p.setAttribute('stroke-linecap', 'round'); p.setAttribute('opacity', pass ? .7 : 1);
+    svg.appendChild(p);
+    paths.push(p);
+  }
+  return { svg, paths, measure() { for (const p of paths) { p.len = p.getTotalLength(); p.setAttribute('stroke-dasharray', p.len); } } };
+}
+const drawRule = (r, t) => r.paths.forEach((p, i) => p.setAttribute('stroke-dashoffset', p.len * (1 - out3(t - i * .25))));
+
+/** The app's mark, sketched: a sun and two wandering orbits. */
+function mark(size, seed) {
+  const r = rng(seed), pts = (rx, ry) => {
+    let d = '';
+    for (let i = 0; i <= 40; i++) {
+      const a = (i / 40) * Math.PI * 2.06 - 1, k = 1 + (r() - .5) * .035;
+      d += `${i ? 'L' : 'M'} ${(50 + Math.cos(a) * rx * k).toFixed(2)} ${(50 + Math.sin(a) * ry * k).toFixed(2)} `;
+    }
+    return d;
+  };
+  return `<svg width="${size}" height="${size}" viewBox="0 0 100 100" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path class="orbit" d="${pts(44, 44)}" stroke="currentColor" stroke-width="2.6" opacity=".9"/>
+    <path class="orbit" d="${pts(27, 27)}" stroke="currentColor" stroke-width="2.2" opacity=".75"/>
+    <circle cx="50" cy="50" r="10.5" fill="#e8a33d"/>
+    <circle cx="88" cy="28" r="5.2" fill="currentColor"/><circle cx="29" cy="67" r="3.8" fill="#e8a33d"/></svg>`;
+}
+
+let sheet = null, parts = [];
+
+function words(text) { return text.split(' ').map((w, i, a) => `<span>${w}${i < a.length - 1 ? ' ' : ''}</span>`).join(''); }
+
+function buildCaption(c, i, held) {
+  const box = el('div', `caption${c.pale ? ' pale' : ''}`);
+  const kicker = c.text[0] ? el('p', 'kicker', c.text[0]) : null, head = el('h1', `head${c.kind === 'flash' ? ' name' : ''}`, words(c.text[1]));
+  if (kicker) box.appendChild(kicker);
+  box.appendChild(head);
+  stage.appendChild(box);
+  if (c.low) head.style.fontSize = '88px';
+  const line = rule(Math.min(head.offsetWidth * .62, 560), 7 + i * 13);
+  box.appendChild(line.svg);
+  line.measure();
+  const sub = c.sub ? el('p', 'sub', c.sub) : null;
+  if (sub) box.appendChild(sub);
+  // the block stands on a baseline: above the app's dock on interface shots, lower on clean ones
+  // (a journey's bar is small and centred, so there the block sits low, and a size smaller beside the open card)
+  box.style.bottom = `${c.low ? 124 : c.ui ? 236 : 118}px`;
+  const spans = [...head.children];
+  return f => {
+    const t = f - c.at, on = t >= 0 && t < c.frames;
+    box.style.display = on ? '' : 'none';
+    if (!on) return;
+    const leave = c.exit ? clamp((t - (c.frames - 7)) / 7) : 0;
+    box.style.opacity = 1 - leave;
+    box.style.transform = `translateY(${-14 * leave * leave}px)`;
+    if (kicker) { const k = held ? 1 : out3(t / 8); kicker.style.opacity = k; kicker.style.transform = `translateX(${-18 * (1 - k)}px)`; }
+    spans.forEach((s, j) => {
+      const e = c.kind === 'flash' ? 1 : out3((t - 1 - j * 2.2) / 9);
+      s.style.opacity = e; s.style.transform = `translateY(${46 * (1 - e)}px) rotate(${2.2 * (1 - e)}deg)`;
+    });
+    if (c.kind === 'flash') head.style.transform = `scale(${1 + .05 * (1 - out3(t / 4))})`, head.style.transformOrigin = '0 80%';
+    drawRule(line, c.kind === 'flash' ? 1 : (t - 6) / 12);
+    if (sub) { const e = out3((t - 12) / 10); sub.style.opacity = e; sub.style.transform = `translateY(${16 * (1 - e)}px)`; }
+  };
+}
+
+function buildTap(c) {
+  const cursor = el('div', 'cursor'), ring = el('div', 'ring');
+  stage.append(ring, cursor);
+  return f => {
+    const t = f - c.at;
+    // the cursor glides in over the beat before the tap, presses, and leaves
+    const on = t >= -18 && t < 12;
+    cursor.style.display = on ? '' : 'none';
+    ring.style.display = t >= 0 && t < 14 ? '' : 'none';
+    if (!on) return;
+    const a = out3((t + 18) / 16), press = t >= -2 && t < 4 ? .78 : 1;
+    cursor.style.left = `${c.x + 150 * (1 - a)}px`; cursor.style.top = `${c.y + 120 * (1 - a)}px`;
+    cursor.style.opacity = Math.min(clamp((t + 18) / 6), 1 - clamp((t - 4) / 8));
+    cursor.style.transform = `scale(${press})`;
+    const e = out3(t / 14);
+    ring.style.left = `${c.x}px`; ring.style.top = `${c.y}px`;
+    ring.style.transform = `scale(${.15 + .85 * e})`; ring.style.opacity = 1 - e;
+  };
+}
+
+function buildBrand(shots) {
+  const b = el('div', 'brand', `${mark(40, 5)}<span>Solar System Explorer</span>`);
+  stage.appendChild(b);
+  return f => {
+    const s = shots.find(s => f >= s.at && f < s.at + s.frames), show = s && !s.ui && !s.end;
+    // it arrives once the hook has had its moment, and cuts with the picture after that
+    b.style.display = show ? '' : 'none';
+    b.classList.toggle('pale', Boolean(s?.pale));
+    b.style.opacity = .82 * clamp((f - 40) / 14);
+  };
+}
+
+function buildEnd(c) {
+  const box = el('div', 'end', `${mark(132, 11)}
+    <h1 class="title">${words('Solar System Explorer')}</h1>
+    <p class="tag">hand-sketched, live in your browser</p>
+    <p class="url">devrowe.github.io/hand-sketch/explorer</p>
+    <p class="free">Free &nbsp;·&nbsp; nothing to install &nbsp;·&nbsp; ten hand-drawn styles</p>`);
+  stage.appendChild(box);
+  const url = box.querySelector('.url'), line = rule(url.offsetWidth * .9, 99, 5.5);
+  line.svg.style.margin = '14px auto 0';
+  url.after(line.svg);
+  line.measure();
+  const logo = box.querySelector('svg'), spans = [...box.querySelectorAll('.title span')], tag = box.querySelector('.tag'), free = box.querySelector('.free');
+  const orbits = [...logo.querySelectorAll('.orbit')];
+  orbits.forEach(o => { o.len = o.getTotalLength(); o.setAttribute('stroke-dasharray', o.len); });
+  return f => {
+    const t = f - c.at, on = t >= 0;
+    box.style.display = on ? '' : 'none';
+    if (!on) return;
+    box.style.opacity = out3(t / 10);
+    orbits.forEach((o, i) => o.setAttribute('stroke-dashoffset', o.len * (1 - out3((t - 2 - i * 5) / 20))));
+    logo.style.transform = `scale(${.8 + .2 * outBack(t / 14)})`;
+    spans.forEach((s, j) => { const e = out3((t - 6 - j * 3) / 11); s.style.opacity = e; s.style.transform = `translateY(${54 * (1 - e)}px) rotate(${2 * (1 - e)}deg)`; });
+    for (const [node, at] of [[tag, 22], [url, 32], [free, 46]]) { const e = out3((t - at) / 10); node.style.opacity = e; node.style.transform = `translateY(${18 * (1 - e)}px)`; }
+    drawRule(line, (t - 38) / 14);
+  };
+}
+
+window.setup = async s => {
+  sheet = s;
+  await document.fonts.ready;
+  await Promise.all(['300 100px Fraunces', 'italic 300 100px Fraunces', '500 40px Inter', '600 20px Inter', '400 30px Inter'].map(f => document.fonts.load(f)));
+  const shots = s.cues.filter(c => c.kind === 'shot'), caps = s.cues.filter(c => c.kind === 'caption' || c.kind === 'flash');
+  const scrims = [el('div', 'scrim'), el('div', 'scrim ui'), el('div', 'scrim pale'), el('div', 'scrim pale ui')];
+  stage.append(...scrims);
+  parts.push(f => {
+    // the scrim stands wherever a caption does, easing in only where no caption came before it
+    const c = caps.find(c => f >= c.at && f < c.at + c.frames);
+    const prior = c && caps.some(p => p.at + p.frames === c.at), o = c ? (prior ? 1 : out3((f - c.at) / 8)) * (c.exit ? 1 - clamp((f - c.at - c.frames + 7) / 7) : 1) : 0;
+    scrims.forEach((el, k) => { el.style.opacity = c && k === (c.ui && !c.low ? 1 : 0) + (c.pale ? 2 : 0) ? o : 0; });
+  });
+  parts.push(buildBrand(shots));
+  caps.forEach((c, i) => parts.push(buildCaption(c, i, i > 0 && caps[i - 1].text[0] === c.text[0] && caps[i - 1].at + caps[i - 1].frames >= c.at - 8)));
+  for (const c of s.cues) if (c.kind === 'tap') parts.push(buildTap(c));
+  for (const c of s.cues) if (c.kind === 'end') parts.push(buildEnd(c));
+  const black = el('div', 'black');
+  stage.appendChild(black);
+  parts.push(f => { black.style.opacity = Math.max(1 - out3(f / 10), clamp((f - (s.total - 12)) / 10)); });
+};
+
+window.renderFrame = f => { for (const p of parts) p(f); };
+</script>
+</body>
+</html>
