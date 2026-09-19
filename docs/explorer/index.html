@@ -14,8 +14,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,300&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="./assets/index-C0Y-dCxZ.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-C8IKF7H-.css">
+  <script type="module" crossorigin src="./assets/index-H4lc5Rkb.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-blEI-nCQ.css">
 </head>
 <body>
   <canvas id="sky" role="img" aria-label="The solar system, drawn live"></canvas>
@@ -32,9 +32,10 @@
       <button type="button" role="radio" data-view="earth" aria-checked="false" title="Earth &amp; Moon: at true scale, with the story of spaceflight (E)"><svg class="vi" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9.5" cy="13.5" r="6"/><circle cx="19" cy="5.5" r="2.1"/></svg><span class="v-text"><span>Earth &amp; Moon</span><small>Up close</small></span></button>
     </div>
     <nav class="menus" id="menus" aria-label="Menus">
-      <!-- the menus, each opening its sheet: Moments, then the homes kept for Sky (what you can see from Earth) and
-           Tools (scale and depth) once they have something in them, then Look, You and the Guide -->
+      <!-- the menus, each opening its sheet: Moments, Sky (what you can see from the Earth), then the home kept for
+           Tools (scale and depth) once it has something in it, then Look, You and the Guide -->
       <button type="button" class="menu" id="moments-btn" data-menu="moments" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" title="Key moments and journeys (J)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.2c.9 4.7 4.1 7.9 8.8 8.8-4.7.9-7.9 4.1-8.8 8.8-.9-4.7-4.1-7.9-8.8-8.8 4.7-.9 7.9-4.1 8.8-8.8z"/></svg><span>Moments</span></button>
+      <button type="button" class="menu" id="sky-btn" data-menu="sky" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" title="Sky: look up tonight, the Moon and eclipses, comets, seasons (K)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.6 4.2a7.9 7.9 0 1 0 6.3 11.9 6.4 6.4 0 0 1-6.3-11.9z"/><path d="M18.2 3.4v4M16.2 5.4h4"/></svg><span>Sky</span></button>
       <button type="button" class="menu" id="look-btn" data-menu="look" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" title="Look: the visual style, trails, names and zoom (S)"><span class="sw" id="look-sw" aria-hidden="true"><i></i><i></i></span><span class="menu-text"><span>Look</span><small id="look-name">…</small></span></button>
       <button type="button" class="menu" id="you-btn" data-menu="you" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" title="You: share this moment, save a picture, fly your years (Y)"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.7"/><path d="M4.6 20.2c.9-4.1 3.8-6.3 7.4-6.3s6.5 2.2 7.4 6.3"/></svg><span>You</span></button>
       <button type="button" class="menu" id="guide-btn" data-menu="guide" aria-haspopup="dialog" aria-controls="panel" aria-expanded="false" title="Guide: the bodies, how to read the views, keys and sources (G)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5C6.5 4 9.5 4 12 5.5 14.5 4 17.5 4 20 5.5V19c-2.5-1.5-5.5-1.5-8 0-2.5-1.5-5.5-1.5-8 0z"/><path d="M12 5.5V19"/></svg><span>Guide</span></button>

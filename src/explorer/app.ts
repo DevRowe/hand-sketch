@@ -10,14 +10,18 @@
 import { toFrames } from '../core/scene';
 import type { View } from '../core/stage';
 import { C as EARTH_C } from '../scenes/cislunar/common';
+import type { Sky } from '../scenes/solar/sky';
 import { sceneMarks, pick, type BodyId, type Mark, type Pick, type Scene as Marks, type ViewId } from './bodies';
 import { Camera } from './camera';
+import { cometMarks, drawComets, type CometId } from './comets';
 import { LabelLayout } from './labels';
 import { drawLife, lifeFrame, type Life } from './life';
 import { drawNeighbourhood } from './neighbourhood';
 import { Renderer, type Size } from './renderer';
+import { drawSeasons } from './seasons';
 import { clamp, Sim } from './sim';
 import { STYLES, type Style } from './styles';
+import { drawTonight } from './tonight';
 import { VIEWS } from './views';
 
 export type Selection = BodyId | 'belt' | null;
@@ -27,6 +31,7 @@ export const BODY_NAMES: Readonly<Record<BodyId | 'belt', string>> = {
   jupiter: 'Jupiter', saturn: 'Saturn', uranus: 'Uranus', neptune: 'Neptune', belt: 'Asteroid belt',
   iss: 'ISS', tiangong: 'Tiangong', hubble: 'Hubble', mir: 'Mir', skylab: 'Skylab', salyut: 'Salyut 1', sputnik: 'Sputnik 1',
   leo: 'Low Earth orbit', gps: 'GPS · medium orbit', geo: 'Geostationary belt', starlink: 'Starlink',
+  halley: 'Halley’s Comet', atlas: '3I/ATLAS',
 };
 
 /** Where the controls offer a view of the Earth and the Moon up close (their cards, the Earth's double-tap). */
@@ -37,7 +42,7 @@ const DONE = 1e9;
 
 /** Whose name wins when two would overlap. */
 const RANK: readonly BodyId[] = [
-  'sun', 'earth', 'jupiter', 'saturn', 'mars', 'venus', 'uranus', 'neptune', 'mercury', 'moon',
+  'sun', 'earth', 'jupiter', 'saturn', 'mars', 'venus', 'uranus', 'neptune', 'mercury', 'moon', 'halley', 'atlas',
   'iss', 'tiangong', 'hubble', 'mir', 'skylab', 'salyut', 'sputnik', 'geo', 'gps', 'leo', 'starlink',
 ];
 
@@ -79,6 +84,16 @@ const FOCUS: Partial<Record<BodyId, number>> = { earth: 30, moon: 40, iss: 45, t
 /** Something drawn over the scene in design units (a transfer orbit, sight lines). */
 export type Overlay = (ctx: CanvasRenderingContext2D, app: App) => void;
 
+/**
+ * What the Sky menu draws over the From above view: tonight's sight-lines from the Earth, the seasons (the axis, the
+ * solstices and equinoxes) and the comets (on by default).
+ */
+export interface Layers {
+  tonight: boolean;
+  seasons: boolean;
+  comets: boolean;
+}
+
 export interface AppOptions {
   canvas: HTMLCanvasElement;
   labels: HTMLElement;
@@ -111,6 +126,8 @@ export class App {
   private push = { factor: 1, at: 0 };
   /** Extra drawing over the scene (the jump-to presets' geometry). */
   overlay: Overlay | null = null;
+  /** The Sky menu's layers over the From above view. */
+  readonly layers: Layers = { tonight: false, seasons: false, comets: true };
   /** A journey under way stops (and pauses) on this day. */
   private stopAt: number | null = null;
   /** Your years, drawn in the In motion view while they are on screen (`flyLife`), and the wake length they replaced. */
@@ -220,7 +237,7 @@ export class App {
     }
     this.sim.pace = clamp(this.paces[VIEWS[view].family], VIEWS[view].pace.min, VIEWS[view].pace.max);
     // a body the new view does not show is let go (the Earth and the Moon are in all three)
-    if (this.selected && !sceneMarks(view, this.sim.sky(), 1).bodies.some(b => b.id === this.selected)) this.selected = null;
+    if (this.selected && !this.marksAt(view, this.sim.sky(), 1).bodies.some(b => b.id === this.selected)) this.selected = null;
     this.following = false;
     this.framed = null;
     this.homed = true;
@@ -269,6 +286,13 @@ export class App {
   select(id: Selection, follow = this.following): void {
     this.selected = id;
     this.following = id !== null && id !== 'belt' && follow;
+    this.changed();
+  }
+
+  /** Switch one of the Sky menu's layers on or off (a comet selected goes with its layer). */
+  setLayer(layer: keyof Layers, on: boolean): void {
+    this.layers[layer] = on;
+    if (layer === 'comets' && !on && (this.selected === 'halley' || this.selected === 'atlas')) this.select(null);
     this.changed();
   }
 
@@ -531,16 +555,23 @@ export class App {
 
   /* ---------- picking ---------- */
 
+  /** Every body a view draws under `sky`, with the comets where the Sky menu shows them. */
+  private marksAt(view: ViewId, sky: Sky, zoom: number): Marks {
+    const marks = sceneMarks(view, sky, zoom);
+    if (view === 'sky' && this.layers.comets) marks.bodies.push(...cometMarks(sky.now));
+    return marks;
+  }
+
   /** Where a body is drawn: as last drawn, or `fresh` for the sky as it stands now (after a jump). */
   private markOf(id: Selection, fresh = false): Mark | null {
     if (!id || id === 'belt') return null;
-    const marks = (!fresh && this.marks) || sceneMarks(this.view, this.sim.sky(), this.camera.target.zoom);
+    const marks = (!fresh && this.marks) || this.marksAt(this.view, this.sim.sky(), this.camera.target.zoom);
     return marks.bodies.find(b => b.id === id) ?? null;
   }
 
   /** The body under a point on screen (CSS pixels), as it was last drawn. */
   pickAt(x: number, y: number): Pick | null {
-    const marks = this.marks ?? sceneMarks(this.view, this.sim.sky(), this.camera.zoom);
+    const marks = this.marks ?? this.marksAt(this.view, this.sim.sky(), this.camera.zoom);
     return pick(marks, x, y, (dx, dy) => this.renderer.toScreen(dx, dy), this.renderer.designScale);
   }
 
@@ -603,7 +634,7 @@ export class App {
 
   private draw(): void {
     const sky = this.sim.sky();
-    this.marks = sceneMarks(this.view, sky, this.camera.zoom);
+    this.marks = this.marksAt(this.view, sky, this.camera.zoom);
     if (this.following) {
       const m = this.marks.bodies.find(b => b.id === this.selected);
       if (m) {
@@ -619,8 +650,16 @@ export class App {
     this.onDraw();
   }
 
-  /** What the explorer draws over the scene: a moment's geometry, your years, the Earth's neighbourhood, and the selection. */
+  /**
+   * What the explorer draws over the scene: the Sky menu's layers, a moment's geometry, your years, the Earth's
+   * neighbourhood, and the selection.
+   */
   private decorate(ctx: CanvasRenderingContext2D, selection: boolean): void {
+    if (this.view === 'sky') {
+      if (this.layers.seasons) drawSeasons(ctx, this);
+      if (this.layers.tonight) drawTonight(ctx, this);
+      if (this.layers.comets) drawComets(ctx, this, (id: CometId) => id === this.selected);
+    }
     this.overlay?.(ctx, this);
     if (this.life && this.view === 'wake') drawLife(ctx, this, this.life);
     if (this.view === 'earth') drawNeighbourhood(ctx, this, this.overlay !== null);

@@ -21,6 +21,10 @@ export interface UrlState {
   born?: number;
   body?: string;
   preset?: string;
+  /** The Sky menu's layers: tonight's sight-lines and the seasons on, the comets off. */
+  tonight?: boolean;
+  seasons?: boolean;
+  comets?: boolean;
 }
 
 const num = (v: string | null): number | undefined => {
@@ -49,6 +53,9 @@ export function readUrl(hash = location.hash): UrlState {
   if (q.get('trails') === '0') out.trails = false;
   if (q.get('trails') === '1') out.trails = true;
   if (body && /^[a-z]{3,10}$/.test(body)) out.body = body;
+  if (q.get('tonight') === '1') out.tonight = true;
+  if (q.get('seasons') === '1') out.seasons = true;
+  if (q.get('comets') === '0') out.comets = false;
   if (preset && /^[a-z0-9-]{2,40}$/.test(preset)) out.preset = preset;
   return out;
 }

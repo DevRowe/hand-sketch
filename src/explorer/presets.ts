@@ -18,6 +18,8 @@ import { Flight, hohmannDays, nextWindow, planetOnPlan, planPoint, type Polar, t
 import { drawCraft, drawMark, drawPath, drawSight, GOLD, text } from './overlays';
 import { DAY, WEEK, YEAR } from './sim';
 import { SPACEFLIGHT } from './spaceflight';
+import { COMET_PRESETS } from './comets';
+import { ECLIPSES } from './eclipse';
 
 /** Days from J2000.0 of a UTC date and time. */
 export const utc = (y: number, m: number, d: number, h = 0, min = 0): number => dayOf(Date.UTC(y, m - 1, d, h, min));
@@ -47,7 +49,7 @@ export interface Card {
 
 export interface Preset {
   id: string;
-  group: 'Now and next' | 'Launch windows' | 'Missions' | 'Alignments' | 'The space age' | 'To the Moon' | 'Space stations' | 'Satellites' | 'Next';
+  group: 'Now and next' | 'Launch windows' | 'Missions' | 'Alignments' | 'Eclipses' | 'Comets' | 'The space age' | 'To the Moon' | 'Space stations' | 'Satellites' | 'Next';
   title: string;
   /** One line for the list. */
   kicker: string;
@@ -654,8 +656,8 @@ const SOLAR_PRESETS: readonly Preset[] = [
   },
 ];
 
-/** Every moment: the solar system's, then spaceflight's round the Earth (`spaceflight.ts`). */
-export const PRESETS: readonly Preset[] = [...SOLAR_PRESETS, ...SPACEFLIGHT];
+/** Every moment: the solar system's, its comets' and eclipses', then spaceflight's round the Earth (`spaceflight.ts`). */
+export const PRESETS: readonly Preset[] = [...SOLAR_PRESETS, ...COMET_PRESETS, ...ECLIPSES, ...SPACEFLIGHT];
 
 export const presetById = (id: string): Preset | undefined => PRESETS.find(p => p.id === id);
 
