@@ -3,23 +3,25 @@
  * any date, with the viewer driving time, pace, trails, style, view and camera.
  */
 import './explorer.css';
-import { App, BODY_NAMES, DEFAULT_OPACITY, DEFAULT_SPANS } from './app';
+import { App, BODY_NAMES, DEFAULT_OPACITY } from './app';
 import type { ViewId } from './bodies';
 import { wireControls } from './controls';
 import { isoDate, today } from './format';
 import { JourneyBar } from './journey';
 import { Panel } from './panel';
 import { wireMoments } from './moments';
-import { Sim, WEEK } from './sim';
+import { Sim } from './sim';
 import { styleByKey, STYLES } from './styles';
 import { readUrl, writeUrl } from './url';
+import { VIEWS } from './views';
 import { wireWelcome } from './welcome';
 
 const DEFAULT_STYLE = 'pastel';
-/** The explorer opens in motion: the Sun carrying its planets through space. */
+/**
+ * The explorer opens in motion: the Sun carrying its planets through space, at two weeks a second (Mercury laps the
+ * Sun in about six seconds, the Moon circles Earth in two).
+ */
 const DEFAULT_VIEW: ViewId = 'wake';
-/** Two weeks a second: Mercury laps the Sun in about six seconds, the Moon circles Earth in two. */
-const DEFAULT_PACE = 2 * WEEK;
 
 const motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
 let reduceMotion = motionQuery.matches;
@@ -27,9 +29,10 @@ const url = readUrl();
 const canvas = document.getElementById('sky') as HTMLCanvasElement;
 
 const view: ViewId = url.view ?? DEFAULT_VIEW;
-const sim = new Sim(url.day ?? today(), url.pace ?? DEFAULT_PACE, { on: url.trails ?? true, span: DEFAULT_SPANS[view], opacity: DEFAULT_OPACITY });
+const sim = new Sim(url.day ?? today(), url.pace ?? VIEWS[view].pace.start, { on: url.trails ?? true, span: VIEWS[view].span.start, opacity: DEFAULT_OPACITY });
 if (url.reverse) sim.direction = -1;
-if (reduceMotion) sim.playing = false;
+// a link to a date shares that moment: it opens paused there, not running away from it
+if (reduceMotion || url.day !== undefined) sim.playing = false;
 
 const app = new App({
   canvas,
@@ -88,7 +91,7 @@ function reset(): void {
   panel.close();
   app.select(null);
   app.setDirection(1);
-  app.setPace(DEFAULT_PACE);
+  app.setPace(app.spec.pace.start);
   app.jump(today());
   app.resetView();
   app.play(!reduceMotion);
@@ -120,9 +123,10 @@ function syncUrl(): void {
       view: app.view === DEFAULT_VIEW ? undefined : app.view,
       // a moment is shared only when paused on it; a running sky starts from today for whoever opens the link
       date: app.sim.playing ? undefined : isoDate(app.sim.day),
-      pace: Math.abs(app.sim.pace / DEFAULT_PACE - 1) < 1e-6 ? undefined : app.sim.pace,
+      pace: Math.abs(app.sim.pace / app.spec.pace.start - 1) < 1e-6 ? undefined : app.sim.pace,
       reverse: app.sim.direction === -1,
       trails: app.sim.trails.on ? undefined : false,
+      span: Math.abs(app.sim.trails.span / app.spec.span.start - 1) < 1e-6 ? undefined : app.sim.trails.span,
       body: app.selected ?? undefined,
       preset: panel.preset ?? undefined,
     });
@@ -135,11 +139,18 @@ const LIGHT_PAPER = new Set(STYLES.filter(st => {
   return ((n >> 16) & 255) * 0.299 + ((n >> 8) & 255) * 0.587 + (n & 255) * 0.114 > 140;
 }));
 
+/** The first time the Earth and Moon view shows, a word on how to read it. */
+let earthTold = false;
+
 app.onChange = () => {
+  if (app.view === 'earth' && !earthTold && !document.body.classList.contains('welcoming')) {
+    earthTold = true;
+    toast('The Earth and the Moon at true scale: the Moon is ~30 Earths away. Zoom in on the Earth to see where the stations fly.', 6500);
+  }
   controls.refresh();
   panel.refresh();
   journeyBar.refresh();
-  moments.refresh(panel.preset);
+  moments.refresh(panel.preset, app.view);
   document.body.classList.toggle('light-paper', LIGHT_PAPER.has(app.style));
   syncUrl();
 };
@@ -240,13 +251,13 @@ app.start();
 controls.refresh();
 // a first visit gets a short welcome; a link straight to a moment or a body goes there without one
 if (!url.preset && !url.body) welcome.showOnce();
-moments.refresh(panel.preset);
+moments.refresh(panel.preset, app.view);
 document.body.classList.toggle('light-paper', LIGHT_PAPER.has(app.style));
 
 declare global {
   interface Window {
     /** The running explorer, for tests and the curious. */
-    __explorer?: { app: App; panel: Panel };
+    __explorer?: { app: App; panel: Panel; styles: typeof STYLES };
   }
 }
-window.__explorer = { app, panel };
+window.__explorer = { app, panel, styles: STYLES };

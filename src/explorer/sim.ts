@@ -6,17 +6,20 @@
 import { dayOf } from '../scenes/solar/ephemeris';
 import { datedSky, type Sky } from '../scenes/solar/sky';
 
+export const SECOND = 1 / 86400;
+export const MINUTE = 1 / 1440;
+export const HOUR = 1 / 24;
 export const DAY = 1;
 export const WEEK = 7;
 export const YEAR = 365.25;
 export const MONTH = YEAR / 12;
 
-/** Slowest and fastest pace, days of sky per second. */
-export const PACE_MIN = 1 / 24;
+/** Slowest and fastest pace in any view, days of sky per second (each view narrows it: `views.ts`). */
+export const PACE_MIN = SECOND;
 export const PACE_MAX = 25 * YEAR;
 
-/** Shortest and longest trail, days. */
-export const SPAN_MIN = 7;
+/** Shortest and longest trail in any view, days. */
+export const SPAN_MIN = HOUR;
 export const SPAN_MAX = 200 * YEAR;
 
 /** The dates the explorer runs over (the ephemeris is fitted to 3000 BC .. AD 3000). */

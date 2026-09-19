@@ -24,6 +24,17 @@ When updating a figure, check the primary source again rather than a secondary p
 - Spaceflight: NASA SP-4029 "Apollo by the Numbers" for Apollo dates; NASA's Artemis II mission release; NASA, ESA and JPL mission pages for everything else.
 - The Sun's galactic orbit: Reid et al. 2019 (https://arxiv.org/abs/1910.03357), GRAVITY 2022 (https://arxiv.org/abs/2112.07478) and NASA's Sun facts.
 
+## The Earth and Moon view
+
+- The Moon's latitude and distance: J. Meeus, "Astronomical Algorithms", 2nd ed., ch. 47, the largest terms of Tables 47.A and 47.B (checked against Meeus's example 47.a to ~15 km and ~0.002 degrees in `tests/cislunar.test.ts`); the Earth's spin from Greenwich mean sidereal time, Meeus eq. 12.4.
+- Coastlines: Natural Earth 1:110m land, public domain, simplified by `scripts/cislunar-land.mjs`: https://www.naturalearthdata.com
+- Orbit heights, tilts and speeds: NASA's ISS facts (https://www.nasa.gov/international-space-station/space-station-facts-and-figures/), GPS.gov (https://www.gps.gov/space-segment), the Kármán line and US 50-mile boundary as the FAI and NASA state them, and the stations' and satellites' own NASA, CMSA, ESA and Roscosmos records (with Wikipedia's mission pages for cross-checks).
+- The Moon's distance, sizes and months: NASA's Moon facts (https://science.nasa.gov/moon/facts/).
+- Crowds over the years: Jonathan McDowell's catalogue, sampled on 1 January of each year: working satellites in geosynchronous orbit (https://planet4589.org/space/stats/out/orbdeb.geo.txt), Starlink in orbit (https://planet4589.org/space/con/star/stats.html) and all working satellites (https://planet4589.org/space/stats/active.html), as of 17 September 2026. GPS counts before 1993 are counted from launch and retirement dates.
+- Flight times: the Apollo Flight Journal (https://www.apollojournals.org/afj/) and NASA's mission pages for Mercury, Gemini and Apollo; NASA's Artemis I, II and III releases (Artemis II's record: https://www.nasa.gov/news-release/nasas-artemis-ii-crew-eclipses-record-for-farthest-human-spaceflight; Artemis III: https://www.nasa.gov/news-release/nasa-marches-toward-artemis-iii-mission-in-2027-names-crew-members/). Distance records are from the Earth's surface, as NASA quotes them.
+- Plans (Artemis III and IV, Gateway's pause, the ISS deorbit, commercial stations, China's crewed landing) as of September 2026: NASA, ESA, CMSA and company releases; they are labelled as plans in the cards.
+- Paths are representative: real dates, heights and tilts joined by simple Kepler orbits (`src/explorer/trajectories.ts`); where a station is along its orbit on a date is illustrative.
+
 ## Jump to
 
 - Mars windows: NASA TM-2010-216764, the Mars trajectory handbook (https://ntrs.nasa.gov/citations/20100037210); after 2029 the explorer computes the ideal Hohmann alignment.

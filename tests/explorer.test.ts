@@ -75,11 +75,20 @@ describe('explorer camera', () => {
     expect(cam.view).toEqual({ zoom: 1, x: 960, y: 540 });
   });
 
-  it('lets the page sit back as a sheet when zoomed out, never off the screen', () => {
+  it('never zooms a plan out past its whole page, so the page edge never shows', () => {
     const cam = new Camera(1920, 1080);
-    cam.zoomAt(0.5, 960, 540);
+    cam.zoomAt(0.5, 300, 200);
     expect(cam.zoom).toBe(ZOOM_MIN);
-    const hw = 960 / ZOOM_MIN;
+    expect(ZOOM_MIN).toBe(1);
+    expect(cam.view).toEqual({ zoom: 1, x: 960, y: 540 });
+  });
+
+  it('with a lower floor (the Earth and Moon view, whose paper never moves) lets the page sit back, never off the screen', () => {
+    const cam = new Camera(1920, 1080);
+    cam.min = 0.5;
+    cam.zoomAt(0.25, 960, 540);
+    expect(cam.zoom).toBe(0.5);
+    const hw = 960 / 0.5;
     cam.panBy(1e6, 0);
     // the page's right edge may reach the screen's right edge but no farther
     expect(cam.x).toBeCloseTo(1920 - hw, 9);
@@ -138,11 +147,12 @@ describe('explorer words', () => {
     expect(readUrl('#style=<script>&view=up&date=soon&pace=-3&body=x')).toEqual({});
   });
 
-  it('offers all ten styles, each with both views', () => {
+  it('offers all ten styles, each with all three views', () => {
     expect(STYLES.map(s => s.title)).toEqual(SOLAR_CATALOG.map(e => e.title));
     for (const s of STYLES) {
       expect(s.scenes.sky.name).toBe(`solar-${s.key}`);
       expect(s.scenes.wake.name).toBe(`spiral-${s.key}`);
+      expect(s.scenes.earth.name).toBe(`cislunar-${s.key}`);
     }
   });
 });

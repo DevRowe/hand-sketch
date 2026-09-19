@@ -105,20 +105,24 @@ export function drawSight(ctx: CanvasRenderingContext2D, app: App, from: Vec2, t
 /** Screen pixels a caption keeps from the screen's sides. */
 const EDGE = 6;
 
-/** A small caption in the explorer's type, haloed; slid sideways as needed to stay on the screen. */
-export function text(ctx: CanvasRenderingContext2D, app: App, [x, y]: Vec2, s: string, align: CanvasTextAlign, alpha = 1, bold = false): void {
-  const k = px(app);
+/**
+ * A small caption in the explorer's type, haloed; slid sideways as needed to stay on the screen. It is set in screen
+ * pixels (whatever the zoom, type is never scaled from a fraction of a design unit).
+ */
+export function text(ctx: CanvasRenderingContext2D, app: App, at: Vec2, s: string, align: CanvasTextAlign, alpha = 1, bold = false): void {
+  let [x, y] = app.renderer.toScreen(at[0], at[1]);
   ctx.save();
+  ctx.setTransform(app.renderer.cssScale, 0, 0, app.renderer.cssScale, 0, 0);
   ctx.globalAlpha *= alpha;
-  ctx.font = `${bold ? 600 : 500} ${12 * k}px Inter, system-ui, sans-serif`;
-  const w = ctx.measureText(s).width / k, [sx] = app.renderer.toScreen(x, y);
-  const left = align === 'left' ? sx : align === 'right' ? sx - w : sx - w / 2;
-  if (left < EDGE) x += (EDGE - left) * k;
-  else if (left + w > innerWidth - EDGE) x -= (left + w - innerWidth + EDGE) * k;
+  ctx.font = `${bold ? 600 : 500} 12px Inter, system-ui, sans-serif`;
+  const w = ctx.measureText(s).width, left = align === 'left' ? x : align === 'right' ? x - w : x - w / 2;
+  if (left < EDGE) x += EDGE - left;
+  else if (left + w > innerWidth - EDGE) x -= left + w - innerWidth + EDGE;
+  y = Math.round(y);
   ctx.textAlign = align;
   ctx.textBaseline = 'alphabetic';
   ctx.lineJoin = 'round';
-  ctx.lineWidth = 3.5 * k;
+  ctx.lineWidth = 3.5;
   ctx.strokeStyle = HALO;
   ctx.strokeText(s, x, y);
   ctx.fillStyle = INK;

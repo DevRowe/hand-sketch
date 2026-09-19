@@ -3,9 +3,8 @@
  * shortcuts, and the gestures on the canvas (drag to pan, wheel or pinch to zoom towards the pointer, tap to pick).
  */
 import type { App } from './app';
-import { ZOOM_MAX, ZOOM_MIN } from './camera';
+import type { ViewId } from './bodies';
 import { dateLabel, dateLong, dayOfYear, isoDate, paceFromSlider, paceLabel, paceToSlider, parseIsoDate, spanFromSlider, spanLabel, spanToSlider, today, yearOf } from './format';
-import { DAY, MONTH, WEEK, YEAR } from './sim';
 import { STYLES } from './styles';
 
 const $ = <T extends HTMLElement>(id: string): T => {
@@ -13,10 +12,6 @@ const $ = <T extends HTMLElement>(id: string): T => {
   if (!el) throw new Error(`missing #${id}`);
   return el as T;
 };
-
-export const PACE_PRESETS: readonly [number, string][] = [
-  [DAY, '1 day/s'], [WEEK, '1 week/s'], [2 * WEEK, '2 weeks/s'], [MONTH, '1 month/s'], [YEAR, '1 year/s'], [10 * YEAR, '10 years/s'],
-];
 
 /** Hooks the controls call that belong to other parts of the page. */
 export interface ControlHooks {
@@ -87,7 +82,8 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
   /* ---------- views and styles ---------- */
 
   const viewButtons = [...document.querySelectorAll<HTMLButtonElement>('.views button')];
-  for (const b of viewButtons) b.addEventListener('click', () => app.setView(b.dataset.view === 'wake' ? 'wake' : 'sky'));
+  const viewOf = (b: HTMLButtonElement): ViewId => (b.dataset.view === 'earth' ? 'earth' : b.dataset.view === 'sky' ? 'sky' : 'wake');
+  for (const b of viewButtons) b.addEventListener('click', () => app.setView(viewOf(b)));
 
   // the visual styles: a compact menu under one button that shows the style in use
   const swatch = (el: HTMLElement, [paper, ink, accent]: readonly [string, string, string]): void => {
@@ -169,7 +165,7 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     choose(next);
     buttons[next]!.focus();
   };
-  document.querySelector('.views')!.addEventListener('keydown', radioKeys(viewButtons, i => app.setView(viewButtons[i]!.dataset.view === 'sky' ? 'sky' : 'wake')) as EventListener);
+  document.querySelector('.views')!.addEventListener('keydown', radioKeys(viewButtons, i => app.setView(viewOf(viewButtons[i]!))) as EventListener);
 
   /* ---------- time and pace ---------- */
 
@@ -187,26 +183,36 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     ui.dateIn.value = isoDate(app.sim.day);
     try { ui.dateIn.showPicker?.(); } catch { /* not allowed here: the field still works */ }
   });
-  ui.pace.addEventListener('input', () => app.setPace(paceFromSlider(Number(ui.pace.value) / 1000)));
+  ui.pace.addEventListener('input', () => app.setPace(paceFromSlider(Number(ui.pace.value) / 1000, app.spec.pace)));
   // the year scrubber: dragging it moves the sky through time (the date keeps running from wherever it is let go)
   let scrubbing = false;
   ui.year.addEventListener('pointerdown', () => (scrubbing = true));
   addEventListener('pointerup', () => (scrubbing = false));
   ui.year.addEventListener('input', () => app.jump(dayOfYear(Number(ui.year.value))));
-  const chips = PACE_PRESETS.map(([pace, label]) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'chip';
-    b.textContent = label;
-    b.addEventListener('click', () => { app.setPace(pace); if (!app.sim.playing) app.play(true); });
-    ui.chips.append(b);
-    return { b, pace };
-  });
+  // each family of views offers its own paces: the plans from a day to ten years a second, the Earth and Moon from
+  // real time to a day a second
+  let chips: { b: HTMLButtonElement; pace: number }[] = [], chipFamily = '';
+  const makeChips = (): void => {
+    if (chipFamily === app.spec.family) return;
+    chipFamily = app.spec.family;
+    ui.chips.replaceChildren();
+    chips = app.spec.pace.chips.map(([pace, label]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.textContent = label;
+      b.addEventListener('click', () => { app.setPace(pace); if (!app.sim.playing) app.play(true); });
+      ui.chips.append(b);
+      return { b, pace };
+    });
+    shown.pace = -1;
+    shown.span = -1;
+  };
 
   /* ---------- trails, zoom, names ---------- */
 
   ui.trails.addEventListener('click', () => app.setTrails(!app.sim.trails.on));
-  ui.span.addEventListener('input', () => app.setSpan(spanFromSlider(Number(ui.span.value) / 1000)));
+  ui.span.addEventListener('input', () => app.setSpan(spanFromSlider(Number(ui.span.value) / 1000, app.spec.span)));
   ui.opacity.addEventListener('input', () => {
     app.setOpacity(Number(ui.opacity.value) / 100);
     if (!app.sim.trails.on && Number(ui.opacity.value) > 0) app.setTrails(true);
@@ -283,10 +289,11 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     const k = e.key;
     let handled = true;
     if (k === ' ' && !onButton) app.play(!app.sim.playing);
-    else if ((k === 'ArrowRight' || k === 'ArrowLeft') && !onRange && !onButton) app.setPace(paceFromSlider(Math.min(1, Math.max(0, paceToSlider(app.sim.pace) + (k === 'ArrowRight' ? 0.04 : -0.04)))));
+    else if ((k === 'ArrowRight' || k === 'ArrowLeft') && !onRange && !onButton) app.setPace(paceFromSlider(Math.min(1, Math.max(0, paceToSlider(app.sim.pace, app.spec.pace) + (k === 'ArrowRight' ? 0.04 : -0.04))), app.spec.pace));
     else if (k === 'r' || k === 'R') app.setDirection(app.sim.direction === 1 ? -1 : 1);
     else if (k === 't' || k === 'T') app.jump(today());
     else if (k === 'v' || k === 'V') app.setView(app.view === 'sky' ? 'wake' : 'sky');
+    else if (k === 'e' || k === 'E') app.toggleEarth();
     else if (k === 'w' || k === 'W') app.setTrails(!app.sim.trails.on);
     else if (k === 'l' || k === 'L') app.setNames(!app.names);
     else if (k === '+' || k === '=') app.zoomBy(1.5);
@@ -320,7 +327,12 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
   const flyIn = (x: number, y: number): void => {
     clearTimeout(cardTimer);
     const hit = app.pickAt(x, y);
-    if (hit && hit.id !== 'belt') {
+    if (hit && hit.id === 'earth' && app.view !== 'earth' && app.camera.zoom >= app.camera.max / 2) {
+      // already close on the Earth in a plan: go on in, to the Earth and Moon view
+      app.select('earth');
+      app.setView('earth');
+      hooks.openBody('earth');
+    } else if (hit && hit.id !== 'belt') {
       app.select(hit.id);
       // the card first: the flight centres the body in the room the card leaves
       hooks.openBody(hit.id);
@@ -408,13 +420,20 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
   /* ---------- keeping readouts in step ---------- */
 
   const shown = { date: '', pace: -1, span: -1, zoom: -1 };
+  const WHERE: Readonly<Record<ViewId, string>> = {
+    sky: 'The solar system seen from above',
+    wake: 'The solar system seen at an angle as the Sun travels',
+    earth: 'The Earth, its orbits and the Moon seen from above, at true scale',
+  };
   const onDraw = (): void => {
     if (app.camera.zoom !== shown.zoom) {
       shown.zoom = app.camera.zoom;
       const z = app.camera.zoom;
       ui.zoom.textContent = `${z < 10 ? (Math.round(z * 10) / 10).toString() : Math.round(z)}×`;
-      ui.zoomIn.disabled = z >= ZOOM_MAX - 1e-6;
-      ui.zoomOut.disabled = z <= ZOOM_MIN + 1e-6;
+      // at the ends of a view's zoom the buttons carry on through the Earth: in from a plan following it, out of the
+      // Earth and Moon view
+      ui.zoomIn.disabled = z >= app.camera.max - 1e-6 && !app.canDive;
+      ui.zoomOut.disabled = z <= app.camera.min + 1e-6 && app.view !== 'earth';
       ui.viewReset.disabled = app.atHome;
     }
     const y = yearOf(app.sim.day);
@@ -433,11 +452,12 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
       ui.dateOut.textContent = label;
       // the date field keeps up with the running date (unless it is being typed into), so it never reads stale
       if (document.activeElement !== ui.dateIn) ui.dateIn.value = isoDate(app.sim.day);
-      ui.canvas.setAttribute('aria-label', `The solar system on ${dateLong(app.sim.day)}, drawn live in the ${app.style.title} style, ${app.view === 'sky' ? 'seen from above' : 'seen at an angle as the Sun travels'}.`);
+      ui.canvas.setAttribute('aria-label', `${WHERE[app.view]}, on ${dateLong(app.sim.day)}, drawn live in the ${app.style.title} style.`);
     }
   };
   const refresh = (): void => {
     const s = app.sim;
+    makeChips();
     document.body.classList.toggle('paused', !s.playing);
     ui.play.setAttribute('aria-label', s.playing ? 'Pause' : 'Play');
     for (const b of viewButtons) b.setAttribute('aria-checked', String(b.dataset.view === app.view));
@@ -451,7 +471,7 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     ui.reverse.setAttribute('aria-pressed', String(s.direction === -1));
     if (s.pace !== shown.pace) {
       shown.pace = s.pace;
-      ui.pace.value = String(Math.round(paceToSlider(s.pace) * 1000));
+      ui.pace.value = String(Math.round(paceToSlider(s.pace, app.spec.pace) * 1000));
       ui.paceOut.textContent = paceLabel(s.pace);
       ui.pace.setAttribute('aria-valuetext', `${spanLabel(s.pace)} per second`);
       fill(ui.pace);
@@ -469,7 +489,7 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     ui.trails.parentElement!.classList.toggle('off', !s.trails.on);
     if (s.trails.span !== shown.span) {
       shown.span = s.trails.span;
-      ui.span.value = String(Math.round(spanToSlider(s.trails.span) * 1000));
+      ui.span.value = String(Math.round(spanToSlider(s.trails.span, app.spec.span) * 1000));
       ui.spanOut.textContent = spanLabel(s.trails.span);
       ui.span.setAttribute('aria-valuetext', spanLabel(s.trails.span));
       fill(ui.span);

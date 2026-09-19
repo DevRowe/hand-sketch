@@ -12,6 +12,10 @@
  *   costs no rebuild.
  * - The heaviest styles draw to a smaller pixel budget on dense screens and let the browser scale up: hand-drawn marks
  *   bear it far better than the governor's deeper steps.
+ * - A lens scene (the Earth and Moon view) is handed the view instead of drawn through it: the stage stays home, so its
+ *   paper stays put, and the scene maps its own geometry (`scenes/cislunar/lens.ts`).
+ * - Crossing between the plans and the Earth and Moon view, the last picture swells or shrinks into the new one and
+ *   fades (`cross`).
  */
 import { DEFAULT_SETTINGS, drawScene, ON_TWOS, toFrames, type Scene } from '../core/scene';
 import { Stage, type View } from '../core/stage';
@@ -26,8 +30,27 @@ const MAX_DPR = 2;
 const HEAVY_PIXELS = 2.5e6;
 /** Stages (with their caches) kept for recent backing sizes. */
 const KEEP_STAGES = 3;
-/** What lies round the page when it is zoomed out. */
+/** Laid under every drawing, so nothing of the last one shows through a scene that leaves a gap. */
 const DESK = '#0b0d12';
+
+/** How a scene is drawn: through the view (the plans), or handed it as a lens, with the days the sky moves a drawing. */
+export interface DrawOptions {
+  lens: boolean;
+  step: number;
+}
+
+interface Crossing {
+  snap: HTMLCanvasElement;
+  /** Where the anchor was on the old picture, and where it goes (CSS pixels). */
+  from: readonly [number, number];
+  to: readonly [number, number];
+  /** How much the old picture grows (above 1) or shrinks. */
+  scale: number;
+  start: number;
+  duration: number;
+}
+
+const HOME: View = { zoom: 1, x: 0, y: 0 };
 
 export interface Size {
   /** CSS pixels. */
@@ -100,6 +123,9 @@ export class Renderer {
   private drawStart = -1;
   private drawJs = 0;
   private sceneName = '';
+  /** The view the last drawing was made for: every mapping between the screen and the design goes through it. */
+  private view: View = HOME;
+  private crossingNow: Crossing | null = null;
 
   constructor(readonly canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d', { alpha: false });
@@ -157,19 +183,29 @@ export class Renderer {
   /** Output pixels per CSS pixel. */
   private get density(): number { return this.current.outW / this.size.cssW; }
 
+  /** Canvas pixels per CSS pixel (for marks set in screen pixels). */
+  get cssScale(): number { return this.density; }
+
   /** The scenes' design box fitted into the logical frame. */
   get fit(): Frame { const s = this.current; return frameFit(s.w, s.h); }
 
+  /** The view as the renderer maps it (home before anything is drawn). */
+  private get mapView(): View {
+    const s = this.current;
+    return this.view === HOME ? { zoom: 1, x: s.w / 2, y: s.h / 2 } : this.view;
+  }
+
   /** Design units to CSS pixels, through the view. */
   toScreen(x: number, y: number): [number, number] {
-    const fr = this.fit, [px, py] = this.current.toPixel(fr.ox + x * fr.s, fr.oy + y * fr.s), d = this.density;
-    return [px / d, py / d];
+    const fr = this.fit, s = this.current, { zoom, x: vx, y: vy } = this.mapView, d = this.density;
+    const lx = fr.ox + x * fr.s, ly = fr.oy + y * fr.s;
+    return [(s.base * (s.w / 2 + zoom * (lx - vx))) / d, (s.base * (s.h / 2 + zoom * (ly - vy))) / d];
   }
 
   /** CSS pixels to the logical point under them, through the view. */
   toLogical(x: number, y: number): [number, number] {
-    const d = this.density;
-    return this.current.toLogical(x * d, y * d);
+    const s = this.current, { zoom, x: vx, y: vy } = this.mapView, d = this.density;
+    return [vx + ((x * d) / s.base - s.w / 2) / zoom, vy + ((y * d) / s.base - s.h / 2) / zoom];
   }
 
   /** Design units to logical units. */
@@ -179,16 +215,16 @@ export class Renderer {
   }
 
   /** CSS pixels per design unit at the current zoom. */
-  get designScale(): number { return (this.fit.s * this.current.scale) / this.density; }
+  get designScale(): number { return (this.fit.s * this.current.base * this.mapView.zoom) / this.density; }
 
   /** CSS pixels per logical unit at zoom 1 (for turning a drag into a pan). */
   get logicalScale(): number { return this.current.base / this.density; }
 
   /**
-   * Draw `scene` under `sky` through `view`, `intro` drawn frames into its draw-on (it rests whole from its loop start
-   * on), then `overlay` in design units.
+   * Draw `scene` under `sky` through `view` (or handing it `view` as a lens), `intro` drawn frames into its draw-on (it
+   * rests whole from its loop start on), then `overlay` in design units, then any view crossing under way.
    */
-  draw(scene: Scene, intro: number, sky: Sky, view: View, overlay?: (ctx: CanvasRenderingContext2D) => void): void {
+  draw(scene: Scene, intro: number, sky: Sky, view: View, overlay?: (ctx: CanvasRenderingContext2D) => void, o?: DrawOptions): void {
     if (scene.name !== this.sceneName) {
       this.sceneName = scene.name;
       const before = this.governor.level;
@@ -197,32 +233,26 @@ export class Renderer {
     }
     const stage = this.current, ctx = this.ctx, builds = stage.builds;
     this.drawStart = performance.now();
-    stage.setView(view);
+    this.view = view;
+    stage.setView(o?.lens ? { zoom: 1, x: stage.w / 2, y: stage.h / 2 } : view);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = DESK;
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
-    // zoomed out, the page lies on the desk as a sheet: give it a soft shadow to sit on
-    const [x0, y0] = stage.toPixel(0, 0), [x1, y1] = stage.toPixel(stage.w, stage.h);
-    if (x0 > 0.5 || y0 > 0.5 || x1 < this.canvas.width - 0.5 || y1 < this.canvas.height - 0.5) {
-      ctx.save();
-      ctx.shadowColor = 'rgba(0,0,0,0.7)';
-      ctx.shadowBlur = 40 * stage.base;
-      ctx.shadowOffsetY = 10 * stage.base;
-      ctx.fillStyle = '#000';
-      ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
-      ctx.restore();
-    }
     const rest = toFrames(scene.loopFrom ?? 0, ON_TWOS.fps);
-    drawScene(ctx, stage, scene, Math.min(rest, Math.max(0, intro)), ON_TWOS, DEFAULT_SETTINGS, { sky });
+    drawScene(ctx, stage, scene, Math.min(rest, Math.max(0, intro)), ON_TWOS, DEFAULT_SETTINGS, o?.lens ? { sky, lens: view, step: o.step } : { sky });
     if (overlay) {
       ctx.save();
-      stage.reset(ctx);
+      const k = stage.base * view.zoom;
+      ctx.setTransform(k, 0, 0, k, stage.base * (stage.w / 2 - view.zoom * view.x), stage.base * (stage.h / 2 - view.zoom * view.y));
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
       enter(ctx, this.fit);
       overlay(ctx);
       ctx.restore();
     }
+    this.drawCrossing();
     this.drawJs = performance.now() - this.drawStart;
     this.built = stage.builds !== builds;
   }
@@ -249,6 +279,38 @@ export class Renderer {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Start a view crossing: the picture on the canvas now is kept and, over `duration` seconds of the drawings that
+   * follow, grows by `scale` (or shrinks, below 1) about `from` while carrying that point to `to` (CSS pixels), and fades.
+   */
+  cross(from: readonly [number, number], to: readonly [number, number], scale: number, duration: number): void {
+    const snap = document.createElement('canvas');
+    snap.width = this.canvas.width;
+    snap.height = this.canvas.height;
+    snap.getContext('2d')!.drawImage(this.canvas, 0, 0);
+    this.crossingNow = { snap, from, to, scale, start: performance.now(), duration: duration * 1000 };
+  }
+
+  /** Whether a view crossing is still on screen (the picture must keep being drawn). */
+  get crossing(): boolean { return this.crossingNow !== null; }
+
+  private drawCrossing(): void {
+    const c = this.crossingNow;
+    if (!c) return;
+    const t = Math.min(1, (performance.now() - c.start) / c.duration);
+    if (t >= 1) {
+      this.crossingNow = null;
+      return;
+    }
+    const e = 1 - (1 - t) ** 3, k = Math.exp(Math.log(c.scale) * e), d = this.canvas.width / this.size.cssW;
+    const [ax, ay] = c.from, bx = ax + (c.to[0] - ax) * e, by = ay + (c.to[1] - ay) * e, ctx = this.ctx;
+    ctx.save();
+    ctx.globalAlpha = (1 - t) ** 1.6;
+    ctx.setTransform(k, 0, 0, k, (bx - ax * k) * d, (by - ay * k) * d);
+    ctx.drawImage(c.snap, 0, 0, this.canvas.width, this.canvas.height);
+    ctx.restore();
   }
 
   /** The resolution in use, as a fraction of the full backing size (for diagnostics). */

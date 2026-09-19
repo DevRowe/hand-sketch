@@ -17,6 +17,7 @@ import { fromEarthKm, km, lightTime } from './live';
 import { Flight, hohmannDays, nextWindow, planetOnPlan, planPoint, type Polar, type Waypoint } from './orbits';
 import { drawCraft, drawMark, drawPath, drawSight, GOLD, text } from './overlays';
 import { DAY, WEEK, YEAR } from './sim';
+import { SPACEFLIGHT } from './spaceflight';
 
 /** Days from J2000.0 of a UTC date and time. */
 export const utc = (y: number, m: number, d: number, h = 0, min = 0): number => dayOf(Date.UTC(y, m - 1, d, h, min));
@@ -46,7 +47,7 @@ export interface Card {
 
 export interface Preset {
   id: string;
-  group: 'Now and next' | 'Launch windows' | 'Missions' | 'Alignments';
+  group: 'Now and next' | 'Launch windows' | 'Missions' | 'Alignments' | 'The space age' | 'To the Moon' | 'Space stations' | 'Satellites' | 'Next';
   title: string;
   /** One line for the list. */
   kicker: string;
@@ -55,8 +56,15 @@ export interface Preset {
   view?: ViewId;
   /** Select this body and glide in on it. */
   focus?: { body: BodyId; zoom: number };
-  /** Otherwise frame the plan: fit a circle of `fit` design units round `at` (default the Sun) into the free screen. */
-  frame?: { fit: number; at?: Vec2 };
+  /**
+   * Otherwise frame the plan: fit a circle of `fit` design units round `at` (default the page's centre: the Sun, or the
+   * Earth) into the free screen; `at` may be worked out for the moment (where the Moon is).
+   */
+  frame?: { fit: number; at?: Vec2 | (() => Vec2) };
+  /** The pace to run at from the moment, days a second (it opens paused). */
+  pace?: number;
+  /** The same moment seen in the other scale (among the planets, or up close round the Earth). */
+  related?: { id: string; label: string };
   select?: BodyId;
   /** A journey to play from the moment: until `to`, at `pace` days a second. */
   journey?(): { from: number; to: number; pace: number; label: string };
@@ -223,7 +231,7 @@ function plutoMark(ctx: CanvasRenderingContext2D, app: App): void {
 
 /* ---------- the presets ---------- */
 
-export const PRESETS: readonly Preset[] = [
+const SOLAR_PRESETS: readonly Preset[] = [
   {
     id: 'juice-earth',
     group: 'Now and next',
@@ -386,6 +394,7 @@ export const PRESETS: readonly Preset[] = [
     day: () => utc(1969, 7, 20, 20, 17),
     view: 'sky',
     focus: { body: 'earth', zoom: 6 },
+    related: { id: 'apollo-11-close', label: 'See the flight up close' },
     journey: () => ({ from: utc(1969, 7, 16, 13, 32), to: utc(1969, 7, 24, 16, 51), pace: 0.75 * DAY, label: 'Play the eight days' }),
     card: () => ({
       when: 'Landing: 20 July 1969, 20:17 UTC',
@@ -644,6 +653,9 @@ export const PRESETS: readonly Preset[] = [
     }),
   },
 ];
+
+/** Every moment: the solar system's, then spaceflight's round the Earth (`spaceflight.ts`). */
+export const PRESETS: readonly Preset[] = [...SOLAR_PRESETS, ...SPACEFLIGHT];
 
 export const presetById = (id: string): Preset | undefined => PRESETS.find(p => p.id === id);
 

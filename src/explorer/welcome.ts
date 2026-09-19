@@ -47,7 +47,7 @@ export function wireWelcome(hooks: { openGuide(): void }): Welcome & { showOnce(
     const rows: [keyof typeof ICONS, string][] = [
       ['move', touch ? '<b>Drag</b> to move about, <b>pinch</b> to zoom.' : '<b>Drag</b> to move about, <b>scroll</b> to zoom.'],
       ['tap', `<b>${touch ? 'Tap' : 'Click'} a planet</b> for its story; ${touch ? 'double-tap' : 'double-click'} to fly in.`],
-      ['look', 'Switch between <b>In motion</b> and <b>From above</b>, in ten <b>visual styles</b>.'],
+      ['look', 'Switch between <b>In motion</b>, <b>From above</b> and <b>Earth &amp; Moon</b>, the story of spaceflight at true scale, in ten <b>visual styles</b>.'],
       ['moments', 'Jump to <b>key moments</b>: Apollo 11, Voyager, the next Mars window.'],
       ['pace', `Change the <b>speed</b>; the <b>trails</b>’ length and strength are ${compact ? 'under <b>More</b>' : 'in the dock'}.`],
       ['travel', '<b>Your travels</b>: how far you have come since your birthday.'],

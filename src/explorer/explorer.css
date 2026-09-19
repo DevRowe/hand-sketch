@@ -52,6 +52,11 @@ svg { display: block; }
 /* a name waiting for room fades out rather than blinking */
 .label.hid { opacity: 0; }
 .label.sun { color: #f7d38c; }
+/* the named heights of the Earth and Moon view: quieter than the bodies, set on their rings */
+.label.leo, .label.gps, .label.geo, .label.starlink {
+  font: italic 400 11px/1.3 var(--serif, Georgia, serif); letter-spacing: .03em; color: rgb(239 230 212 / .85);
+  background: rgb(13 15 21 / .42); transform-origin: 0 50%;
+}
 .label.selected { background: rgb(232 163 61 / .92); color: #1b1307; box-shadow: none; }
 .labels.off .label:not(.selected) { opacity: 0; }
 
@@ -636,6 +641,12 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
   .look .views button span { font-size: 13px; }
   .look .btn.style-btn { gap: 7px; padding-right: 8px; }
   .look .style-btn .chev { display: none; }
+}
+/* three views and the style share one row on an upright phone: the style keeps its swatch, its name is in the menu */
+@media (max-width: 460px) and (min-width: 360px) {
+  .look .style-btn-text { display: none; }
+  .look .btn.style-btn { padding: 0 9px; }
+  .look .views button { padding: 5px 8px; }
 }
 @media (max-width: 359px) {
   .brand { padding: 5px 6px; }
