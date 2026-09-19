@@ -215,6 +215,46 @@ export const BODIES: Readonly<Record<BodyId | 'belt', BodyCard>> = {
       'A year there lasts ~165 Earth years, so it completed its first orbit since its discovery only in 2011.',
     ],
   },
+  /* ---------- beyond Neptune: the From above plan ---------- */
+
+  pluto: {
+    kind: 'Dwarf planet · in the Kuiper belt',
+    intro: 'A small, icy world beyond Neptune, with a heart-shaped glacier and a moon half its size: the ninth planet until 2006.',
+    facts: [
+      { label: 'Diameter', value: '2,376 km (0.19 × Earth, two thirds of the Moon)' },
+      { label: 'Mass', value: '0.002 × Earth' },
+      { label: 'Gravity', value: '0.62 m/s² (0.06 × Earth)' },
+      { label: 'From the Sun', value: '29.7 to 49.3 au · ~5.9 billion km on average' },
+      { label: 'Year', value: '248 Earth years' },
+      { label: 'Day', value: '6.4 Earth days, spinning backwards' },
+      { label: 'Moons', value: '5: Charon, Nix, Hydra, Kerberos, Styx' },
+      { label: 'Mean temperature', value: '-225 °C' },
+    ],
+    fun: [
+      'Found by Clyde Tombaugh on 18 February 1930 at Lowell Observatory, by flicking between photographs of the same patch of sky taken days apart.',
+      'In 2006 the International Astronomical Union made it the first “dwarf planet”: round, and circling the Sun, but not massive enough to have cleared its orbit of other bodies.',
+      'New Horizons flew past on 14 July 2015 and found a heart-shaped plain of nitrogen ice, Sputnik Planitia, ringed by mountains of water ice.',
+      'Charon is half Pluto’s width: the two circle a point in space between them, always showing each other the same face.',
+    ],
+    orbit: 'Tilted 17° to the planets’ plane and stretched (eccentricity 0.25): from 7 February 1979 to 11 February 1999 it was closer to the Sun than Neptune. The two never meet: Pluto goes round twice for every three laps of Neptune, and never comes nearer to it than ~17 au.',
+  },
+  kuiper: {
+    kind: 'Beyond Neptune',
+    intro: 'A vast ring of icy leftovers from the making of the planets, from Neptune’s orbit out to ~50 au: Pluto is one of its largest members.',
+    facts: [
+      { label: 'Where', value: '~30 to 50 au from the Sun' },
+      { label: 'Wider than 100 km', value: 'hundreds of thousands' },
+      { label: 'First found', value: '1992 QB1 (Albion), 30 August 1992, by David Jewitt and Jane Luu' },
+      { label: 'Named for', value: 'Gerard Kuiper, who wrote about such a belt in 1951' },
+    ],
+    fun: [
+      'Many of the comets that come back every few years (the Jupiter-family comets) fell in from the Kuiper belt and the scattered disc beyond it.',
+      'On 1 January 2019 New Horizons flew past Arrokoth, a small, double-lobed world ~6.6 billion km from the Sun: the most distant object ever visited.',
+      'Its other dwarf planets include Haumea, which spins so fast it is stretched into an egg, and Makemake; Eris, almost Pluto’s size but more massive, loops farther out.',
+      'The dots here are a picture of the belt, not a catalogue: a few hundred bodies at fixed, made-up places, each circling at the pace its distance gives it.',
+    ],
+  },
+
   /* ---------- round the Earth: the Earth and Moon view ---------- */
 
   iss: {

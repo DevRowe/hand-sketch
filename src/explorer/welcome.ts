@@ -1,6 +1,7 @@
 /**
  * A first visit's welcome: one small card with the handful of things worth knowing (moving about, tapping a planet,
- * the views and the Look menu, the key moments and the Sky menu, the speed, and You), over the sky as it draws itself on.
+ * the views and the Look menu, the key moments, the tour and the Sky and Scale menus, the speed, and You), over the sky
+ * as it draws itself on, with the guided tour as a way in.
  * Dismissed once, it stays dismissed in this browser; the guide can bring it back.
  */
 
@@ -37,9 +38,10 @@ export interface Welcome {
   readonly open: boolean;
 }
 
-export function wireWelcome(hooks: { openGuide(): void }): Welcome & { showOnce(): void } {
+export function wireWelcome(hooks: { openGuide(): void; startTour(): void }): Welcome & { showOnce(): void } {
   const root = document.getElementById('welcome')!, card = root.querySelector<HTMLElement>('.welcome-card')!;
   const go = document.getElementById('welcome-go') as HTMLButtonElement, guide = document.getElementById('welcome-guide') as HTMLButtonElement;
+  const tour = document.getElementById('welcome-tour') as HTMLButtonElement;
   let returnTo: HTMLElement | null = null;
 
   const tips = (): string => {
@@ -48,9 +50,9 @@ export function wireWelcome(hooks: { openGuide(): void }): Welcome & { showOnce(
       ['move', touch ? '<b>Drag</b> to move about, <b>pinch</b> to zoom.' : '<b>Drag</b> to move about, <b>scroll</b> to zoom.'],
       ['tap', `<b>${touch ? 'Tap' : 'Click'} a planet</b> for its story; ${touch ? 'double-tap' : 'double-click'} to fly in.`],
       ['look', 'Switch between <b>In motion</b>, <b>From above</b> and <b>Earth &amp; Moon</b>, the story of spaceflight at true scale; <b>Look</b> holds the ten visual styles and the trails.'],
-      ['moments', '<b>Moments</b> sets the sky to Apollo 11, Voyager, the next Mars window and more; <b>Sky</b> shows what is up tonight, the Moon, comets and the seasons.'],
+      ['moments', '<b>Moments</b> sets the sky to Apollo 11, Voyager, the next Mars window and more, or takes you on a <b>guided tour</b>; <b>Sky</b> shows what is up tonight, <b>Scale</b> how big and how far.'],
       ['pace', 'Play, pause and change the <b>speed</b> along the foot of the screen.'],
-      ['travel', '<b>You</b>: fly your own years, share this moment, save a picture.'],
+      ['travel', '<b>You</b>: fly your own years, share this moment, save a picture or a clip.'],
     ];
     return rows.map(([icon, text]) => `<li><span class="tip-icon"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[icon]}</svg></span><span>${text}</span></li>`).join('');
   };
@@ -76,6 +78,10 @@ export function wireWelcome(hooks: { openGuide(): void }): Welcome & { showOnce(
     close();
     hooks.openGuide();
   });
+  tour.addEventListener('click', () => {
+    close();
+    hooks.startTour();
+  });
   // a click on the sky around the card is a dismissal too
   root.addEventListener('click', e => {
     if (e.target === root) close();
@@ -87,7 +93,7 @@ export function wireWelcome(hooks: { openGuide(): void }): Welcome & { showOnce(
       close();
     } else if (e.key === 'Tab') {
       // keep the focus inside the card while it is up
-      const focusable = [go, guide];
+      const focusable = [go, tour, guide];
       const i = focusable.indexOf(document.activeElement as HTMLButtonElement);
       e.preventDefault();
       focusable[(i + (e.shiftKey ? -1 : 1) + focusable.length) % focusable.length]!.focus();

@@ -9,19 +9,19 @@ export const AU_KM = 149_597_870.7;
 const C_KM_S = 299_792.458;
 
 /** A planet's heliocentric position, au (J2000 ecliptic). */
-export const xyz = (name: PlanetName, day: number): [number, number, number] => {
+export const xyz = (name: PlanetName | 'pluto', day: number): [number, number, number] => {
   const h = heliocentric(name, day), c = Math.cos(h.lat);
   return [h.r * c * Math.cos(h.lon), h.r * c * Math.sin(h.lon), h.r * Math.sin(h.lat)];
 };
 
 /** Distance between Earth and a planet, km. */
-export function fromEarthKm(name: PlanetName, day: number): number {
+export function fromEarthKm(name: PlanetName | 'pluto', day: number): number {
   const a = xyz(name, day), b = xyz('earth', day);
   return Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) * AU_KM;
 }
 
 /** Distance from the Sun, au. */
-export const fromSunAu = (name: PlanetName, day: number): number => heliocentric(name, day).r;
+export const fromSunAu = (name: PlanetName | 'pluto', day: number): number => heliocentric(name, day).r;
 
 /** "8 min 17 s", "1 h 12 min", "1.3 s": the time light takes over `km`. */
 export function lightTime(km: number): string {

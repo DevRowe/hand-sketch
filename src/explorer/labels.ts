@@ -49,7 +49,8 @@ const SHOW_AFTER = 650;
 const GAP = 6;
 const EDGE = 4;
 
-type Box = readonly [number, number, number, number];
+/** A rectangle on screen, CSS pixels: left, top, right, bottom. */
+export type Box = readonly [number, number, number, number];
 
 const overlaps = (a: Box, b: Box, pad: number): boolean =>
   a[0] < b[2] + pad && a[2] > b[0] - pad && a[1] < b[3] + pad && a[3] > b[1] - pad;
@@ -64,11 +65,12 @@ export class LabelLayout {
 
   /**
    * Place `labels`, given in order of importance (the first wins any clash), on a screen `width` pixels wide at time
-   * `now` (ms). Names not handed in this time are forgotten. `pending` says some name is waiting to change: place
-   * again a little later even if nothing moves.
+   * `now` (ms), clear of `blocked` (captions drawn into the picture, which every name gives way to). Names not handed in
+   * this time are forgotten. `pending` says some name is waiting to change: place again a little later even if nothing
+   * moves.
    */
-  place(labels: readonly LabelIn[], width: number, now: number): { labels: LabelOut[]; pending: boolean } {
-    const placed: Box[] = [], out: LabelOut[] = [], seen = new Set<string>();
+  place(labels: readonly LabelIn[], width: number, now: number, blocked: readonly Box[] = []): { labels: LabelOut[]; pending: boolean } {
+    const placed: Box[] = [...blocked], out: LabelOut[] = [], seen = new Set<string>();
     let pending = false;
     for (const l of labels) {
       seen.add(l.id);

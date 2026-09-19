@@ -5,6 +5,7 @@
 import type { App } from './app';
 import type { ViewId } from './bodies';
 import { dateLabel, dateLong, dayOfYear, isoDate, paceFromSlider, paceLabel, paceToSlider, parseIsoDate, spanFromSlider, spanLabel, spanToSlider, today, yearOf } from './format';
+import { t } from './i18n';
 import { STYLES } from './styles';
 
 const $ = <T extends HTMLElement>(id: string): T => {
@@ -13,8 +14,8 @@ const $ = <T extends HTMLElement>(id: string): T => {
   return el as T;
 };
 
-/** The menus, each opening its sheet in the panel (the home kept for Tools joins them once it is built). */
-export type MenuId = 'moments' | 'sky' | 'look' | 'you' | 'guide';
+/** The menus, each opening its sheet in the panel. */
+export type MenuId = 'moments' | 'sky' | 'scale' | 'look' | 'you' | 'guide';
 
 /** Hooks the controls call that belong to other parts of the page. */
 export interface ControlHooks {
@@ -29,6 +30,12 @@ export interface ControlHooks {
   toast(text: string): void;
   /** The controls moved between the top bar and the dock: the room they leave has changed. */
   relayout(): void;
+  /** Play or pause: the sky, or the guided tour while it is on. */
+  togglePlay(): void;
+  /** Switch the sound of the orbits on or off. */
+  toggleSound(): void;
+  /** Pick out the next body in view (or the one before), with its card. */
+  stepBody(dir: 1 | -1): void;
 }
 
 /** Paint a range input's filled part (WebKit draws no progress of its own). */
@@ -150,6 +157,9 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
   ui.year.addEventListener('pointerdown', () => (scrubbing = true));
   addEventListener('pointerup', () => (scrubbing = false));
   ui.year.addEventListener('input', () => app.jump(dayOfYear(Number(ui.year.value))));
+  // a row of chips scrolled along says so at its start as well as its end
+  const scrolled = (): void => void ui.chips.classList.toggle('scrolled', ui.chips.scrollLeft > 2);
+  ui.chips.addEventListener('scroll', scrolled, { passive: true });
   // each family of views offers its own paces: the plans from a day to ten years a second, the Earth and Moon from
   // real time to a day a second
   let chips: { b: HTMLButtonElement; pace: number }[] = [], chipFamily = '';
@@ -186,7 +196,7 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
   }
   ui.homePill.addEventListener('click', () => app.resetView());
   ui.names.addEventListener('click', () => app.setNames(!app.names));
-  const moreLabel = (open: boolean): string => (open ? 'Fewer time controls' : 'More time controls: the speed slider and the year');
+  const moreLabel = (open: boolean): string => (open ? t('dock.fewer') : t('dock.more'));
   ui.more.addEventListener('click', () => {
     const open = !ui.dock.classList.contains('expanded');
     ui.dock.classList.toggle('expanded', open);
@@ -201,7 +211,7 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     if (on) hooks.closePanel();
     document.body.classList.toggle('hide-ui', on);
     ui.hide.setAttribute('aria-pressed', String(on));
-    if (on) hooks.toast('Controls hidden. Press H or tap the sky with two fingers to bring them back.');
+    if (on) hooks.toast(t('toast.hidden'));
   };
   ui.hide.addEventListener('click', () => setHidden(true));
   $<HTMLButtonElement>('show-btn').addEventListener('click', () => setHidden(false));
@@ -236,7 +246,7 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
   }, 500);
   ui.fs.addEventListener('click', () => {
     if (document.fullscreenElement) void document.exitFullscreen();
-    else void document.documentElement.requestFullscreen?.().catch(() => hooks.toast('Full screen is not available here.'));
+    else void document.documentElement.requestFullscreen?.().catch(() => hooks.toast(t('toast.noFullscreen')));
   });
   document.addEventListener('fullscreenchange', () => {
     ui.fsText.textContent = document.fullscreenElement ? 'Leave full screen' : 'Full screen';
@@ -247,14 +257,14 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
 
   document.addEventListener('keydown', e => {
     if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || document.body.classList.contains('welcoming')) return;
-    const t = e.target as HTMLElement;
-    const typing = t instanceof HTMLInputElement && (t.type === 'date' || t.type === 'text');
-    const onRange = t instanceof HTMLInputElement && t.type === 'range';
-    const onButton = t instanceof HTMLButtonElement || t instanceof HTMLAnchorElement;
+    const target = e.target as HTMLElement;
+    const typing = target instanceof HTMLInputElement && (target.type === 'date' || target.type === 'text');
+    const onRange = target instanceof HTMLInputElement && target.type === 'range';
+    const onButton = target instanceof HTMLButtonElement || target instanceof HTMLAnchorElement;
     if (typing) return;
     const k = e.key;
     let handled = true;
-    if (k === ' ' && !onButton) app.play(!app.sim.playing);
+    if (k === ' ' && !onButton) hooks.togglePlay();
     else if ((k === 'ArrowRight' || k === 'ArrowLeft') && !onRange && !onButton) app.setPace(paceFromSlider(Math.min(1, Math.max(0, paceToSlider(app.sim.pace, app.spec.pace) + (k === 'ArrowRight' ? 0.04 : -0.04))), app.spec.pace));
     else if (k === 'r' || k === 'R') app.setDirection(app.sim.direction === 1 ? -1 : 1);
     else if (k === 't' || k === 'T') app.jump(today());
@@ -269,6 +279,9 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     else if (k === 'f' || k === 'F') ui.fs.click();
     else if (k === 'j' || k === 'J') hooks.openMenu('moments');
     else if (k === 'k' || k === 'K') hooks.toggleMenu('sky');
+    else if (k === 'c' || k === 'C') hooks.toggleMenu('scale');
+    else if (k === 'm' || k === 'M') hooks.toggleSound();
+    else if (k === 'n' || k === 'N') hooks.stepBody(e.shiftKey ? -1 : 1);
     else if (k === 's' || k === 'S') hooks.toggleMenu('look');
     else if (k === 'g' || k === 'G') hooks.openMenu('guide');
     else if (k === 'y' || k === 'Y') hooks.openMenu('you');
@@ -438,7 +451,7 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     if (ui.lookName.textContent !== app.style.title) {
       ui.lookName.textContent = app.style.title;
       swatch(ui.lookSw, app.style.swatch);
-      ui.lookBtn.setAttribute('aria-label', `Look (now ${app.style.title}): visual style, trails, names and zoom`);
+      ui.lookBtn.setAttribute('aria-label', t('menu.look.label', { style: app.style.title }));
     }
     viewButtons.forEach(b => (b.tabIndex = b.dataset.view === app.view ? 0 : -1));
     ui.reverse.setAttribute('aria-pressed', String(s.direction === -1));
@@ -456,6 +469,7 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
         if (left < row.scrollLeft) row.scrollLeft = left - 4;
         else if (right > row.scrollLeft + row.clientWidth - pad) row.scrollLeft = right - row.clientWidth + pad;
       }
+      scrolled();
     }
     if (document.activeElement !== ui.dateIn) ui.dateIn.value = isoDate(s.day);
     ui.trails.setAttribute('aria-pressed', String(s.trails.on));

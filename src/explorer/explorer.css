@@ -52,8 +52,8 @@ svg { display: block; }
 /* a name waiting for room fades out rather than blinking */
 .label.hid { opacity: 0; }
 .label.sun { color: #f7d38c; }
-/* the named heights of the Earth and Moon view: quieter than the bodies, set on their rings */
-.label.leo, .label.gps, .label.geo, .label.starlink {
+/* the named heights of the Earth and Moon view and the Kuiper belt: quieter than the bodies, set on their rings */
+.label.leo, .label.gps, .label.geo, .label.starlink, .label.kuiper {
   font: italic 400 11px/1.3 var(--serif, Georgia, serif); letter-spacing: .03em; color: rgb(239 230 212 / .85);
   background: rgb(13 15 21 / .42); transform-origin: 0 50%;
 }
@@ -66,7 +66,7 @@ svg { display: block; }
    moments), the open card, the toast, the welcome */
 .labels { z-index: 1; }
 .moments, .pill, .home-pill { z-index: 2; }
-.top, .dock, .journey-bar, .show-ui { z-index: 3; }
+.top, .dock, .journey-bar, .tour-bar, .show-ui { z-index: 3; }
 .panel { z-index: 4; }
 .toast { z-index: 6; }
 
@@ -83,6 +83,7 @@ body.hide-ui .moments { transform: translateX(-8px); }
 body.journey .dock, body.journey .moments, body.journey .pill, body.journey .home-pill { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .3s, visibility 0s .3s; }
 /* idle on a desktop: the controls fade until the pointer moves */
 body.idle .chrome, body.idle .journey-bar { opacity: 0; transition-duration: .9s; }
+/* the tour's words stay up while it plays: they are what it is for */
 body.idle #sky { cursor: none; }
 .show-ui {
   position: fixed; top: calc(12px + var(--safe-t)); right: calc(12px + var(--safe-r)); opacity: 0; pointer-events: none;
@@ -165,7 +166,8 @@ button:focus-visible, input:focus-visible, a:focus-visible, .date-pick:focus-wit
 .style-grid .style .sw i:nth-child(2) { left: 11.5px; top: 11.5px; }
 .style-text { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; flex: 1; text-align: left; }
 .style-text b { color: var(--ink); font-size: 13px; line-height: 1.25; white-space: normal; }
-.style-text small { margin: 0; color: var(--faint); font-size: 11.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+/* a style's theme may take two lines rather than be cut short */
+.style-text small { margin: 0; color: var(--faint); font-size: 11.5px; line-height: 1.3; max-width: 100%; white-space: normal; }
 .look-sheet h3.with-note { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .keys-note { color: var(--faint); font: 400 11.5px/1 var(--sans); letter-spacing: 0; text-transform: none; }
 .look-sheet .trails { display: grid; gap: 6px; }
@@ -203,32 +205,33 @@ button:focus-visible, input:focus-visible, a:focus-visible, .date-pick:focus-wit
 .moment:hover .m-dot, .moment[aria-current='true'] .m-dot { background: var(--gold); transform: scale(1.15); }
 .m-text { display: flex; flex-direction: column; min-width: 0; }
 .m-title { font: 500 14px/1.2 var(--serif); letter-spacing: -.005em; }
-.m-sub { color: var(--faint); font-size: 11.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* a journey's name may run to two lines rather than be cut short */
+.m-sub { color: var(--faint); font-size: 11.5px; line-height: 1.3; }
 .m-play { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: rgb(232 163 61 / .16); color: var(--gold); }
 .m-play svg { width: 11px; height: 11px; fill: currentColor; margin-left: 1px; }
 .moment:hover .m-play { background: var(--gold); color: #1b1307; }
 
 /* ---------- dock ---------- */
 
-/* one grid, laid out per screen below: time (play, the date, reverse, the speed slider, its readout and presets), the
-   year and zoom (a second row on a wide screen, under More on a phone), and on a compact screen the menus as tabs */
+/* one grid, laid out per screen below: time (play, the date, the speed slider and its readout, then Reverse and the
+   speed presets), the year and zoom (a second row on a wide screen, under More on a phone), and on a compact screen the
+   menus as tabs */
 .dock {
   /* centred by its margins between two insets, so opening a card moves an inset and nothing has to animate across */
   position: fixed; left: calc(12px + var(--safe-l)); right: calc(12px + var(--safe-r)); bottom: calc(12px + var(--safe-b)); margin-inline: auto;
   width: auto; max-width: 1120px;
   display: grid; align-items: center; gap: 10px 12px; padding: 12px 14px;
-  grid-template-columns: auto auto auto minmax(140px, 1fr) auto auto;
-  grid-template-areas: 'play when rev pace out chips' 'dmore dmore dmore dmore dmore dmore';
+  grid-template-columns: auto auto minmax(140px, 1fr) auto auto;
+  grid-template-areas: 'play when pace out chips' 'dmore dmore dmore dmore dmore';
   background: var(--glass); border: 1px solid var(--rule); border-radius: 18px;
   backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2);
   box-shadow: 0 24px 60px -24px rgb(0 0 0 / .85);
 }
 #play { grid-area: play; }
 .when { grid-area: when; }
-#reverse { grid-area: rev; }
 #pace { grid-area: pace; }
 .pace-out { grid-area: out; }
-.chips { grid-area: chips; }
+.speeds { grid-area: chips; }
 .more { grid-area: more; }
 .dock-more { grid-area: dmore; }
 .tab-slot { grid-area: tabs; display: none; min-width: 0; }
@@ -250,7 +253,10 @@ body.paused #play .i-play, .journey-bar.paused .i-play { display: block; }
 body.paused #play .i-pause, .journey-bar.paused .i-pause, .journey-bar.ended .i-pause { display: none; }
 .journey-bar.ended .i-play { display: none; }
 .journey-bar.ended .i-replay { display: block; }
-#reverse[aria-pressed='true'] { background: var(--gold-soft); border-color: rgb(232 163 61 / .6); color: var(--gold); }
+/* Reverse leads the speed presets: a switch with its word, not a lone arrow */
+.chip.rev { display: inline-flex; align-items: center; gap: 5px; margin-right: 4px; padding: 0 11px 0 8px; }
+.chip.rev svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.chip.rev[aria-pressed='true'] { background: var(--gold-soft); border-color: rgb(232 163 61 / .6); color: var(--gold); }
 
 /* the date is a quiet readout: the sky is the thing to look at */
 .when { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
@@ -267,7 +273,7 @@ body.paused #play .i-pause, .journey-bar.paused .i-pause, .journey-bar.ended .i-
 .link:hover { color: var(--ink); text-decoration-color: var(--gold); }
 
 .pace-out { min-width: 92px; text-align: right; font-weight: 600; font-size: 13.5px; font-variant-numeric: tabular-nums; color: var(--ink); white-space: nowrap; }
-.chips { display: flex; gap: 6px; min-width: 0; }
+.speeds, .chips { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .chip {
   flex: none; height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--rule); background: rgb(239 230 212 / .04);
   color: var(--muted); font-size: 12px; font-weight: 500; white-space: nowrap; transition: border-color .15s, color .15s, background .15s;
@@ -527,6 +533,77 @@ body.hide-ui .pill { transform: translate(-50%, -8px); }
 /* beside an open card on a wide screen, the bar centres in the room the card leaves */
 body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); width: min(620px, calc(100vw - 472px - var(--safe-l) - var(--safe-r))); }
 
+/* ---------- the guided tour: its words, its stops and its buttons in one bar at the foot ---------- */
+
+.tour-bar {
+  position: fixed; left: 50%; bottom: calc(12px + var(--safe-b)); transform: translateX(-50%);
+  width: min(640px, calc(100vw - 24px - var(--safe-l) - var(--safe-r)));
+  display: grid; gap: 10px; padding: 14px 14px 12px 18px;
+  background: var(--glass-strong); border: 1px solid rgb(232 163 61 / .45); border-radius: 18px;
+  backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2);
+  box-shadow: 0 24px 60px -24px rgb(0 0 0 / .85);
+  animation: bar-in .3s ease both;
+}
+.tour-bar[hidden] { display: none; }
+.tour-copy { min-width: 0; }
+.tour-bar .tour-step { margin: 0 0 3px; }
+.tour-title { margin: 0 0 4px; font: 400 21px/1.2 var(--serif); letter-spacing: -.01em; }
+.tour-text { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.tour-nav { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.tour-dots { display: flex; align-items: center; gap: 2px; margin: 0; padding: 0; list-style: none; min-width: 0; }
+.tour-dot { display: grid; place-items: center; width: 22px; height: 28px; padding: 0; border: 0; border-radius: 8px; background: none; }
+.tour-dot i { display: block; width: 8px; height: 8px; border-radius: 999px; border: 1.5px solid var(--faint); transition: width .2s, border-color .2s; }
+.tour-dot:hover i { border-color: var(--ink); }
+.tour-dot.done i { background: var(--gold); border-color: var(--gold); }
+.tour-dot[aria-current='step'] { width: 34px; }
+.tour-dot[aria-current='step'] i {
+  width: 26px; border-color: var(--gold);
+  background: linear-gradient(to right, var(--gold) calc(var(--u, 0) * 100%), transparent 0);
+}
+.tour-buttons { display: flex; align-items: center; gap: 8px; flex: none; }
+.tour-bar .round.primary { width: 44px; height: 44px; }
+.tour-bar .btn.icon { width: 40px; height: 40px; }
+.tour-bar.paused .i-play { display: block; }
+.tour-bar.paused .i-pause { display: none; }
+.tour-read svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.tour-read[aria-pressed='true'] svg { color: var(--gold); }
+.tour-read[hidden] { display: none; }
+.tour-finish { display: none; }
+/* the last stop's next is the way out: a word, not an arrow */
+.tour-next.finish { width: auto; padding: 0 16px; border-radius: 999px; background: var(--gold); border-color: var(--gold); color: #1b1307; font-weight: 600; font-size: 13.5px; }
+.tour-next.finish svg { display: none; }
+.tour-next.finish .tour-finish { display: inline; }
+body.panel-open .tour-bar { left: calc(50% - 212px - var(--safe-r) / 2); width: min(640px, calc(100vw - 472px - var(--safe-l) - var(--safe-r))); }
+
+/* the tour as the first of the key moments, and as a card at the head of the Moments sheet */
+.tour-moment .m-year { display: grid; place-items: center end; color: var(--gold); }
+.tour-moment .m-year svg { width: 13px; height: 13px; fill: currentColor; }
+.tour-moment .m-dot { background: var(--gold); }
+.tour-moment .m-title { color: var(--gold); }
+.tour-card {
+  display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: 12px; width: 100%; margin: 0 0 16px; padding: 12px 14px;
+  border: 1px solid rgb(232 163 61 / .45); border-radius: 14px; background: var(--gold-soft); color: var(--ink); text-align: left;
+}
+.tour-card:hover { background: rgb(232 163 61 / .22); }
+.tc-play { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--gold); color: #1b1307; }
+.tc-play svg { width: 16px; height: 16px; fill: currentColor; margin-left: 2px; }
+.tc-text { display: grid; gap: 2px; min-width: 0; }
+.tc-text b { font: 500 17px/1.25 var(--serif); }
+.tc-text small { color: var(--muted); font-size: 12.5px; line-height: 1.4; }
+
+/* ---------- the Scale sheet ---------- */
+
+.figure { margin: 0 0 12px; }
+.figure canvas { display: block; width: 100%; border-radius: 12px; border: 1px solid var(--rule); }
+.figure figcaption { margin-top: 8px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.model { margin: 0 0 8px; padding: 0; list-style: none; }
+.model li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 10px; padding: 6px 0; border-bottom: 1px dashed var(--rule); }
+.md-name { color: var(--ink); font-weight: 600; font-size: 13.5px; }
+.md-far { color: var(--gold); font-weight: 600; font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+.md-size { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; }
+.look-note { margin: 6px 0 0; color: var(--faint); font-size: 12px; line-height: 1.45; }
+.guide-links { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+
 
 /* ---------- first visit ---------- */
 
@@ -597,8 +674,12 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
 
 /* ---------- laptops ---------- */
 
-@media (max-width: 1279px) {
+/* the brand's second line gives way before it would be cut short by the six menus */
+@media (max-width: 1379px) {
   .brand-text small { display: none; }
+}
+
+@media (max-width: 1279px) {
   /* the key moments become a strip of chips under the top bar, a small timeline read left to right */
   .moments {
     top: calc(12px + var(--safe-t) + var(--top-h, 52px) + 8px); left: calc(12px + var(--safe-l)); right: calc(12px + var(--safe-r));
@@ -637,8 +718,18 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
   .top .brand-text, .v-text small, .top .menu-text small { display: none; }
   .brand { padding: 7px 9px; }
   /* the presets move under the slider */
-  .dock { grid-template-columns: auto auto auto minmax(120px, 1fr) auto; grid-template-areas: 'play when rev pace out' 'play when chips chips chips' 'dmore dmore dmore dmore dmore'; }
-  .chips { justify-self: start; max-width: 100%; }
+  .dock { grid-template-columns: auto auto minmax(120px, 1fr) auto; grid-template-areas: 'play when pace out' 'play when chips chips' 'dmore dmore dmore dmore'; }
+  .speeds { justify-self: start; max-width: 100%; }
+}
+
+/* a narrow desktop window: each menu's icon over its word, as the tabs will be, so all six still fit the top bar */
+@media (max-width: 1099px) and (min-width: 981px) and (min-height: 541px) {
+  .menus { gap: 4px; }
+  .menu { flex-direction: column; justify-content: center; gap: 2px; min-width: 58px; min-height: 48px; padding: 4px 8px 3px; font-size: 12px; }
+  .menu svg, .menu .sw { width: 19px; height: 19px; }
+  .menu .sw i:nth-child(1) { width: 12px; height: 12px; left: 3.5px; top: 3.5px; }
+  .menu .sw i:nth-child(2) { width: 4px; height: 4px; left: 7.5px; top: 7.5px; }
+  .menu-text { align-items: center; }
 }
 
 /* ---------- tablets, and anything narrower: the menus become tabs along the foot of the dock ---------- */
@@ -665,15 +756,17 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
   body.panel-open .dock { right: calc(12px + var(--safe-r)); margin-left: auto; }
   .panel { bottom: calc(12px + var(--safe-b) + var(--dock-h, 128px) + 10px); }
   body.journey .panel { bottom: calc(12px + var(--safe-b)); }
-  body.panel-open .journey-bar { visibility: hidden; }
+  body.panel-open .journey-bar, body.panel-open .tour-bar { visibility: hidden; }
   /* a row of chips too long for its room scrolls sideways, fading at the edge so a clipped chip reads as "more" */
   .chips { overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; mask-image: linear-gradient(to right, #000 calc(100% - 26px), transparent); padding-right: 22px; }
   .chips::-webkit-scrollbar { display: none; }
+  /* scrolled along, it fades at its start too */
+  .chips.scrolled { mask-image: linear-gradient(to right, transparent, #000 18px, #000 calc(100% - 26px), transparent); }
 }
 
 @media (max-width: 980px) {
-  .dock { grid-template-columns: auto auto auto minmax(100px, 1fr) auto; grid-template-areas: 'play when rev pace out' 'chips chips chips chips chips' 'dmore dmore dmore dmore dmore' 'tabs tabs tabs tabs tabs'; }
-  .chips { justify-self: stretch; }
+  .dock { grid-template-columns: auto auto minmax(100px, 1fr) auto; grid-template-areas: 'play when pace out' 'chips chips chips chips' 'dmore dmore dmore dmore' 'tabs tabs tabs tabs'; }
+  .speeds { justify-self: stretch; }
   .top { justify-content: space-between; }
 }
 
@@ -695,10 +788,10 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
   .moment { min-height: 32px; }
   .dock {
     left: calc(8px + var(--safe-l)); right: calc(8px + var(--safe-r)); bottom: calc(8px + var(--safe-b)); max-width: none; padding: 10px 10px 6px; gap: 8px; border-radius: 16px;
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
-    grid-template-areas: 'play when rev more' 'chips chips chips chips' 'tabs tabs tabs tabs';
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: 'play when more' 'chips chips chips' 'tabs tabs tabs';
   }
-  .dock.expanded { grid-template-areas: 'play when rev more' 'chips chips chips chips' 'pace pace pace out' 'dmore dmore dmore dmore' 'tabs tabs tabs tabs'; }
+  .dock.expanded { grid-template-areas: 'play when more' 'chips chips chips' 'pace pace out' 'dmore dmore dmore' 'tabs tabs tabs'; }
   .round { width: 42px; height: 42px; }
   .more { display: inline-flex; }
   #pace, .pace-out, .dock-more { display: none; }
@@ -719,6 +812,10 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
   .facts dd { font-size: 13px; }
   body.journey .top { opacity: 0; visibility: hidden; pointer-events: none; }
   .journey-bar, body.panel-open .journey-bar { left: 50%; bottom: calc(8px + var(--safe-b)); width: calc(100vw - 16px - var(--safe-l) - var(--safe-r)); }
+  .tour-bar, body.panel-open .tour-bar { left: 50%; bottom: calc(8px + var(--safe-b)); width: calc(100vw - 16px - var(--safe-l) - var(--safe-r)); padding: 12px 10px 10px 14px; gap: 8px; }
+  .tour-title { font-size: 19px; }
+  .tour-text { font-size: 13.5px; }
+  .tour-read { padding: 0 10px 0 8px; }
   .welcome-card { padding: 18px 18px 16px; }
   .welcome-card h2 { font-size: 23px; }
 }
@@ -726,7 +823,7 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
 /* upright only (a phone on its side is short too, and lays out below) */
 @media (max-width: 720px) and (min-height: 541px) {
   /* a card is a sheet over the tabs: while it is up, the dock is only the tabs */
-  body.panel-open .dock { right: calc(8px + var(--safe-r)); padding-top: 6px; grid-template-areas: 'tabs tabs tabs tabs'; }
+  body.panel-open .dock { right: calc(8px + var(--safe-r)); padding-top: 6px; grid-template-areas: 'tabs tabs tabs'; }
   body.panel-open .dock > :not(.tab-slot) { display: none; }
   body.panel-open .tab-slot .menus { padding-top: 0; border-top: 0; }
   /* during a journey the dock is away, and the card rests on the foot of the screen, over the journey's bar */
@@ -739,6 +836,10 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
 
 @media (max-width: 420px) {
   .chip { padding: 0 9px; }
+  /* the tour's stops on a line of their own, its buttons spread along the next */
+  .tour-nav { flex-wrap: wrap; gap: 4px; }
+  .tour-dots { flex: 1 1 100%; justify-content: center; }
+  .tour-buttons { flex: 1 1 100%; justify-content: space-between; gap: 6px; }
   .v-text span { font-size: 12px; }
   /* four planets a row still, with room for a whole date under each */
   .ages li { padding: 6px 4px 7px 6px; }
@@ -776,10 +877,10 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
   .top .moment { min-height: 32px; }
   .dock {
     left: calc(8px + var(--safe-l)); right: calc(8px + var(--safe-r)); bottom: calc(6px + var(--safe-b)); max-width: none; padding: 6px 8px; gap: 6px 8px; border-radius: 14px;
-    grid-template-columns: auto auto auto minmax(0, 1fr) auto auto;
-    grid-template-areas: 'play when rev chips more tabs';
+    grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+    grid-template-areas: 'play when chips more tabs';
   }
-  .dock.expanded { grid-template-areas: 'play when rev chips more tabs' 'pace pace pace pace out out' 'dmore dmore dmore dmore dmore dmore'; }
+  .dock.expanded { grid-template-areas: 'play when chips more tabs' 'pace pace pace out out' 'dmore dmore dmore dmore dmore'; }
   .round { width: 38px; height: 38px; }
   .round.small { width: 30px; height: 30px; }
   #date-out { font-size: 13.5px; }
@@ -817,6 +918,14 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
   /* beside the card (a side sheet here), the bar centres in the room it leaves */
   body.panel-open .journey-bar { visibility: visible; left: calc((100vw - min(380px, 52vw) - 8px) / 2); width: calc(100vw - min(380px, 52vw) - 40px); }
   .journey-bar .round { width: 38px; height: 38px; }
+  /* the tour's bar: its words beside its buttons, in two short rows */
+  .tour-bar { bottom: calc(6px + var(--safe-b)); width: min(720px, calc(100vw - 16px - var(--safe-l) - var(--safe-r))); padding: 8px 8px 8px 14px; gap: 4px; }
+  .tour-title { font-size: 16px; margin-bottom: 2px; }
+  .tour-text { font-size: 12.5px; line-height: 1.4; }
+  .tour-bar .tour-step { display: none; }
+  .tour-bar .round.primary { width: 38px; height: 38px; }
+  .tour-bar .btn.icon { width: 36px; height: 36px; }
+  body.panel-open .tour-bar { visibility: visible; left: calc((100vw - min(380px, 52vw) - 8px) / 2); width: calc(100vw - min(380px, 52vw) - 40px); }
   .welcome { padding: 8px; }
   .welcome-card { width: min(780px, 100%); padding: 14px 18px 12px; max-height: calc(100dvh - 16px); }
   .welcome-card .eyebrow { display: none; }
@@ -839,14 +948,24 @@ body.panel-open .journey-bar { left: calc(50% - 212px - var(--safe-r) / 2); widt
   .keys-note { display: none; }
 }
 
-/* the smallest phones on their side: the pace reads out in the row and its presets wait under More with the rest, and
-   the top bar keeps only the way into all the moments */
-@media (max-height: 540px) and (max-width: 740px) {
-  .dock { grid-template-areas: 'play when rev out more tabs'; }
-  .dock.expanded { grid-template-areas: 'play when rev out more tabs' 'chips chips chips chips chips chips' 'pace pace pace pace pace pace' 'dmore dmore dmore dmore dmore dmore'; }
+/* phones on their side: the pace reads out in the row, and Reverse and the presets wait under More with the rest (the
+   row has room for a chip or two at most, which says less than the readout) */
+@media (max-height: 540px) and (max-width: 900px) {
+  .dock { grid-template-areas: 'play when out more tabs'; }
+  .dock.expanded { grid-template-areas: 'play when out more tabs' 'chips chips chips chips chips' 'pace pace pace pace pace' 'dmore dmore dmore dmore dmore'; }
   .pace-out { display: block; min-width: 0; font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; }
-  .chips { display: none; }
-  .dock.expanded .chips { display: flex; }
+  .speeds { display: none; }
+  .dock.expanded .speeds { display: flex; }
+}
+/* the smallest of them: the top bar keeps only the way into all the moments */
+@media (max-height: 540px) and (max-width: 740px) {
   .top .moments-list { display: none; }
-  .tab-slot .menu { width: 54px; }
+  .dock { column-gap: 6px; }
+  .tab-slot .menu { width: 50px; }
+}
+/* the narrowest phones on their side: the tabs close up a little more, so the pace still reads in full */
+@media (max-height: 540px) and (max-width: 660px) {
+  .dock { column-gap: 4px; }
+  .tab-slot .menus { padding-left: 6px; gap: 1px; }
+  .tab-slot .menu { width: 47px; font-size: 10px; }
 }

@@ -57,7 +57,12 @@ export async function savePicture(app: App, m: Moment): Promise<Shared> {
   caption(canvas, app.style.swatch, m);
   const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
   if (!blob) return 'failed';
-  const name = `${m.slug}.png`, file = new File([blob], name, { type: 'image/png' });
+  return handOver(blob, `${m.slug}.png`, m);
+}
+
+/** Hand a file over: to the share sheet on a phone (to keep or send on), else as a download. */
+export async function handOver(blob: Blob, name: string, m: Moment): Promise<Shared> {
+  const file = new File([blob], name, { type: blob.type });
   if (touch() && navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: 'Solar System Explorer', text: m.caption });

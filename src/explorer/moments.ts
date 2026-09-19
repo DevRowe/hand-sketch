@@ -2,10 +2,12 @@
  * Key moments: the best of the jump-to presets, always in view as a small timeline in date order (a rail down the
  * left of a wide screen, a strip of chips on a narrower one), so the dates worth seeing invite a click instead of
  * waiting behind the Moments menu, which still lists them all. Moments with a journey to fly say so. The plans show
- * the solar system's moments; the Earth and Moon view the story of spaceflight.
+ * the solar system's moments; the Earth and Moon view the story of spaceflight. The guided tour leads the list in both.
  */
 import type { ViewId } from './bodies';
+import { TOUR } from './content/tour';
 import { dateLong } from './format';
+import { t } from './i18n';
 import { presetById, PRESETS, type Preset } from './presets';
 import { SPACEFLIGHT_FEATURED } from './spaceflight';
 import { VIEWS } from './views';
@@ -47,8 +49,20 @@ export interface Moments {
   refresh(active: string | null, view: ViewId): void;
 }
 
-export function wireMoments(hooks: { open(id: string): void; openAll(): void }): Moments {
+export function wireMoments(hooks: { open(id: string): void; openAll(): void; tour(): void }): Moments {
   const list = document.getElementById('moments-list')!, all = document.getElementById('moments-all')!, title = document.getElementById('moments-title')!;
+  // the tour first: a way through the best of them, a couple of minutes long
+  const tourLi = document.createElement('li'), tourB = document.createElement('button');
+  tourB.type = 'button';
+  tourB.className = 'moment tour-moment';
+  tourB.title = t('tour.lede');
+  tourB.innerHTML = `<span class="m-year" aria-hidden="true">${PLAY}</span><span class="m-dot" aria-hidden="true"></span><span class="m-text"><span class="m-title"></span><span class="m-sub"></span></span>`;
+  tourB.querySelector('.m-title')!.textContent = t('tour.short');
+  tourB.querySelector('.m-sub')!.textContent = `~2 min · ${TOUR.length} stops`;
+  tourB.setAttribute('aria-label', `${t('tour.start')}: ${t('tour.lede')}`);
+  tourB.addEventListener('click', () => hooks.tour());
+  tourLi.append(tourB);
+  list.append(tourLi);
   const lists = { solar: FEATURED, earth: SPACEFLIGHT_FEATURED } as const;
   const buttons = Object.entries(lists).flatMap(([family, entries]) => {
     const featured = entries.map(([id, short]) => ({ p: presetById(id), short })).filter((m): m is { p: Preset; short: string } => m.p !== undefined);

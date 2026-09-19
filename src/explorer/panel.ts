@@ -8,6 +8,7 @@ import { trackedById } from '../scenes/cislunar/objects';
 import type { PlanetName } from '../scenes/solar/common';
 import { moonDistance } from '../scenes/solar/ephemeris';
 import { BODY_NAMES, NEIGHBOURS, type App, type Selection } from './app';
+import { DWARF_IDS } from './beyond';
 import type { BodyId, RingId } from './bodies';
 import { COMETS, cometAt, type CometId } from './comets';
 import { BODIES } from './content/bodies';
@@ -18,6 +19,9 @@ import type { Journey } from './journey';
 import { lifeFrame, lifeOf, type Life } from './life';
 import { AU_KM, fromEarthKm, fromSunAu, km, lightTime, moonPhase, xyz as xyzOf } from './live';
 import { PRESETS, presetById, type Preset } from './presets';
+import { canRecord } from './clip';
+import { t } from './i18n';
+import { drawFigures, scaleHtml } from './scale';
 import { guessLatitude, moonHtml, seasonsHtml, SKY_LATITUDES, tonightHtml } from './skysheet';
 import { clamp, MONTH, PACE_MAX } from './sim';
 import { ageLabel, CMB_KM_S, count, distance, GALAXY_KM_S, lapCount, ORBIT_KM_S, outerLaps, planetAges, speed, travelled } from './travel';
@@ -29,16 +33,19 @@ export interface PanelHooks {
   endJourney(): boolean;
   /** Show the first visit's welcome again. */
   showWelcome(): void;
-  /** Share this moment (a link that opens paused on it), and save a picture of it. */
+  /** Share this moment (a link that opens paused on it), save a picture of it, or record a short clip. */
   share(): void;
   savePicture(): void;
+  recordClip(): void;
+  /** Take the guided tour. */
+  startTour(): void;
 }
 
 type Mode = { kind: 'body'; id: NonNullable<Selection> } | { kind: 'guide' } | { kind: 'jump' } | { kind: 'preset'; id: string }
-  | { kind: 'look' } | { kind: 'you' } | { kind: 'life' } | { kind: 'sky' };
+  | { kind: 'look' } | { kind: 'you' } | { kind: 'life' } | { kind: 'sky' } | { kind: 'scale' };
 
 /** The menu each kind of card belongs to (a body's card belongs to none: it comes from the sky). */
-const MENU_OF: Readonly<Record<Mode['kind'], MenuId | null>> = { body: null, guide: 'guide', jump: 'moments', preset: 'moments', look: 'look', you: 'you', life: 'you', sky: 'sky' };
+const MENU_OF: Readonly<Record<Mode['kind'], MenuId | null>> = { body: null, guide: 'guide', jump: 'moments', preset: 'moments', look: 'look', you: 'you', life: 'you', sky: 'sky', scale: 'scale' };
 
 const VIEW_WORDS = { wake: 'In motion', sky: 'From above', earth: 'Earth & Moon' } as const;
 
@@ -91,14 +98,20 @@ const RING_IDS: ReadonlySet<BodyId | 'belt'> = new Set<RingId>(['leo', 'gps', 'g
 const EARTH_ONLY: ReadonlySet<BodyId | 'belt'> = new Set(ORBIT_IDS);
 /** The comets, drawn only in the From above view (while the Sky menu shows them). */
 const COMET_IDS: ReadonlySet<BodyId | 'belt'> = new Set<CometId>(['halley', 'atlas']);
+/** Pluto and the Kuiper belt, drawn only in the From above view (while the Scale menu shows them). */
+const DWARFS: ReadonlySet<BodyId | 'belt'> = new Set(DWARF_IDS);
+/** The belts: a card with no figures for the date. */
+const BELTS: ReadonlySet<BodyId | 'belt'> = new Set(['belt', 'kuiper']);
 /** The moments each comet has, offered on its card. */
 const COMET_MOMENTS: Readonly<Record<CometId, readonly string[]>> = { halley: ['halley-1986', 'halley-2061'], atlas: ['atlas-2025'] };
 
 const KEYS: readonly [string, string][] = [
-  ['Space', 'play or pause'], ['← →', 'slower, faster'], ['R', 'run time backwards'], ['T', 'today'],
-  ['V', 'from above / in motion'], ['E', 'the Earth and Moon up close, and back'], ['1 … 0', 'the ten styles ([ ] step through)'], ['W', 'trails on or off'],
-  ['L', 'names on or off'], ['+ −', 'zoom'], ['Z', 'reset the view'], ['J', 'moments'], ['K', 'sky: tonight, the Moon, comets, seasons'], ['S', 'look: styles, trails, names'], ['Y', 'you: share, save, your years'], ['G', 'guide'],
-  ['H', 'hide the controls'], ['F', 'full screen'], ['Esc', 'close, deselect'],
+  ['Space', 'play or pause (the tour, while it is on)'], ['← →', 'slower, faster'], ['R', 'run time backwards'], ['T', 'today'],
+  ['V', 'from above / in motion'], ['E', 'the Earth and Moon up close, and back'], ['N', 'the next body in view, with its card (Shift+N: the one before)'],
+  ['1 … 0', 'the ten styles ([ ] step through)'], ['W', 'trails on or off'], ['L', 'names on or off'], ['M', 'the sound of the orbits on or off'],
+  ['+ −', 'zoom'], ['Z', 'reset the view'], ['J', 'moments and the guided tour'], ['K', 'sky: tonight, the Moon, comets, seasons'], ['C', 'scale: sizes, distances, beyond Neptune, the galaxy'],
+  ['S', 'look: styles, trails, names, sound'], ['Y', 'you: share, save a picture or a clip, your years'], ['G', 'guide'],
+  ['H', 'hide the controls'], ['F', 'full screen'], ['Esc', 'close, end a journey or the tour, deselect'],
 ];
 
 export class Panel {
@@ -122,6 +135,8 @@ export class Panel {
   private returnFocus: HTMLElement | null = null;
   /** The preset whose geometry is drawn, for the address bar. */
   preset: string | null = null;
+  /** What the Scale sheet's figures were last drawn for (the style and the width), so they are drawn again only when it changes. */
+  private figures = '';
 
   constructor(private readonly app: App, private readonly hooks: PanelHooks) {
     document.getElementById('panel-close')!.addEventListener('click', () => this.close());
@@ -168,6 +183,7 @@ export class Panel {
   openMenu(id: MenuId): void {
     if (id === 'moments') this.openJump();
     else if (id === 'sky') this.openSky();
+    else if (id === 'scale') this.openScale();
     else if (id === 'look') this.openLook();
     else if (id === 'you') this.openYou();
     else this.openGuide();
@@ -181,7 +197,7 @@ export class Panel {
 
   /** Look: the visual style, the trails, the names, zoom (on a compact screen) and the screen itself. */
   openLook(): void {
-    this.show({ kind: 'look' }, 'Look', 'How the sky is drawn', this.look);
+    this.show({ kind: 'look' }, 'Look', 'How the sky looks and sounds', this.look);
   }
 
   /**
@@ -236,6 +252,29 @@ export class Panel {
     this.show({ kind: 'sky' }, 'Sky', 'The sky from Earth', html);
   }
 
+  /**
+   * Scale: the bodies side by side at one true scale, their true distances in a model with the Sun as a basketball,
+   * what lies beyond Neptune (the switch that draws it), the Sun's path round the galaxy, and how the drawings cheat.
+   */
+  openScale(): void {
+    const item = (id: string): string => {
+      const p = presetById(id);
+      return p ? presetItem(p) : '';
+    };
+    this.show({ kind: 'scale' }, 'Scale', 'How big, how far', scaleHtml(this.app.sim.day, Math.min(innerWidth, innerHeight), this.app.layers.dwarfs, item));
+    this.figures = '';
+    this.drawFigures();
+  }
+
+  /** Draw the Scale sheet's figures, for the style on show at the sheet's width (again only once either changes). */
+  private drawFigures(): void {
+    if (this.mode?.kind !== 'scale') return;
+    const key = `${this.app.style.key}:${this.body.clientWidth}`;
+    if (key === this.figures) return;
+    this.figures = key;
+    drawFigures(this.body, this.app.style.swatch);
+  }
+
   /** The latitude the Sky sheet's day lengths are for: the one chosen here before, else a guess from the clock. */
   private skyLatitude(): number {
     const v = Number(stored(SKY_LAT_KEY) ?? NaN);
@@ -243,10 +282,10 @@ export class Panel {
   }
 
   openBody(id: NonNullable<Selection>): void {
-    const c = BODIES[id], planet = PLANET_IDS.includes(id as BodyId), ring = RING_IDS.has(id), comet = COMET_IDS.has(id);
+    const c = BODIES[id], planet = PLANET_IDS.includes(id as BodyId), ring = RING_IDS.has(id), comet = COMET_IDS.has(id), band = BELTS.has(id);
     // the Earth and the Moon, seen in a plan, offer the view that shows them up close
     const closer = NEIGHBOURS.has(id) && this.app.view !== 'earth' ? '<button type="button" class="act primary" data-act="earth-view">See the Earth and Moon up close</button>' : '';
-    const actions = id === 'belt' ? '' : ring ? `<div class="card-actions"><button type="button" class="act" data-act="frame-ring">Show it whole</button></div>` : `<div class="card-actions">
+    const actions = band ? '' : ring ? `<div class="card-actions"><button type="button" class="act" data-act="frame-ring">Show it whole</button></div>` : `<div class="card-actions">
       ${closer}
       ${comet ? COMET_MOMENTS[id as CometId].map(pid => `<button type="button" class="act primary" data-preset="${pid}">${esc(presetById(pid)!.title)}</button>`).join('') : ''}
       <button type="button" class="act" data-act="zoom">Zoom in</button>
@@ -254,9 +293,10 @@ export class Panel {
     </div>`;
     const small = planet || id === 'moon' ? '<p class="small">Figures: NASA planetary fact sheets, rounded. Positions for the date: JPL mean orbital elements.</p>'
       : EARTH_ONLY.has(id) ? '<p class="small">Figures: NASA, CMSA and J. McDowell’s satellite catalogue, rounded; see Sources in the guide. Heights and tilts are real; where a craft is along its orbit is illustrative.</p>'
-      : comet ? '<p class="small">Figures: NASA and ESA, rounded. Its orbit: JPL’s Small-Body Database, placed on the plan’s squeezed scale; its tails show which way they point, not their true length.</p>' : '';
+      : comet ? '<p class="small">Figures: NASA and ESA, rounded. Its orbit: JPL’s Small-Body Database, placed on the plan’s squeezed scale; its tails show which way they point, not their true length.</p>'
+      : DWARFS.has(id) ? '<p class="small">Figures: NASA, rounded. Pluto’s place for the date: JPL mean orbital elements, on the plan’s squeezed scale (only From above draws what lies beyond Neptune).</p>' : '';
     const html = `<p class="intro">${esc(c.intro)}</p>
-      ${id === 'belt' || ring ? '' : `<section class="now" aria-label="On the date shown"><h3>On <span data-live="date"></span></h3><div data-live="facts"></div></section>`}
+      ${band || ring ? '' : `<section class="now" aria-label="On the date shown"><h3>On <span data-live="date"></span></h3><div data-live="facts"></div></section>`}
       ${actions}
       ${c.facts.length ? `<h3>Key figures</h3>${facts(c.facts)}` : ''}
       ${c.orbit ? `<h3>Its orbit</h3><p>${esc(c.orbit)}</p>` : ''}
@@ -266,7 +306,7 @@ export class Panel {
   }
 
   openGuide(section?: string): void {
-    const bodies = `<div class="chiplist">${(['sun', ...PLANET_IDS.slice(0, 3), 'moon', ...PLANET_IDS.slice(3), 'belt', 'halley', 'atlas'] as const)
+    const bodies = `<div class="chiplist">${(['sun', ...PLANET_IDS.slice(0, 3), 'moon', ...PLANET_IDS.slice(3), 'pluto', 'belt', 'kuiper', 'halley', 'atlas'] as const)
       .map(id => `<button type="button" class="chip" data-body="${id}">${esc(BODY_NAMES[id])}</button>`).join('')}</div>`;
     const round = `<div class="chiplist">${ORBIT_IDS.map(id => `<button type="button" class="chip" data-body="${id}">${esc(BODY_NAMES[id])}</button>`).join('')}</div>`;
     const sections = GUIDE.map(s => `<details class="guide" id="guide-${s.id}"${s.id === (section ?? 'orbits') ? ' open' : ''}>
@@ -278,7 +318,7 @@ export class Panel {
         <p>Drag to pan, scroll or pinch to zoom, tap a planet for its card, double-tap to fly in and follow it. While a journey plays, its bar replaces the controls; Esc or × ends it.</p>
         <dl class="keys">${KEYS.map(([k, v]) => `<div><dt><kbd>${esc(k)}</kbd></dt><dd>${esc(v)}</dd></div>`).join('')}</dl>
       </details>`;
-    const sourcesIntro = `<p><button type="button" class="link" data-act="welcome">Show the welcome tips again</button></p>`;
+    const sourcesIntro = `<p class="guide-links"><button type="button" class="link" data-act="tour">${esc(t('tour.start'))}</button><button type="button" class="link" data-act="welcome">Show the welcome tips again</button></p>`;
     const sources = `<details class="guide"><summary><h3>Sources</h3></summary>
         <p>Figures come from NASA, ESA and JPL; each is rounded, "~" marks approximations, and counts that keep changing (moons, satellites) carry their date.</p>
         <ul class="sources">${SOURCES.map(s => `<li><a href="${esc(s.href)}" target="_blank" rel="noopener">${esc(s.label)}</a></li>`).join('')}</ul>
@@ -299,7 +339,7 @@ export class Panel {
         <p class="moment-line" data-live="moment"></p>
         <div class="card-actions">${SHARE_ACTS}</div>
         <div data-live="share-link"></div>
-        <p class="small share-note">The link opens paused on this moment, in this view and style; the picture is drawn afresh at twice the size of your screen.</p>
+        <p class="small share-note">The link opens paused on this moment, in this view and style; the picture is drawn afresh at twice the size of your screen${canRecord() ? ', and the clip records six seconds of the sky as it moves' : ''}.</p>
       </section>
       <h3>Your years</h3>
       <p class="lede">Enter your birthday to fly your years in motion, and see your age on every planet and how far you have come.</p>
@@ -453,7 +493,8 @@ export class Panel {
       groups.set(g, [...(groups.get(g) ?? []), p]);
     }
     const html = [...groups].map(([g, ps]) => `<h3 class="group">${esc(g)}</h3><ul class="presets">${ps.map(presetItem).join('')}</ul>`).join('');
-    this.show({ kind: 'jump' }, 'Moments', 'Key moments', `<p class="intro">Set the sky to a real moment and see why it matters: in space round the Earth, or out among the planets.</p>${html}`);
+    const tour = `<button type="button" class="tour-card" data-act="tour"><span class="tc-play" aria-hidden="true">${PLAY_ICON}</span><span class="tc-text"><b>${esc(t('tour.start'))}</b><small>${esc(t('tour.lede'))}</small></span></button>`;
+    this.show({ kind: 'jump' }, 'Moments', 'Key moments', `${tour}<p class="intro">Or set the sky to a real moment and see why it matters: in space round the Earth, or out among the planets.</p>${html}`);
   }
 
   /** Open a preset's card; `apply` also sets the sky to its moment. */
@@ -475,6 +516,14 @@ export class Panel {
     this.show({ kind: 'preset', id }, p.group === 'Now and next' ? 'Coming up' : p.group, p.title, html);
     // framing measures the room the open card leaves, so set the moment once the card is up
     if (apply) this.apply(p);
+  }
+
+  /** Set the sky to a moment without opening its card (the guided tour's stops). */
+  setMoment(id: string): void {
+    const p = presetById(id);
+    if (!p) return;
+    this.close();
+    this.apply(p);
   }
 
   /** Set the sky to a preset's moment: paused there, framed, with its geometry. */
@@ -537,6 +586,7 @@ export class Panel {
     const follow = this.body.querySelector<HTMLButtonElement>('[data-act="follow"]');
     follow?.setAttribute('aria-pressed', String(this.app.following));
     for (const b of this.body.querySelectorAll<HTMLButtonElement>('[data-layer]')) b.setAttribute('aria-pressed', String(this.app.layers[b.dataset.layer as keyof App['layers']]));
+    this.drawFigures();
     this.tick(true);
   }
 
@@ -560,7 +610,7 @@ export class Panel {
       this.live('seasons', seasonsHtml(day, this.skyLatitude()));
       return;
     }
-    if (m?.kind !== 'body' || m.id === 'belt') return;
+    if (m?.kind !== 'body' || m.id === 'belt' || m.id === 'kuiper') return;
     const now = performance.now();
     if (!force && now - this.liveAt < 250) return;
     this.liveAt = now;
@@ -580,55 +630,66 @@ export class Panel {
   }
 
   private onClick(e: Event): void {
-    const t = (e.target as HTMLElement).closest<HTMLElement>('[data-act], [data-body], [data-preset]');
-    if (!t) return;
+    const el = (e.target as HTMLElement).closest<HTMLElement>('[data-act], [data-body], [data-preset]');
+    if (!el) return;
     const app = this.app;
-    if (t.dataset.body) {
-      const id = t.dataset.body as NonNullable<Selection>;
+    if (el.dataset.body) {
+      const id = el.dataset.body as NonNullable<Selection>;
       // what flies round the Earth is only drawn up close; the comets only from above
       if (EARTH_ONLY.has(id) && app.view !== 'earth') app.setView('earth');
       if (COMET_IDS.has(id)) {
         if (!app.layers.comets) app.setLayer('comets', true);
         if (app.view !== 'sky') app.setView('sky');
       }
+      if (DWARFS.has(id)) {
+        if (!app.layers.dwarfs) app.setLayer('dwarfs', true);
+        if (app.view !== 'sky') app.setView('sky');
+      }
       app.select(id);
       this.openBody(id);
       if (RING_IDS.has(id)) app.frameDesign(ringFit(id as RingId), [540, 540]);
       else if (EARTH_ONLY.has(id)) app.focusSelected();
-      // a comet's whole path, which reaches out past Neptune
-      else if (COMET_IDS.has(id)) app.resetView();
-    } else if (t.dataset.preset) this.openPreset(t.dataset.preset);
-    else if (t.dataset.act === 'layer' && t.dataset.layer) {
-      const layer = t.dataset.layer as keyof App['layers'], on = !app.layers[layer];
+      // Pluto, out at the page's edge, is brought into the clear; a comet's whole path and the belt reach out past Neptune
+      else if (id === 'pluto') app.focusSelected(2.5);
+      else if (COMET_IDS.has(id) || DWARFS.has(id)) app.resetView();
+    } else if (el.dataset.preset) this.openPreset(el.dataset.preset);
+    else if (el.dataset.act === 'layer' && el.dataset.layer) {
+      const layer = el.dataset.layer as keyof App['layers'], on = !app.layers[layer];
       app.setLayer(layer, on);
       // the layers are drawn from above: switching one on there shows it
       if (on && app.view !== 'sky') app.setView('sky');
       if (on && layer === 'tonight' && !app.atHome) app.resetView();
       this.hooks.toast(LAYER_TOAST[layer][on ? 1 : 0]);
-    } else if (t.dataset.act === 'tonight') {
+    } else if (el.dataset.act === 'tonight') {
       // tonight: the sky as it stands now, held still
       this.clearPreset();
       app.play(false);
       app.jump(today());
     }
-    else if (t.dataset.act === 'zoom') app.focusSelected(Math.max(4, app.camera.zoom * 2));
-    else if (t.dataset.act === 'follow') {
+    else if (el.dataset.act === 'zoom') app.focusSelected(Math.max(4, app.camera.zoom * 2));
+    else if (el.dataset.act === 'follow') {
       if (app.following) app.select(app.selected, false);
       else app.focusSelected(Math.max(2.5, app.camera.zoom));
-    } else if (t.dataset.act === 'journey' && this.preset) {
+    } else if (el.dataset.act === 'journey' && this.preset) {
       const j = presetById(this.preset)?.journey?.();
       if (j) this.hooks.startJourney(j);
-    } else if (t.dataset.act === 'life') {
+    } else if (el.dataset.act === 'life') {
       // the Sun carrying you through space reads best in motion, from the day you were born to today
       const iso = this.body.querySelector<HTMLInputElement>('#bday-in')?.value ?? '', life = this.birthday() === null ? null : lifeOf(iso, today());
       if (life) this.flyLife(life, today());
-    } else if (t.dataset.act === 'life-again' && this.life) {
+    } else if (el.dataset.act === 'life-again' && this.life) {
       this.flyLife(this.life.life, this.life.to);
-    } else if (t.dataset.act === 'share') {
+    } else if (el.dataset.act === 'share') {
       this.hooks.share();
-    } else if (t.dataset.act === 'save') {
+    } else if (el.dataset.act === 'save') {
       this.hooks.savePicture();
-    } else if (t.dataset.act === 'birth-sky') {
+    } else if (el.dataset.act === 'clip') {
+      this.hooks.recordClip();
+    } else if (el.dataset.act === 'tour') {
+      this.hooks.startTour();
+    } else if (el.dataset.act === 'view-wake') {
+      app.setView('wake');
+    } else if (el.dataset.act === 'birth-sky') {
       const day = this.birthday();
       if (day === null) return;
       this.clearPreset();
@@ -636,20 +697,20 @@ export class Panel {
       app.jump(day);
       if (!app.atHome) app.resetView();
       this.hooks.toast(`The sky on ${dateLong(day)}`);
-    } else if (t.dataset.act === 'earth-view') {
+    } else if (el.dataset.act === 'earth-view') {
       const id = this.mode?.kind === 'body' ? this.mode.id : 'earth';
       app.setView('earth');
       app.select(id, false);
       this.openBody(id);
-    } else if (t.dataset.act === 'frame-ring' && this.mode?.kind === 'body') {
+    } else if (el.dataset.act === 'frame-ring' && this.mode?.kind === 'body') {
       app.frameDesign(ringFit(this.mode.id as RingId), [540, 540]);
-    } else if (t.dataset.act === 'welcome') {
+    } else if (el.dataset.act === 'welcome') {
       this.close();
       this.hooks.showWelcome();
-    } else if (t.dataset.act === 'moment' && this.preset) {
+    } else if (el.dataset.act === 'moment' && this.preset) {
       const p = presetById(this.preset);
       if (p) this.apply(p);
-    } else if (t.dataset.act === 'list') this.openJump();
+    } else if (el.dataset.act === 'list') this.openJump();
   }
 }
 
@@ -707,7 +768,7 @@ function liveFacts(id: BodyId, day: number): { label: string; value: string }[] 
     const au = fromSunAu('earth', day);
     return [{ label: 'From the Sun', value: `${km(au * AU_KM)} (${au.toFixed(3)} au)` }, { label: 'Sunlight takes', value: lightTime(au * AU_KM) }];
   }
-  const name = id as PlanetName, d = fromEarthKm(name, day), au = fromSunAu(name, day);
+  const name = id as PlanetName | 'pluto', d = fromEarthKm(name, day), au = fromSunAu(name, day);
   return [
     { label: 'From Earth', value: km(d) },
     { label: 'Its light takes', value: lightTime(d) },
@@ -729,11 +790,16 @@ const LAYER_TOAST: Readonly<Record<keyof App['layers'], readonly [string, string
   tonight: ['Sight-lines off.', 'From the Earth: gold lines to the evening sky, blue to the morning sky.'],
   seasons: ['Seasons off.', 'The Earth’s axis always leans the same way: towards the Sun in June, away in December.'],
   comets: ['Comets hidden.', 'Comets shown on the plan, from above.'],
+  dwarfs: ['Pluto and the Kuiper belt hidden.', 'Pluto and the Kuiper belt shown on the plan, from above.'],
 };
 
-/** The two ways to take a moment away with you. */
+/** The ways to take a moment away with you: its link, a picture, and a short clip where the browser can record one. */
 const SHARE_ACTS = `<button type="button" class="act" data-act="share"><svg class="line" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14.5V3.8M7.8 8 12 3.8 16.2 8"/><path d="M5 11.5v8h14v-8"/></svg>Share this moment</button>
-  <button type="button" class="act" data-act="save"><svg class="line" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="m3.5 16 5-5 4 4 2.5-2.5 5.5 5.5"/><circle cx="15.5" cy="9.2" r="1.4"/></svg>Save a picture</button>`;
+  <button type="button" class="act" data-act="save"><svg class="line" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="14" rx="2"/><path d="m3.5 16 5-5 4 4 2.5-2.5 5.5 5.5"/><circle cx="15.5" cy="9.2" r="1.4"/></svg>Save a picture</button>
+  ${canRecord() ? `<button type="button" class="act" data-act="clip"><svg class="line" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6.5" width="13" height="11" rx="2"/><path d="m16 10.5 5-3v9l-5-3"/></svg>Record a clip</button>` : ''}`;
+
+/** A play mark, for the tour and the journeys. */
+const PLAY_ICON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12.5-7.5z"/></svg>';
 
 /** Your age on each planet after `days`, with your next birthday there (from your birth, `born`). */
 function agesHtml(days: number, born: number): string {
