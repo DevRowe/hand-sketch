@@ -16,7 +16,8 @@ import { TAU, type Vec2 } from '../../core/math';
 import type { Scene } from '../../core/scene';
 import { composite, ground, knockOut, polyPath, scratch, toothMask } from '../gallery/common';
 import { SOLAR } from '../solar/palettes';
-import { bodyBand, bodyRing, BOX, disc, dust, E1, E2, enter, frameFit, INTRO, litShape, LOOP, MOTION, paint, PLANETS, POSTER_M, ribbon, RINGS, snapshot, spiralSky, SUN_R, SUN_W, trace, URANUS_RING, type Body, type Frame, type PlanetName, type Sample, type Snapshot } from './common';
+import { bodyBand, bodyRing, disc, dust, E1, E2, enter, frameFit, INTRO, litShape, LOOP, MOTION, paint, PLANETS, POSTER_M, ribbon, RINGS, snapshot, spiralSky, SUN_R, SUN_W, trace, URANUS_RING, type Body, type Frame, type PlanetName, type Sample, type Snapshot } from './common';
+import { sheetOf, type DesignBox } from '../solar/common';
 
 const PAL = SOLAR.bauhaus;
 const [RED, YELLOW, BLUE] = PAL.fills as [string, string, string, string];
@@ -124,19 +125,19 @@ function drawBody(sc: Screens, S: Snapshot, b: Body): void {
   if (name === 'earth' && mo.front) moon();
 }
 
-/** The sheet's fixed geometry: band, square, quarter-disc. */
-function sheet(sc: Screens): void {
+/** The sheet's fixed geometry: band, square, quarter-disc, round the sheet's edges (the design box, or a live room). */
+function sheet(sc: Screens, [x0, y0, x1, y1]: DesignBox): void {
   const q = new Path2D();
-  q.moveTo(0, BOX);
-  q.arc(0, BOX, 250, -Math.PI / 2, 0);
+  q.moveTo(x0, y1);
+  q.arc(x0, y1, 250, -Math.PI / 2, 0);
   q.closePath();
   colour(sc, q, BLUE);
   const sq = new Path2D();
-  sq.rect(BOX - 96, 0, 96, 96);
+  sq.rect(x1 - 96, y0, 96, 96);
   colour(sc, sq, RED);
   const bands = new Path2D();
-  bands.rect(0, 0, BOX - 96, 22);
-  bands.rect(BOX - 22, 96, 22, BOX - 96);
+  bands.rect(x0, y0, x1 - 96 - x0, 22);
+  bands.rect(x1 - 22, y0 + 96, 22, y1 - y0 - 96);
   black(sc, bands);
 }
 
@@ -164,7 +165,7 @@ export const bauhausSpiral: Scene = {
         };
         enter(sc.col, fr);
         enter(sc.blk, fr);
-        sheet(sc);
+        sheet(sc, sheetOf(f));
         // dust: small black squares drifting past, squared to the path
         const a = Math.atan2(MOTION[1], MOTION[0]);
         for (const d of dust(S)) {

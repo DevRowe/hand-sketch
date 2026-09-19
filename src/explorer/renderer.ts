@@ -24,7 +24,7 @@
 import { DEFAULT_SETTINGS, drawScene, ON_TWOS, toFrames, type Scene } from '../core/scene';
 import { Stage, type View } from '../core/stage';
 import type { Sky } from '../scenes/solar/sky';
-import { enter, frameFit, type Frame } from '../scenes/solar/common';
+import { enter, frameFit, type DesignBox, type Frame } from '../scenes/solar/common';
 import { halftone } from '../scenes/gallery/common';
 import type { ViewId } from './bodies';
 
@@ -56,6 +56,8 @@ const DESK = '#0b0d12';
 export interface DrawOptions {
   lens: boolean;
   step: number;
+  /** The sheet a plan's fixed pieces keep to: the room the controls leave, design units (`RoomFrame`). */
+  room?: DesignBox | undefined;
 }
 
 interface Crossing {
@@ -283,7 +285,7 @@ export class Renderer {
     ctx.fillStyle = DESK;
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     const rest = toFrames(scene.loopFrom ?? 0, ON_TWOS.fps);
-    drawScene(ctx, stage, scene, Math.min(rest, Math.max(0, intro)), ON_TWOS, DEFAULT_SETTINGS, o?.lens ? { sky, lens: view, step: o.step } : { sky });
+    drawScene(ctx, stage, scene, Math.min(rest, Math.max(0, intro)), ON_TWOS, DEFAULT_SETTINGS, o?.lens ? { sky, lens: view, step: o.step } : o?.room ? { sky, room: o.room } : { sky });
     if (overlay) {
       ctx.save();
       const k = stage.base * view.zoom;

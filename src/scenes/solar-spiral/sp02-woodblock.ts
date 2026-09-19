@@ -17,7 +17,7 @@ import { circle, composite, ground, knockOut, polyPath, scratch, still, toothMas
 import { mix } from '../../art/color';
 import { SOLAR } from '../solar/palettes';
 import { bodyBand, bodyRing, disc, dust, E1, E2, enter, frameFit, INTRO, inWake, litShape, LOOP, MOTION, once, orbitRings, paint, POSTER_M, project, ribbon, RINGS, snapshot, spiralSky, SUN_R, URANUS_RING, type Body, type Frame, type PlanetName, type Sample, type Snapshot } from './common';
-import { brushChar } from '../solar/common';
+import { BOX, brushChar, pageOf, roomOf, sheetOf, topRight, type DesignBox } from '../solar/common';
 
 const PAL = SOLAR.woodblock;
 const KEY = PAL.ink, WASHI = PAL.paper;
@@ -34,28 +34,43 @@ const REG_KEY: Vec2 = [1.6, -1.2];
 const BORDER = 26;
 
 interface Layout {
-  frame: PreparedStroke[];
   title: PreparedStroke[];
   sun: PreparedStroke[];
   rays: Vec2[][];
 }
 
+/** The key block's frame on each sheet (see `frameOn`). */
+const frames = new Map<string, PreparedStroke[]>();
+
+/**
+ * The key block's frame on a sheet (the design box in a render, a live room in the explorer): the border rule inset
+ * from its edges, the cartouche in its top-right corner and a kento registration mark in its lower-left margin.
+ */
+function frameOn([x0, y0, x1, y1]: DesignBox): PreparedStroke[] {
+  const key = `${x0}:${y0}:${x1}:${y1}`;
+  let out = frames.get(key);
+  if (!out) {
+    const l = x0 + BORDER, t = y0 + BORDER, r = x1 - BORDER, b = y1 - BORDER, dx = x1 - BOX, dy = y0;
+    out = ([
+      [[l, t], [r, t], [r, b], [l, b], [l, t]],
+      [[980 + dx, 34 + dy], [1042 + dx, 34 + dy], [1042 + dx, 238 + dy], [980 + dx, 238 + dy], [980 + dx, 34 + dy]],
+      [[986 + dx, 40 + dy], [1036 + dx, 40 + dy], [1036 + dx, 232 + dy], [986 + dx, 232 + dy], [986 + dx, 40 + dy]],
+      [[l - 4, b + 16], [l + 44, b + 16]], [[l - 4, b + 16], [l - 4, b - 22]],
+    ] as Vec2[][]).map((pts, k) => prepareStroke(pts, { ...CUT, size: k === 0 ? 3.2 : 2, wobble: 0.3, taperStart: 2, taperEnd: 2 }, 2260 + k));
+    frames.set(key, out);
+  }
+  return out;
+}
+
 const layout = once((): Layout => {
   const S = project([0, 0, 0]);
-  const b = BORDER, e = 1080 - BORDER;
-  const frame = ([
-    [[b, b], [e, b], [e, e], [b, e], [b, b]],
-    [[980, 34], [1042, 34], [1042, 238], [980, 238], [980, 34]],
-    [[986, 40], [1036, 40], [1036, 232], [986, 232], [986, 40]],
-    [[b - 4, e + 16], [b + 44, e + 16]], [[b - 4, e + 16], [b - 4, e - 22]],
-  ] as Vec2[][]).map((pts, k) => prepareStroke(pts, { ...CUT, size: k === 0 ? 3.2 : 2, wobble: 0.3, taperStart: 2, taperEnd: 2 }, 2260 + k));
   const title = [0, 1, 2, 3].flatMap(k => brushChar(1011, 66 + k * 46, 30, 2270 + k)).map((pts, k) => prepareStroke(catmullRom(pts, 4), { ...CUT, size: 3.6, thinning: 0.6, taperStart: 4, taperEnd: 6 }, 2280 + k));
   const sun = [SUN_R, SUN_R + 22].map((r, k) => prepareStroke(circle(S.x, S.y, r, 60), { ...CUT, size: k ? 2 : 2.8 }, 2230 + k, { closed: true }));
   const rays = Array.from({ length: 28 }, (_, k): Vec2[] => {
     const a = (k / 28) * TAU + 0.05, r0 = SUN_R + 5, r1 = SUN_R + (k % 2 ? 14 : 19);
     return [[S.x + Math.cos(a) * r0, S.y + Math.sin(a) * r0], [S.x + Math.cos(a) * r1, S.y + Math.sin(a) * r1]];
   });
-  return { frame, title, sun, rays };
+  return { title, sun, rays };
 });
 
 /** The seal's character, cut in square seal script. */
@@ -64,6 +79,12 @@ const SEAL_CUT: Vec2[][] = [
   [[1000, 259], [1024, 259], [1024, 268], [1004, 268], [1004, 281], [1024, 281]],
   [[1012, 268], [1012, 276]],
 ];
+
+/** Where a block is printed: the design box and a half-box bleed round it, and live the whole page as well. */
+function blockOf(g: SceneFrame, fr: Frame): DesignBox {
+  const p = roomOf(g) ? pageOf(fr, g.stage.w, g.stage.h) : null;
+  return p ? [Math.min(-540, p[0]), Math.min(-540, p[1]), Math.max(1620, p[2]), Math.max(1620, p[3])] : [-540, -540, 1620, 1620];
+}
 
 function blueBlock(g: SceneFrame, fr: Frame): void {
   const c = g.ctx;
@@ -78,10 +99,13 @@ function blueBlock(g: SceneFrame, fr: Frame): void {
   top.addColorStop(0.94, MID);
   top.addColorStop(1, MID);
   c.fillStyle = top;
-  c.fillRect(-540, -540, 2160, 2160);
+  // live, the block covers the whole page, however wide (a render's is the design box and its bleed)
+  const [x0, y0, x1, y1] = blockOf(g, fr);
+  c.fillRect(x0, y0, x1 - x0, y1 - y0);
   // the wipe is by hand: the band's lower edge wanders, a little more pigment left in some places than others
   c.globalCompositeOperation = 'destination-out';
-  for (let x = -40; x < 1120; x += 8) {
+  const w0 = roomOf(g) ? Math.min(-40, Math.floor(x0 / 8) * 8) : -40, w1 = roomOf(g) ? Math.max(1120, x1) : 1120;
+  for (let x = w0; x < w1; x += 8) {
     const y = 250 + noise1(x / 160, 2290) * 26 + noise1(x / 40, 2289) * 6;
     const g = c.createLinearGradient(0, y - 80, 0, y + 160);
     g.addColorStop(0, 'rgba(0,0,0,0)');
@@ -203,9 +227,17 @@ export const woodblockSpiral: Scene = {
   poster: (INTRO + POSTER_M) / 12,
   draw(f) {
     const { stage } = f;
-    const fr = frameFit(stage.w, stage.h), L = layout(), S = snapshot(spiralSky(f));
+    const fr = frameFit(stage.w, stage.h), L = layout(), S = snapshot(spiralSky(f)), [cx, cy] = topRight(f);
+    // the cartouche and the seal keep to the sheet's top-right corner (a live room's, or the design box's)
+    const corner = (c: CanvasRenderingContext2D, draw: () => void): void => {
+      if (!cx && !cy) return draw();
+      c.save();
+      c.translate(cx, cy);
+      draw();
+      c.restore();
+    };
     ground(f, WASHI, { seed: 2200, texture: 1.3 });
-    still(f, 'sp02-blue', g => blueBlock(g, fr), { blend: 'multiply' });
+    still(f, roomOf(f) ? 'sp02-blue:page' : 'sp02-blue', g => blueBlock(g, fr), { blend: 'multiply' });
 
     const print = scratch(f, 'sp02-print', g => {
       const c = g.ctx;
@@ -260,20 +292,20 @@ export const woodblockSpiral: Scene = {
       });
       // cartouche ground and the seal, then the key's frame and title
       c.fillStyle = '#e9d9ae';
-      c.fillRect(986, 40, 50, 192);
+      c.fillRect(986 + cx, 40 + cy, 50, 192);
       c.fillStyle = VERMILION;
-      c.fillRect(989, 247, 46, 46);
+      c.fillRect(989 + cx, 247 + cy, 46, 46);
       c.save();
       c.translate(REG_KEY[0], REG_KEY[1]);
-      for (const s of L.frame) drawStroke(c, s, 1);
-      for (const s of L.title) drawStroke(c, s, 1);
+      for (const s of frameOn(sheetOf(f))) drawStroke(c, s, 1);
+      for (const s of L.title) corner(c, () => drawStroke(c, s, 1));
       c.restore();
       c.strokeStyle = WASHI;
       c.lineWidth = 3.2;
       c.lineCap = 'square';
       c.lineJoin = 'miter';
       c.beginPath();
-      for (const pts of SEAL_CUT) pts.forEach(([x, y], k) => (k ? c.lineTo(x, y) : c.moveTo(x, y)));
+      for (const pts of SEAL_CUT) pts.forEach(([x, y], k) => (k ? c.lineTo(x + cx, y + cy) : c.moveTo(x + cx, y + cy)));
       c.stroke();
       knockOut(f, c, toothMask(f, { seed: 2294, density: 30, size: 1.5 }), 0.26);
     });

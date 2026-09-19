@@ -10,7 +10,7 @@
 import { TAU, type Vec2 } from '../../core/math';
 import type { Scene } from '../../core/scene';
 import { ground, ink, polyPath } from '../gallery/common';
-import { annulus, BELT, BOX, C, dayHalf, disc, enter, frameFit, LOOP, MOON, moonOffset, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type PlanetName } from './common';
+import { annulus, BELT, C, dayHalf, disc, enter, frameFit, LOOP, MOON, moonOffset, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, sheetOf, SUN_R, sunward, URANUS_RING, type PlanetName } from './common';
 import { skyOf } from './sky';
 import { orbitTrail } from './trails';
 import { SOLAR } from './palettes';
@@ -31,7 +31,7 @@ export const bauhausScene: Scene = {
   poster: POSTER_M / 12,
   draw(f) {
     const { stage } = f;
-    const fr = frameFit(stage.w, stage.h), sky = skyOf(f, 0);
+    const fr = frameFit(stage.w, stage.h), sky = skyOf(f, 0), [x0, y0, x1, y1] = sheetOf(f);
     ground(f, BONE, { seed: 1900, texture: 0.9 });
     const tooth = (seed: number) => ({ seed, density: 45, size: 1.2, alpha: 0.28 });
 
@@ -41,13 +41,13 @@ export const bauhausScene: Scene = {
       enter(c, fr);
       c.fillStyle = BLUE;
       c.beginPath();
-      c.moveTo(0, BOX);
+      c.moveTo(x0, y1);
       // sized to stay just clear of Neptune's orbit, so no planet crosses it colour on colour
-      c.arc(0, BOX, 262, -Math.PI / 2, 0);
+      c.arc(x0, y1, 262, -Math.PI / 2, 0);
       c.closePath();
       c.fill();
       c.fillStyle = RED;
-      c.fillRect(BOX - 96, 0, 96, 96);
+      c.fillRect(x1 - 96, y0, 96, 96);
       c.fillStyle = YELLOW;
       c.fill(disc(C[0], C[1], SUN_R + 30));
       c.fillStyle = RED;
@@ -82,8 +82,8 @@ export const bauhausScene: Scene = {
       const c = g.ctx;
       enter(c, fr);
       c.fillStyle = BLACK;
-      c.fillRect(0, 0, BOX - 96, 22);
-      c.fillRect(BOX - 22, 96, 22, BOX - 96);
+      c.fillRect(x0, y0, x1 - 96 - x0, 22);
+      c.fillRect(x1 - 22, y0 + 96, 22, y1 - y0 - 96);
       c.strokeStyle = BLACK;
       c.lineWidth = 1.6;
       c.beginPath();

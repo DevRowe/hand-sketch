@@ -11,7 +11,7 @@ import { TAU, type Vec2 } from '../../core/math';
 import { rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { cached, ground, ink, polyPath, screen, type InkOptions } from '../gallery/common';
-import { annulus, BOX, C, dayHalf, disc, enter, frameFit, LOOP, MOON, moonOffset, PLANETS, planetAngle, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type Planet, type PlanetName } from './common';
+import { annulus, BOX, C, dayHalf, disc, enter, frameFit, LOOP, MOON, moonOffset, pageOf, planetAngle, planetAt, PLANETS, POSTER_M, RINGS, rockAt, ROCKS, roomOf, starsBeyond, SUN_R, sunward, URANUS_RING, type Frame, type Planet, type PlanetName } from './common';
 import { skyOf, trailSweep, type Sky } from './sky';
 import { SOLAR } from './palettes';
 
@@ -54,12 +54,23 @@ function tone(c: CanvasRenderingContext2D, path: Path2D, box: readonly [number, 
 }
 
 /** The sky on the blue plate: a screen deepening outward, stars left as paper, and the orbit lines. */
+
+/**
+ * The blue field and its stars: in a render, the design box inside its margin; live, the whole page, so the plate
+ * runs on under the explorer's controls instead of leaving a bare margin round a square.
+ */
+function fieldOf(f: SceneFrame, fr: Frame): { area: readonly [number, number, number, number]; stars: readonly [number, number, number][]; key: string } {
+  if (!roomOf(f)) return { area: AREA, stars: STARS, key: '' };
+  const p = pageOf(fr, f.stage.w, f.stage.h);
+  return { area: [p[0], p[1], p[2] - p[0], p[3] - p[1]], stars: [...STARS, ...starsBeyond(p, STARS.length, 1509)], key: ':page' };
+}
+
 function blueSky(g: SceneFrame, fr: Frame): void {
-  const c = g.ctx;
+  const c = g.ctx, field = fieldOf(g, fr);
   enter(c, fr);
   const area = new Path2D();
-  area.rect(...AREA);
-  screen(c, AREA, {
+  area.rect(...field.area);
+  screen(c, field.area, {
     cell: CELL, angle: ANGLE.blue, color: BLUE, clip: area,
     density: (x, y) => {
       const d = Math.hypot(x - C[0], y - C[1]);
@@ -69,7 +80,7 @@ function blueSky(g: SceneFrame, fr: Frame): void {
   // stars: paper punched out of the screen (the yellow plate prints into them)
   c.save();
   c.globalCompositeOperation = 'destination-out';
-  for (const [x, y, s] of STARS) {
+  for (const [x, y, s] of field.stars) {
     c.beginPath();
     c.arc(x, y, s + 3.5, 0, TAU);
     c.fill();
@@ -169,7 +180,7 @@ export const risoScene: Scene = {
     ground(f, STOCK, { seed: 1500, texture: 0.8 });
 
     // blue: the sky (wiped clean where a planet stands) and each planet's blue
-    const blue = cached(f, 's05-sky', g => blueSky(g, fr));
+    const field = fieldOf(f, fr), blue = cached(f, `s05-sky${field.key}`, g => blueSky(g, fr));
     ink(f, 's05-blue', g => {
       const c = g.ctx;
       g.stage.blit(c, blue);
@@ -225,7 +236,7 @@ export const risoScene: Scene = {
         density: (x, y) => Math.max(0, 0.9 - (Math.hypot(x - C[0], y - C[1]) - SUN_R - 16) / 70),
       });
       c.beginPath();
-      for (const [x, y, s] of STARS) { c.moveTo(x + s, y); c.arc(x, y, s, 0, TAU); }
+      for (const [x, y, s] of field.stars) { c.moveTo(x + s, y); c.arc(x, y, s, 0, TAU); }
       c.fill();
     });
     ink(f, 's05-yellow', g => {

@@ -318,9 +318,9 @@ app.onDraw = () => {
 /** Where the dock's top rests with its extras folded away: home is framed for that, not for a passing look at More. */
 let restingDockTop: number | null = null;
 
-app.freeRect = () => {
+app.freeRect = (o = {}) => {
   const W = innerWidth, H = innerHeight, gap = 12, body = document.body.classList;
-  const hidden = body.contains('hide-ui'), journey = body.contains('journey');
+  const hidden = body.contains('hide-ui'), journey = body.contains('journey') && !o.resting;
   let top = 0, bottom = H, left = 0, right = W;
   const box = (id: string): DOMRect | null => {
     const el = document.getElementById(id);
@@ -345,7 +345,7 @@ app.freeRect = () => {
   // a journey's bar, or the tour's
   const j = journey ? box('journey-bar') ?? box('tour-bar') : null;
   if (j) bottom = Math.min(bottom, j.top - gap);
-  const p = box('panel');
+  const p = o.resting ? null : box('panel');
   if (p) {
     // a side panel on a wide or short screen, a sheet along the bottom on an upright phone
     if (p.width < W * 0.7) right = p.left - gap;

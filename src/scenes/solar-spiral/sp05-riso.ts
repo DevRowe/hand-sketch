@@ -14,6 +14,7 @@ import type { Scene, SceneFrame } from '../../core/scene';
 import { cached, ground, ink, polyPath, screen, type InkOptions } from '../gallery/common';
 import { SOLAR } from '../solar/palettes';
 import { bodyBand, bodyRing, BOX, disc, dust, E1, E2, enter, frameFit, INTRO, litShape, LOOP, MOTION, orbitRing, PLANETS, POSTER_M, project, ribbon, RINGS, runs, snapshot, spiralSky, SUN_R, trace, URANUS_RING, type Body, type Frame, type PlanetName, type Sample, type Snapshot } from './common';
+import { pageOf, roomOf, starsBeyond } from '../solar/common';
 
 const PAL = SOLAR.riso;
 const [BLUE, PINK, YELLOW] = PAL.inks as [string, string, string];
@@ -73,18 +74,29 @@ const STARS: readonly [number, number, number][] = (() => {
 })();
 
 /** The sky on the blue plate: a screen deepening away from the Sun, stars punched out of it. */
+
+/**
+ * The blue field and its stars: in a render, the design box inside its margin; live, the whole page, so the plate
+ * runs on under the explorer's controls instead of leaving a bare margin round a square.
+ */
+function fieldOf(f: SceneFrame, fr: Frame): { area: readonly [number, number, number, number]; stars: readonly [number, number, number][]; key: string } {
+  if (!roomOf(f)) return { area: AREA, stars: STARS, key: '' };
+  const p = pageOf(fr, f.stage.w, f.stage.h);
+  return { area: [p[0], p[1], p[2] - p[0], p[3] - p[1]], stars: [...STARS, ...starsBeyond(p, STARS.length, 2509)], key: ':page' };
+}
+
 function blueSky(g: SceneFrame, fr: Frame): void {
-  const c = g.ctx, S = project([0, 0, 0]);
+  const c = g.ctx, S = project([0, 0, 0]), field = fieldOf(g, fr);
   enter(c, fr);
   const area = new Path2D();
-  area.rect(...AREA);
-  screen(c, AREA, {
+  area.rect(...field.area);
+  screen(c, field.area, {
     cell: CELL, angle: ANGLE.blue, color: BLUE, clip: area,
     density: (x, y) => 0.14 + 0.72 * Math.min(1, Math.max(0, (Math.hypot(x - S.x, y - S.y) - 120) / 620)) ** 1.1,
   });
   c.save();
   c.globalCompositeOperation = 'destination-out';
-  for (const [x, y, s] of STARS) c.fill(disc(x, y, s + 3.5));
+  for (const [x, y, s] of field.stars) c.fill(disc(x, y, s + 3.5));
   c.restore();
 }
 
@@ -160,7 +172,7 @@ export const risoSpiral: Scene = {
     const { stage } = f;
     const fr = frameFit(stage.w, stage.h), S = snapshot(spiralSky(f));
     ground(f, STOCK, { seed: 2500, texture: 0.8 });
-    const clipArea = (c: CanvasRenderingContext2D): void => { c.beginPath(); c.rect(...AREA); c.clip(); };
+    const field = fieldOf(f, fr), clipArea = (c: CanvasRenderingContext2D): void => { c.beginPath(); c.rect(...field.area); c.clip(); };
     const wakes = (c: CanvasRenderingContext2D, plate: Plate): void => {
       for (const t of S.trails) {
         // a fading wake is a lighter screen
@@ -170,7 +182,7 @@ export const risoSpiral: Scene = {
     };
 
     // blue: the sky (wiped clean under the Sun and planets), the orbits, the planets' blue
-    const sky = cached(f, 'sp05-sky', g => blueSky(g, fr));
+    const sky = cached(f, `sp05-sky${field.key}`, g => blueSky(g, fr));
     ink(f, 'sp05-blue', g => {
       const c = g.ctx;
       g.stage.blit(c, sky);
@@ -239,7 +251,7 @@ export const risoSpiral: Scene = {
       wakeOn(c, 'yellow', S.sunTrail, 7, 0.75 * S.plan.alpha);
       c.fillStyle = YELLOW;
       c.beginPath();
-      for (const [x, y, s] of STARS) { c.moveTo(x + s, y); c.arc(x, y, s, 0, TAU); }
+      for (const [x, y, s] of field.stars) { c.moveTo(x + s, y); c.arc(x, y, s, 0, TAU); }
       c.fill();
       for (const d of dust(S)) {
         const s = (1 + d.tone * 1.8) * d.s;

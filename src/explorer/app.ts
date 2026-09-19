@@ -10,6 +10,7 @@
 import { toFrames } from '../core/scene';
 import type { View } from '../core/stage';
 import { C as EARTH_C } from '../scenes/cislunar/common';
+import type { DesignBox } from '../scenes/solar/common';
 import type { Sky } from '../scenes/solar/sky';
 import { sceneMarks, pick, type BodyId, type Mark, type Pick, type Scene as Marks, type ViewId } from './bodies';
 import { drawDwarfs, dwarfMarks } from './beyond';
@@ -67,8 +68,7 @@ const HOME_SNAP = 0.07;
 /** Screens where the controls take a large share of the room: home is fitted to it (elsewhere the page fills the screen). */
 const COMPACT = matchMedia('(max-width: 980px), (max-height: 540px)');
 
-/** A box in design units: [x0, y0, x1, y1]. */
-export type DesignBox = readonly [number, number, number, number];
+export type { DesignBox } from '../scenes/solar/common';
 
 /** Trails are drawn at a light touch to start with (their lengths are each view's own: `views.ts`). */
 export const DEFAULT_OPACITY = 0.6;
@@ -142,8 +142,11 @@ export class App {
   /** Your years, drawn in the In motion view while they are on screen (`flyLife`), and the wake length they replaced. */
   life: Life | null = null;
   private lifeSpan: number | null = null;
-  /** The part of the screen the controls leave free (CSS pixels): framing centres things there. */
-  freeRect: () => { x: number; y: number; w: number; h: number } = () => ({ x: 0, y: 0, w: innerWidth, h: innerHeight });
+  /**
+   * The part of the screen the controls leave free (CSS pixels): framing centres things there. `resting` leaves out
+   * what comes and goes (a card, a journey's bar): the room the controls always take.
+   */
+  freeRect: (o?: { resting?: boolean }) => { x: number; y: number; w: number; h: number } = () => ({ x: 0, y: 0, w: innerWidth, h: innerHeight });
   /** Called after every drawing (readouts) and on every state change (controls). */
   onDraw: () => void = () => {};
   onChange: () => void = () => {};
@@ -153,6 +156,8 @@ export class App {
   private dirty = true;
   /** The camera rests on (or glides to) the home view. */
   private homed = true;
+  /** The sheet the scene's fixed pieces keep to (`sheetRoom`), design units; none in the Earth and Moon view. */
+  private sheet: DesignBox | undefined;
   /** The design box the camera was last framed on (a moment's geometry), until the viewer moves it. */
   private framed: DesignBox | null = null;
   private lastDraw = -1e9;
@@ -245,6 +250,7 @@ export class App {
     this.labelLayout.reset();
     this.camera.min = VIEWS[view].zoomMin;
     this.camera.max = VIEWS[view].zoomMax;
+    this.sheet = this.sheetRoom();
     this.syncRoom(0);
     this.push = { factor: 1, at: 0 };
     if (!crossing) {
@@ -460,9 +466,9 @@ export class App {
    * the room, the view's own extent fitted into the room they leave: a phone held upright zooms in on the system in
    * motion, a phone on its side sees the whole plan from above (a little zoomed out, the page lying on the desk).
    */
-  homeView(): View {
+  homeView(r = this.freeRect()): View {
     const { w, h } = this.renderer.logical, whole = { zoom: 1, x: w / 2, y: h / 2 };
-    const [x0, y0, x1, y1] = this.spec.home, r = this.freeRect(), perDesign = this.renderer.designScale / this.camera.zoom;
+    const [x0, y0, x1, y1] = this.spec.home, perDesign = this.renderer.designScale / this.camera.zoom;
     const fit = Math.min((r.w - 2 * HOME_MARGIN) / ((x1 - x0) * perDesign), (r.h - 2 * HOME_MARGIN) / ((y1 - y0) * perDesign));
     // a wide screen shows the whole page unless even its controls would hide much of the system (a very short window)
     if (!COMPACT.matches && fit >= 0.75 && !this.spec.fitHome) return whole;
@@ -470,8 +476,21 @@ export class App {
     // a view fitted home may pull back only a little past it: pushing on climbs out of it
     if (this.spec.fitHome) this.camera.min = Math.max(this.spec.zoomMin, Math.min(1, zoom * 0.85));
     if (Math.abs(zoom - 1) < HOME_SNAP && !this.spec.fitHome) return whole;
-    const [lx, ly] = this.renderer.designToLogical((x0 + x1) / 2, (y0 + y1) / 2), [cx, cy] = this.centreFor(lx, ly, zoom);
+    const [lx, ly] = this.renderer.designToLogical((x0 + x1) / 2, (y0 + y1) / 2), [cx, cy] = this.centreFor(lx, ly, zoom, r);
     return { zoom, x: cx, y: cy };
+  }
+
+  /**
+   * The sheet a print's fixed pieces keep to (a seal, a colour block), design units: the room the controls always take
+   * leave clear, as the view's home shows it, so a card or a journey's bar coming and going moves nothing. The plans
+   * only (the Earth and Moon view keeps its paper home).
+   */
+  private sheetRoom(): DesignBox | undefined {
+    if (this.view === 'earth') return undefined;
+    const r = this.freeRect({ resting: true }), v = this.homeView(r), k = this.renderer.logicalScale, { w, h } = this.renderer.logical, fr = this.renderer.fit;
+    const at = (sx: number, sy: number): [number, number] => [(v.x + (sx / k - w / 2) / v.zoom - fr.ox) / fr.s, (v.y + (sy / k - h / 2) / v.zoom - fr.oy) / fr.s];
+    const [x0, y0] = at(r.x, r.y), [x1, y1] = at(r.x + r.w, r.y + r.h);
+    return [Math.round(x0), Math.round(y0), Math.round(x1), Math.round(y1)];
   }
 
   /** Whether the camera rests on (or is gliding to) the home view: set by going home, cleared by any other move. */
@@ -490,8 +509,8 @@ export class App {
    * Where the camera must centre (logical units) at `zoom` so the logical point (lx, ly) shows in the middle of the
    * free part of the screen rather than the middle of the screen.
    */
-  private centreFor(lx: number, ly: number, zoom: number): [number, number] {
-    const r = this.freeRect(), k = this.renderer.logicalScale * zoom;
+  private centreFor(lx: number, ly: number, zoom: number, r = this.freeRect()): [number, number] {
+    const k = this.renderer.logicalScale * zoom;
     return [lx - (r.x + r.w / 2 - innerWidth / 2) / k, ly - (r.y + r.h / 2 - innerHeight / 2) / k];
   }
 
@@ -564,6 +583,7 @@ export class App {
    * the viewer chose stays as it is.
    */
   refit(glide = this.glide): void {
+    this.sheet = this.sheetRoom();
     this.syncRoom(glide);
     if (this.homed) this.camera.glideTo(this.homeView(), glide);
     else if (this.framed) this.frameBox(this.framed, glide);
@@ -709,7 +729,7 @@ export class App {
     this.captions = [];
     const free = this.freeRect();
     this.captionRoom = { room: [free.x, free.y, free.x + free.w, free.y + free.h], ui: [...this.floating(), ...this.selectionBox()] };
-    this.renderer.draw(this.scene, this.intro, sky, view, ctx => this.decorate(ctx, true), this.view === 'earth' ? { lens: true, step } : undefined);
+    this.renderer.draw(this.scene, this.intro, sky, view, ctx => this.decorate(ctx, true), { lens: this.view === 'earth', step, room: this.sheet });
     this.placeLabels();
     this.onDraw();
   }
@@ -741,7 +761,7 @@ export class App {
     const captions = this.captions, room = this.captionRoom;
     this.captionRoom = null;
     try {
-      return this.renderer.still(scale, this.scene, this.sim.sky(), this.camera.view, ctx => this.decorate(ctx, false), this.view === 'earth' ? { lens: true, step: 0 } : undefined);
+      return this.renderer.still(scale, this.scene, this.sim.sky(), this.camera.view, ctx => this.decorate(ctx, false), { lens: this.view === 'earth', step: 0, room: this.sheet });
     } finally {
       this.captions = captions;
       this.captionRoom = room;
