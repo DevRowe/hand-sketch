@@ -14,8 +14,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;1,9..144,300&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="./assets/index-CBwj07rQ.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-BNy6vn5z.css">
+  <script type="module" crossorigin src="./assets/index-DSSWZs9d.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-C_Oha6h-.css">
 </head>
 <body>
   <canvas id="sky" role="img" aria-label="The solar system, drawn live"></canvas>
@@ -162,7 +162,9 @@
   </section>
 
   <div class="pill chrome" id="preset-pill" hidden>
-    <button type="button" class="pill-open" id="pill-open" title="Show this moment's card"><span class="pill-dot" aria-hidden="true"></span><span id="pill-text"></span></button>
+    <button type="button" class="pill-step" id="pill-prev" data-i18n-label="moment.prev" data-i18n-title="moment.prev" aria-label="Previous moment (←)" title="Previous moment (←)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 6.5 9 12l5.5 5.5"/></svg></button>
+    <button type="button" class="pill-open" id="pill-open" title="Show this moment's card"><span class="pill-dot" aria-hidden="true"></span><span id="pill-text"></span><span class="pill-count" id="pill-count"></span></button>
+    <button type="button" class="pill-step" id="pill-next" data-i18n-label="moment.next" data-i18n-title="moment.next" aria-label="Next moment (→)" title="Next moment (→)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 6.5 15 12l-5.5 5.5"/></svg></button>
     <button type="button" class="pill-clear" id="pill-clear" aria-label="Stop showing this moment" title="Stop showing this moment"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
   </div>
 

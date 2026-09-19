@@ -175,6 +175,7 @@ const controls = wireControls(app, {
   relayout: () => settle(),
   togglePlay: () => (tour.on ? tour.togglePause() : app.play(!app.sim.playing)),
   toggleSound: () => void toggleSound(),
+  stepMoment: dir => !tour.on && !app.journeying && panel.stepMoment(dir),
   stepBody: dir => {
     const id = app.stepSelection(dir);
     if (!id) {

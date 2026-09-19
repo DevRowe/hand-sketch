@@ -137,7 +137,7 @@ export class Tour {
     const j = s.journey && s.preset ? presetById(s.preset)?.journey?.() : undefined;
     if (j) {
       // a still tour waits at the journey's start: playing it flies from there
-      app.journey(j.from, j.to, j.pace);
+      app.journey(j.from, j.to, s.journeyPace ?? j.pace);
       if (still) app.play(false);
       this.flying = true;
     } else app.play(!still);

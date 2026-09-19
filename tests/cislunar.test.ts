@@ -149,9 +149,23 @@ describe('flights to the Moon', () => {
     for (const [f, km] of [[FLIGHTS.ARTEMIS_1, 432210], [FLIGHTS.ARTEMIS_2, 406771], [FLIGHTS.APOLLO_13, 400171]] as const) {
       expect(Math.abs((farthest(f, f.start, f.end).km - EARTH_R) / km - 1)).toBeLessThan(0.006);
     }
-    for (const f of Object.values(FLIGHTS)) {
+    const { WEBB, JUICE_FLYBY, CLIPPER_FLYBY, ...launched } = FLIGHTS;
+    for (const f of Object.values(launched)) {
       expect(dist(f.at(f.start))).toBeLessThan(EARTH_EQ + 400);
       expect(Number.isFinite(dist(f.at((f.start + f.end) / 2)))).toBe(true);
+    }
+    // Webb leaves from just above the Earth and ends on its loop round L2, 1.5 million km out, away from the Sun
+    expect(dist(WEBB.at(WEBB.start))).toBeLessThan(EARTH_R + 1000);
+    const end = WEBB.at(WEBB.end), away = sunDir(WEBB.end);
+    expect(-(end[0] * away[0] + end[1] * away[1]) / 1.5e6).toBeCloseTo(1, 2);
+    // it crossed the Moon's orbit in under three days
+    expect(dist(WEBB.at(WEBB.start + 3))).toBeGreaterThan(384400);
+    // the flybys come closest at their real heights, on their dates, far out at either end
+    for (const [f, alt] of [[JUICE_FLYBY, 8600], [CLIPPER_FLYBY, 3200]] as const) {
+      const peri = f.events[0]!.day;
+      expect(dist(f.at(peri)) - EARTH_EQ).toBeCloseTo(alt, 0);
+      for (const d of [peri - 0.01, peri + 0.01]) expect(dist(f.at(d))).toBeGreaterThan(dist(f.at(peri)));
+      expect(Math.min(dist(f.at(f.start)), dist(f.at(f.end)))).toBeGreaterThan(100000);
     }
   });
 });

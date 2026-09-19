@@ -15,6 +15,8 @@ export interface TourStop {
   view?: ViewId;
   /** Fly the moment's journey before holding. */
   journey?: boolean;
+  /** Days of sky a second for the journey, where the moment's own pace is too quick to follow without its controls. */
+  journeyPace?: number;
   /** Days of sky a second while the stop holds (the sky runs; a journey sets its own). */
   pace?: number;
   /** A body to pick out and follow, and how close. */
@@ -37,7 +39,7 @@ export const TOUR: readonly TourStop[] = [
     text: 'Out to the Moon and back in eight days: the first people to walk on another world. Here the Earth and the Moon are at true scale.',
   },
   {
-    id: 'voyager', title: 'Voyager’s Grand Tour', preset: 'voyager', journey: true, hold: 3,
+    id: 'voyager', title: 'Voyager’s Grand Tour', preset: 'voyager', journey: true, journeyPace: YEAR / 2, hold: 3,
     text: 'A line-up of the outer planets that comes round every ~175 years let Voyager 2 swing from Jupiter to Saturn, Uranus and Neptune in twelve years.',
   },
   {

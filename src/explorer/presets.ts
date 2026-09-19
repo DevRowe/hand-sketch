@@ -16,7 +16,7 @@ import { dateLong } from './format';
 import { fromEarthKm, km, lightTime } from './live';
 import { Flight, hohmannDays, nextWindow, planetOnPlan, planPoint, type Polar, type Waypoint } from './orbits';
 import { drawCraft, drawMark, drawPath, drawSight, GOLD, text } from './overlays';
-import { DAY, WEEK, YEAR } from './sim';
+import { WEEK, YEAR } from './sim';
 import { SPACEFLIGHT } from './spaceflight';
 import { COMET_PRESETS } from './comets';
 import { ECLIPSES } from './eclipse';
@@ -62,9 +62,10 @@ export interface Preset {
   /**
    * Otherwise frame the plan: fit a circle of `fit` design units round `at` (default the page's centre: the Sun, or the
    * Earth) into the free screen; `at` may be worked out for the moment (where the Moon is). Or fit a `box` of design
-   * units (a flight's whole path).
+   * units (a flight's whole path); a `wide` box may take the Earth and Moon view out past its widest zoom (Webb's flight
+   * to L2, four times the Moon's distance).
    */
-  frame?: { fit: number; at?: Vec2 | (() => Vec2) } | { box: () => DesignBox };
+  frame?: { fit: number; at?: Vec2 | (() => Vec2) } | { box: () => DesignBox; wide?: boolean };
   /** The pace to run at from the moment, days a second (it opens paused). */
   pace?: number;
   /** The same moment seen in the other scale (among the planets, or up close round the Earth). */
@@ -243,31 +244,35 @@ function plutoMark(ctx: CanvasRenderingContext2D, app: App): void {
   drawMark(ctx, app, planPoint(plutoAt(app.sim.day)), 'Pluto', true);
 }
 
+/* ---------- beyond the page, and a craft at its planet ---------- */
+
+/** Voyager 1's heading from the Sun: ecliptic longitude ~256° (RA 17h13m, dec +12°), climbing ~35° north of the plane. */
+const VOYAGER_1_LON = (256 * Math.PI) / 180;
+
+/**
+ * Voyager 1, far off the page: a sight line from the Sun out past the Kuiper belt, the craft as far along it as the
+ * room the controls leave shows.
+ */
+function voyagerHeading(ctx: CanvasRenderingContext2D, app: App): void {
+  if (app.view !== 'sky') return;
+  const from = C as Vec2, to = planPoint({ r: 60, lon: VOYAGER_1_LON }), pad = 44;
+  const [x0, y0, x1, y1] = app.captionRoom?.room ?? [0, 0, innerWidth, innerHeight];
+  const [sx, sy] = app.renderer.toScreen(...from), [ex, ey] = app.renderer.toScreen(...to);
+  // how far along the line stays clear of the controls (the line and the screen map one to the other in proportion)
+  const reach = (a: number, b: number, lo: number, hi: number): number => (b > a ? (hi - pad - a) / (b - a) : b < a ? (lo + pad - a) / (b - a) : 1);
+  const u = Math.max(0, Math.min(1, reach(sx, ex, x0, x1), reach(sy, ey, y0, y1)));
+  drawSight(ctx, app, from, to, 1);
+  drawCraft(ctx, app, [from[0] + (to[0] - from[0]) * u, from[1] + (to[1] - from[1]) * u], 'Voyager 1: 173 au this way');
+}
+
+/** A craft drawn at a planet on the date on screen. */
+const craftAt = (name: PlanetName, label: string) => (ctx: CanvasRenderingContext2D, app: App): void => {
+  if (app.view === 'sky') drawCraft(ctx, app, planetOnPlan(name, app.sim.day), label);
+};
+
 /* ---------- the presets ---------- */
 
 const SOLAR_PRESETS: readonly Preset[] = [
-  {
-    id: 'juice-earth',
-    group: 'Now and next',
-    title: 'JUICE swings past Earth',
-    kicker: 'Borrowing speed on the way to Jupiter.',
-    day: () => utc(2026, 9, 28, 11, 45),
-    view: 'sky',
-    focus: { body: 'earth', zoom: 3 },
-    card: () => ({
-      when: '28 September 2026, 11:45 UTC (on ESA’s current trajectory)',
-      intro: 'ESA’s Jupiter Icy Moons Explorer passes about 8,600 km above Earth, the second of its Earth flybys, trading some of our planet’s orbital speed for its own.',
-      facts: [
-        { label: 'Launched', value: '14 April 2023' },
-        { label: 'Flybys so far', value: 'Moon and Earth (August 2024), Venus (August 2025)' },
-        { label: 'Jupiter arrival', value: 'July 2031' },
-        { label: 'Then', value: 'orbit Ganymede from December 2034' },
-      ],
-      body: [
-        'In August 2024 JUICE made the first ever double flyby of the Moon and then Earth. After this pass and one more in January 2029 it heads out to Jupiter to study Ganymede, Callisto and Europa, and in 2034 it becomes the first spacecraft to orbit a moon other than our own.',
-      ],
-    }),
-  },
   {
     id: 'voyager-light-day',
     group: 'Now and next',
@@ -275,6 +280,7 @@ const SOLAR_PRESETS: readonly Preset[] = [
     kicker: 'The first spacecraft a whole light-day away.',
     day: () => utc(2026, 11, 18, 10, 16),
     view: 'sky',
+    overlay: voyagerHeading,
     card: () => ({
       when: '18 November 2026, 10:16 UTC',
       intro: 'Launched in 1977, Voyager 1 becomes the first human-made object one light-day from Earth: a radio signal, crossing space at the speed of light, needs a full 24 hours to reach it, and another 24 to hear back.',
@@ -286,7 +292,7 @@ const SOLAR_PRESETS: readonly Preset[] = [
       ],
       body: [
         'Both Voyagers are still talking to Earth after nearly 50 years, on nuclear batteries that each lose about 4 watts a year. Engineers switch instruments off one by one to save power; NASA hopes to keep at least one working into the 2030s.',
-        'On the plan it is far off the edge of the page: 173 au is more than five times Neptune’s distance.',
+        'On the plan it is far off the edge of the page: 173 au is more than five times Neptune’s distance. The line points the way it has gone, towards the constellation Ophiuchus.',
       ],
     }),
   },
@@ -298,6 +304,7 @@ const SOLAR_PRESETS: readonly Preset[] = [
     day: () => utc(2026, 11, 21),
     view: 'sky',
     focus: { body: 'mercury', zoom: 3 },
+    overlay: craftAt('mercury', 'BepiColombo'),
     card: () => ({
       when: '21 November 2026 (planned)',
       intro: 'Europe and Japan’s BepiColombo is due to slip into orbit round Mercury, eight years after it left Earth in October 2018.',
@@ -309,29 +316,6 @@ const SOLAR_PRESETS: readonly Preset[] = [
       body: [
         'Going to Mercury is harder than it looks. Falling towards the Sun, a spacecraft speeds up, and shedding that speed to be caught by a small planet takes more energy than going to Pluto. So BepiColombo brakes the slow way: flybys of Earth, Venus and Mercury itself, each trimming its orbit, until it can be captured.',
         'NASA’s MESSENGER did the same: launched in 2004, it reached Mercury orbit in 2011 after six and a half years.',
-      ],
-    }),
-  },
-  {
-    id: 'europa-clipper',
-    group: 'Now and next',
-    title: 'Europa Clipper swings past Earth',
-    kicker: 'A slingshot on the way to Jupiter.',
-    day: () => utc(2026, 12, 3),
-    view: 'sky',
-    focus: { body: 'earth', zoom: 3 },
-    card: () => ({
-      when: '3 December 2026',
-      intro: 'NASA’s Europa Clipper, launched in October 2024, comes back past Earth about 3,200 km above it, borrowing some of our planet’s orbital speed to fling itself out to Jupiter.',
-      facts: [
-        { label: 'Launched', value: '14 October 2024' },
-        { label: 'Mars flyby', value: '1 March 2025' },
-        { label: 'Earth flyby', value: '3 December 2026' },
-        { label: 'Jupiter arrival', value: 'April 2030, then 49 flybys of Europa' },
-      ],
-      body: [
-        'A gravity assist leaves a spacecraft with the same speed relative to the planet it passes but a new direction, so relative to the Sun it can gain (or lose) a lot. Two assists let Clipper reach Jupiter with a smaller rocket.',
-        'Europa hides a salty ocean under its ice, perhaps with twice the water of all Earth’s oceans. Clipper will measure the ice and the ocean and ask whether it could support life.',
       ],
     }),
   },
@@ -398,31 +382,6 @@ const SOLAR_PRESETS: readonly Preset[] = [
         'Gary Flandro, a graduate student working at JPL, spotted the alignment in 1965. A four-spacecraft "Grand Tour" was cancelled as too costly, so the two Voyagers were funded for Jupiter and Saturn only; Voyager 2’s mission was later stretched to Uranus and Neptune, and it is still the only spacecraft to have visited either.',
         'Voyager 1 skipped the rest to take a close look at Saturn’s moon Titan, which swung it up out of the plane of the planets. Both carry a golden record of sounds and pictures from Earth.',
         'Now (September 2026) Voyager 1 is ~172 au from the Sun and Voyager 2 ~144 au: radio signals take about 24 and 20 hours to reach them.',
-      ],
-    }),
-  },
-  {
-    id: 'apollo-11',
-    group: 'Missions',
-    title: 'Apollo 11',
-    kicker: 'The first people on the Moon.',
-    day: () => utc(1969, 7, 20, 20, 17),
-    view: 'sky',
-    focus: { body: 'earth', zoom: 6 },
-    related: { id: 'apollo-11-close', label: 'See the flight up close' },
-    journey: () => ({ from: utc(1969, 7, 16, 13, 32), to: utc(1969, 7, 24, 16, 51), pace: 0.75 * DAY, label: 'Play the eight days' }),
-    card: () => ({
-      when: 'Landing: 20 July 1969, 20:17 UTC',
-      intro: 'Neil Armstrong and Buzz Aldrin landed the lunar module Eagle in the Sea of Tranquility while Michael Collins circled overhead in Columbia. The Moon here stands about 70° round from the Sun, as it did that night: a waxing crescent in Earth’s evening sky.',
-      facts: [
-        { label: 'Launch', value: '16 July 1969, 13:32 UTC' },
-        { label: 'First step', value: '21 July 1969, 02:56 UTC' },
-        { label: 'Splashdown', value: '24 July 1969' },
-        { label: 'Moonwalkers, 1969-1972', value: '12, on six landings' },
-      ],
-      body: [
-        'Apollo 8 had first carried people round the Moon at Christmas 1968, when Bill Anders took the "Earthrise" photograph. After Apollo 11 came five more landings; Eugene Cernan of Apollo 17 left the last footprints in December 1972. The missions brought back 382 kg of Moon rock.',
-        'In April 2026 Artemis II took four astronauts round the Moon again, the first crew there since 1972, and flew 406,771 km from Earth, farther than anyone before them.',
       ],
     }),
   },
@@ -525,29 +484,6 @@ const SOLAR_PRESETS: readonly Preset[] = [
       body: [
         'Ingenuity was meant to try five flights in 30 days; it flew 72 times over nearly three years before a hard landing broke its rotor blades in January 2024.',
         'Perseverance seals rock cores in tubes for a future return to Earth, though NASA closed its Mars Sample Return programme in its 2026 budget.',
-      ],
-    }),
-  },
-  {
-    id: 'webb',
-    group: 'Missions',
-    title: 'James Webb Space Telescope',
-    kicker: 'A telescope a million and a half km out.',
-    day: () => utc(2021, 12, 25, 12, 20),
-    view: 'sky',
-    focus: { body: 'earth', zoom: 6 },
-    journey: () => ({ from: utc(2021, 12, 25, 12, 20), to: utc(2022, 1, 24, 19), pace: 3 * DAY, label: 'Play the month out to L2' }),
-    card: () => ({
-      when: '25 December 2021, 12:20 UTC',
-      intro: 'Webb rode an Ariane 5 from Kourou and spent a month unfolding on its way to L2, a balance point ~1.5 million km from Earth on the side away from the Sun, about four times as far as the Moon.',
-      facts: [
-        { label: 'Arrived at L2', value: '24 January 2022' },
-        { label: 'Mirror', value: '6.5 m, 18 gold-coated segments' },
-        { label: 'Sunshield', value: '21 × 14 m, five layers' },
-        { label: 'First images', value: '11-12 July 2022' },
-      ],
-      body: [
-        'At L2 the Sun, Earth and Moon all stay on one side, so a single sunshield keeps the telescope in permanent shade, cold enough to see the faint infrared glow of the first galaxies. It circles L2 while L2 circles the Sun with the Earth, once a year.',
       ],
     }),
   },
@@ -672,5 +608,8 @@ const SOLAR_PRESETS: readonly Preset[] = [
 /** Every moment: the solar system's, its comets' and eclipses', then spaceflight's round the Earth (`spaceflight.ts`). */
 export const PRESETS: readonly Preset[] = [...SOLAR_PRESETS, ...COMET_PRESETS, ...ECLIPSES, ...SPACEFLIGHT];
 
-export const presetById = (id: string): Preset | undefined => PRESETS.find(p => p.id === id);
+/** Moments that have moved, by their old ids (a shared link may still carry one). */
+const MOVED: Readonly<Record<string, string>> = { 'apollo-11': 'apollo-11-close' };
+
+export const presetById = (id: string): Preset | undefined => PRESETS.find(p => p.id === (MOVED[id] ?? id));
 

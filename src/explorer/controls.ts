@@ -36,6 +36,8 @@ export interface ControlHooks {
   toggleSound(): void;
   /** Pick out the next body in view (or the one before), with its card. */
   stepBody(dir: 1 | -1): void;
+  /** Show the moment before or after the one on show, in the Moments list's order; false when no moment is on show. */
+  stepMoment(dir: 1 | -1): boolean;
 }
 
 /** Paint a range input's filled part (WebKit draws no progress of its own). */
@@ -262,10 +264,12 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
     const onRange = target instanceof HTMLInputElement && target.type === 'range';
     const onButton = target instanceof HTMLButtonElement || target instanceof HTMLAnchorElement;
     if (typing) return;
-    const k = e.key;
+    const k = e.key, arrow = (k === 'ArrowRight' || k === 'ArrowLeft') && !onRange;
     let handled = true;
     if (k === ' ' && !onButton) hooks.togglePlay();
-    else if ((k === 'ArrowRight' || k === 'ArrowLeft') && !onRange && !onButton) app.setPace(paceFromSlider(Math.min(1, Math.max(0, paceToSlider(app.sim.pace, app.spec.pace) + (k === 'ArrowRight' ? 0.04 : -0.04))), app.spec.pace));
+    // with a moment on show the arrows step through the moments (from its own buttons too); otherwise they set the pace
+    else if (arrow && target.getAttribute('role') !== 'radio' && hooks.stepMoment(k === 'ArrowRight' ? 1 : -1)) handled = true;
+    else if (arrow && !onButton) app.setPace(paceFromSlider(Math.min(1, Math.max(0, paceToSlider(app.sim.pace, app.spec.pace) + (k === 'ArrowRight' ? 0.04 : -0.04))), app.spec.pace));
     else if (k === 'r' || k === 'R') app.setDirection(app.sim.direction === 1 ? -1 : 1);
     else if (k === 't' || k === 'T') app.jump(today());
     else if (k === 'v' || k === 'V') app.setView(app.view === 'sky' ? 'wake' : 'sky');

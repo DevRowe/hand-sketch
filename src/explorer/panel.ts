@@ -106,7 +106,7 @@ const BELTS: ReadonlySet<BodyId | 'belt'> = new Set(['belt', 'kuiper']);
 const COMET_MOMENTS: Readonly<Record<CometId, readonly string[]>> = { halley: ['halley-1986', 'halley-2061'], atlas: ['atlas-2025'] };
 
 const KEYS: readonly [string, string][] = [
-  ['Space', 'play or pause (the tour, while it is on)'], ['← →', 'slower, faster'], ['R', 'run time backwards'], ['T', 'today'],
+  ['Space', 'play or pause (the tour, while it is on)'], ['← →', 'slower, faster; with a moment on show, the one before or after it'], ['R', 'run time backwards'], ['T', 'today'],
   ['V', 'from above / in motion'], ['E', 'the Earth and Moon up close, and back'], ['N', 'the next body in view, with its card (Shift+N: the one before)'],
   ['1 … 0', 'the ten styles ([ ] step through)'], ['W', 'trails on or off'], ['L', 'names on or off'], ['M', 'the sound of the orbits on or off'],
   ['+ −', 'zoom'], ['Z', 'reset the view'], ['J', 'moments and the guided tour'], ['K', 'sky: tonight, the Moon, comets, seasons'], ['C', 'scale: sizes, distances, beyond Neptune, the galaxy'],
@@ -121,6 +121,7 @@ export class Panel {
   private readonly body = document.getElementById('panel-body') as HTMLElement;
   private readonly pill = document.getElementById('preset-pill') as HTMLElement;
   private readonly pillText = document.getElementById('pill-text') as HTMLElement;
+  private readonly pillCount = document.getElementById('pill-count') as HTMLElement;
   /** The Look sheet: kept whole (its controls are wired once), shown here when Look opens and put back when it closes. */
   private readonly look = document.getElementById('look-sheet') as HTMLElement;
   private readonly lookHome = this.look.parentElement!;
@@ -135,6 +136,12 @@ export class Panel {
   private returnFocus: HTMLElement | null = null;
   /** The preset whose geometry is drawn, for the address bar. */
   preset: string | null = null;
+  /** The moment last set, marked in the Moments list to carry on from. */
+  private lastMoment: string | null = null;
+  /** The moments in the order the Moments list showed them last (previous and next step through it). */
+  private order: readonly string[] | null = null;
+  /** How far the Moments list was scrolled when it was left, to open there again. */
+  private jumpScroll = 0;
   /** What the Scale sheet's figures were last drawn for (the style and the width), so they are drawn again only when it changes. */
   private figures = '';
 
@@ -142,6 +149,8 @@ export class Panel {
     document.getElementById('panel-close')!.addEventListener('click', () => this.close());
     document.getElementById('pill-open')!.addEventListener('click', () => this.preset && this.openPreset(this.preset, false));
     document.getElementById('pill-clear')!.addEventListener('click', () => this.clearPreset());
+    document.getElementById('pill-prev')!.addEventListener('click', () => this.stepMoment(-1));
+    document.getElementById('pill-next')!.addEventListener('click', () => this.stepMoment(1));
     this.body.addEventListener('click', e => this.onClick(e));
     this.body.addEventListener('change', e => this.onInput(e));
   }
@@ -149,6 +158,7 @@ export class Panel {
   /* ---------- showing ---------- */
 
   private show(mode: Mode, eyebrow: string, title: string, html: string | HTMLElement): void {
+    this.keepJumpScroll();
     this.mode = mode;
     clearInterval(this.travelTimer);
     this.eyebrow.textContent = eyebrow;
@@ -209,7 +219,7 @@ export class Panel {
   openSky(): void {
     const L = this.app.layers, lat = this.skyLatitude();
     const options = SKY_LATITUDES.map(([v, label]) => `<option value="${v}"${v === lat ? ' selected' : ''}>${esc(label)}</option>`).join('');
-    const moments = (ids: readonly string[]): string => `<ul class="presets">${ids.map(presetById).filter((p): p is Preset => p !== undefined).map(presetItem).join('')}</ul>`;
+    const moments = (ids: readonly string[]): string => `<ul class="presets">${ids.map(presetById).filter((p): p is Preset => p !== undefined).map(p => presetItem(p)).join('')}</ul>`;
     const html = `<p class="intro">What you can see from the Earth on <b data-live="sky-date"></b>, and why: from above, the Sun, the Earth and every planet are in view at once.</p>
       <section class="sky-sec" aria-labelledby="sky-tonight-h">
         <h3 id="sky-tonight-h">Look up tonight</h3>
@@ -486,17 +496,45 @@ export class Panel {
   }
 
   openJump(): void {
-    // "now and next" reads by the calendar: what is still ahead, and what has just passed; the moments of the view on
-    // show come first
-    const now = today(), groups = new Map<string, Preset[]>(), earth = this.app.view === 'earth';
-    const ordered = [...PRESETS].sort((a, b) => Number((a.view === 'earth') !== earth) - Number((b.view === 'earth') !== earth));
-    for (const p of ordered) {
-      const g = p.group === 'Now and next' ? (p.day() >= now ? 'Coming up' : 'Recent milestones') : p.group;
-      groups.set(g, [...(groups.get(g) ?? []), p]);
-    }
-    const html = [...groups].map(([g, ps]) => `<h3 class="group">${esc(g)}</h3><ul class="presets">${ps.map(presetItem).join('')}</ul>`).join('');
+    const groups = momentGroups(this.app.view === 'earth'), last = this.lastMoment;
+    this.order = groups.flatMap(([, ps]) => ps.map(p => p.id));
+    const html = groups.map(([g, ps]) => `<h3 class="group">${esc(g)}</h3><ul class="presets">${ps.map(p => presetItem(p, p.id === last)).join('')}</ul>`).join('');
     const tour = `<button type="button" class="tour-card" data-act="tour"><span class="tc-play" aria-hidden="true">${PLAY_ICON}</span><span class="tc-text"><b>${esc(t('tour.start'))}</b><small>${esc(t('tour.lede'))}</small></span></button>`;
     this.show({ kind: 'jump' }, 'Moments', 'Key moments', `${tour}<p class="intro">Or set the sky to a real moment and see why it matters: in space round the Earth, or out among the planets.</p>${html}`);
+    // back where the list was left, with the moment last seen in sight
+    this.body.scrollTop = this.jumpScroll;
+    const mark = this.body.querySelector<HTMLElement>('.preset.last');
+    if (mark) {
+      const b = this.body.getBoundingClientRect(), m = mark.getBoundingClientRect();
+      if (m.top < b.top || m.bottom > b.bottom) this.body.scrollTop += m.top - b.top - (b.height - m.height) / 2;
+    }
+  }
+
+  /** Remember how far the Moments list is scrolled, as it is left. */
+  private keepJumpScroll(): void {
+    if (this.mode?.kind === 'jump' && !this.el.hidden) this.jumpScroll = this.body.scrollTop;
+  }
+
+  /** The moments previous and next step through: the Moments list's order as last shown, or as it would be now. */
+  private get moments(): readonly string[] {
+    return (this.order ??= momentGroups(this.app.view === 'earth').flatMap(([, ps]) => ps.map(p => p.id)));
+  }
+
+  /**
+   * Show the moment before or after the one on show, in the Moments list's order (round from the last to the first):
+   * with its card while the Moments menu is open (its card or its list), without while the panel is closed.
+   */
+  stepMoment(dir: 1 | -1): boolean {
+    const order = this.moments, at = this.preset ? order.indexOf(this.preset) : -1;
+    if (at < 0) return false;
+    const id = order[(at + dir + order.length) % order.length]!;
+    if (this.menu === 'moments') this.openPreset(id);
+    else {
+      const p = presetById(id);
+      if (p) this.apply(p);
+    }
+    this.app.onChange();
+    return true;
   }
 
   /** Open a preset's card; `apply` also sets the sky to its moment. */
@@ -531,6 +569,8 @@ export class Panel {
   /** Set the sky to a preset's moment: paused there, framed, with its geometry. */
   private apply(p: Preset): void {
     const app = this.app;
+    // the order to step through is the list's as it stands in the view the moment is picked from
+    void this.moments;
     this.preset = p.id;
     app.overlay = p.overlay ? (ctx, a) => p.overlay!(ctx, a) : null;
     app.play(false);
@@ -541,11 +581,15 @@ export class Panel {
     const target = p.focus?.body ?? p.select ?? null;
     app.select(target, false);
     if (p.focus) app.focusSelected(p.focus.zoom);
-    else if (p.frame && 'box' in p.frame) app.frameBox(p.frame.box());
+    else if (p.frame && 'box' in p.frame) app.frameBox(p.frame.box(), undefined, p.frame.wide);
     else if (p.frame) app.frameDesign(p.frame.fit, typeof p.frame.at === 'function' ? p.frame.at() : p.frame.at ?? [540, 540]);
     // home, fitted into the room the card leaves
     else app.resetView();
+    this.lastMoment = p.id;
     this.pillText.textContent = p.title;
+    const order = this.moments, at = order.indexOf(p.id);
+    this.pillCount.textContent = at < 0 ? '' : `${at + 1} / ${order.length}`;
+    this.pillCount.setAttribute('aria-label', at < 0 ? '' : t('moment.of', { n: at + 1, of: order.length }));
     this.pill.hidden = false;
   }
 
@@ -564,6 +608,7 @@ export class Panel {
     if (this.el.hidden) return false;
     // the focus must not stay behind in a hidden card (a date field there would swallow the keyboard shortcuts)
     const hadFocus = this.el.contains(document.activeElement);
+    this.keepJumpScroll();
     this.el.hidden = true;
     if (hadFocus) {
       const back = this.returnFocus;
@@ -576,7 +621,7 @@ export class Panel {
     if (this.look.parentElement === this.body) this.lookHome.append(this.look);
     document.body.classList.remove('panel-open');
     this.markMenus(null);
-    this.app.syncRoom();
+    this.app.reframe();
     this.app.invalidate();
     return true;
   }
@@ -781,9 +826,23 @@ function liveFacts(id: BodyId, day: number): { label: string; value: string }[] 
 }
 
 
-/** A moment in a list: its title, date and one line. */
-const presetItem = (p: Preset): string => `<li><button type="button" class="preset" data-preset="${p.id}">
-    <span class="p-title">${esc(p.title)}</span><span class="p-when">${esc(dateLong(p.day(), true))}</span><span class="p-kicker">${esc(p.kicker)}</span>
+/**
+ * The moments as the Moments list shows them, by group: "now and next" read by the calendar (what is still ahead, and
+ * what has just passed), and the moments of the view on show first.
+ */
+function momentGroups(earthFirst: boolean): [string, Preset[]][] {
+  const now = today(), groups = new Map<string, Preset[]>();
+  const ordered = [...PRESETS].sort((a, b) => Number((a.view === 'earth') !== earthFirst) - Number((b.view === 'earth') !== earthFirst));
+  for (const p of ordered) {
+    const g = p.group === 'Now and next' ? (p.day() >= now ? 'Coming up' : 'Recent milestones') : p.group;
+    groups.set(g, [...(groups.get(g) ?? []), p]);
+  }
+  return [...groups];
+}
+
+/** A moment in a list: its title, date and one line (and a mark on the one last seen). */
+const presetItem = (p: Preset, last = false): string => `<li><button type="button" class="preset${last ? ' last' : ''}" data-preset="${p.id}"${last ? ' aria-current="true"' : ''}>
+    <span class="p-title">${esc(p.title)}${last ? `<span class="p-last">${esc(t('moment.last'))}</span>` : ''}</span><span class="p-when">${esc(dateLong(p.day(), true))}</span><span class="p-kicker">${esc(p.kicker)}</span>
   </button></li>`;
 
 /** The mark on the Sky sheet's switches that draw over the plan. */

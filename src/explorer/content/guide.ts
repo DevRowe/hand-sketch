@@ -24,7 +24,7 @@ export const GUIDE: readonly Section[] = [
     items: [
       { title: 'Views', text: 'In motion: the Sun carrying its planets through space. From above: the planets’ real places on the date. Earth & Moon: the two at true scale, with the story of spaceflight.' },
       { title: 'Time', text: 'Play or pause, pick a date, go back to today, choose a speed or run time in reverse; More holds the finer speed slider and the year.' },
-      { title: 'Moments', text: 'Real moments to set the sky to, many with a journey to fly, and the guided tour through the best of them.' },
+      { title: 'Moments', text: 'Real moments to set the sky to, many with a journey to fly, and the guided tour through the best of them. While one is on show, the arrows on its pill (or ← and →) step to the moment before or after it.' },
       { title: 'Sky', text: 'What you can see from the Earth: tonight’s planets, the Moon and eclipses, comets, and the seasons.' },
       { title: 'Scale', text: 'How big and how far: the bodies side by side, true distances, Pluto and the Kuiper belt, and the Sun’s path round the galaxy.' },
       { title: 'Look, You and the Guide', text: 'Look: the ten styles, the trails, names, zoom and the sound of the orbits. You: share this moment, save a picture or a clip, and fly your own years. The Guide: this.' },
