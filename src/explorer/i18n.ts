@@ -43,7 +43,6 @@ const EN = {
   'tour.play': 'Play the tour',
   'tour.exit': 'End the tour',
   'tour.finish': 'Done',
-  'tour.read': 'Read aloud',
 
   // sound
   'sound.on': 'Sound on: each planet plays its note as it passes the line to the right of the Sun.',

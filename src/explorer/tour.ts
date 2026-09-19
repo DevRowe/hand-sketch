@@ -34,7 +34,6 @@ export class Tour {
   private readonly play = $<HTMLButtonElement>('tour-play');
   private readonly back = $<HTMLButtonElement>('tour-back');
   private readonly next = $<HTMLButtonElement>('tour-next');
-  private readonly read = $<HTMLButtonElement>('tour-read');
   private readonly dotButtons: HTMLButtonElement[];
   /** The stop on screen, or -1 while no tour is. */
   private i = -1;
@@ -45,9 +44,6 @@ export class Tour {
   private raf = 0;
   /** The stop's journey has been started and has not reached its end yet. */
   private flying = false;
-  /** Reading the caption aloud, and still speaking it. */
-  private reading = false;
-  private speaking = false;
 
   constructor(private readonly app: App, private readonly hooks: TourHooks) {
     this.dotButtons = TOUR.map((s, k) => {
@@ -67,14 +63,6 @@ export class Tour {
     // the last stop's next is the way out
     this.next.addEventListener('click', () => (this.last ? this.end() : this.go(this.i + 1)));
     $('tour-exit').addEventListener('click', () => this.end());
-    const speech = typeof speechSynthesis !== 'undefined' && typeof SpeechSynthesisUtterance !== 'undefined';
-    this.read.hidden = !speech;
-    this.read.addEventListener('click', () => {
-      this.reading = !this.reading;
-      this.read.setAttribute('aria-pressed', String(this.reading));
-      if (this.reading) this.speak();
-      else this.hush();
-    });
   }
 
   /** Whether a tour is on screen. */
@@ -111,7 +99,6 @@ export class Tour {
     this.i = -1;
     this.flying = false;
     cancelAnimationFrame(this.raf);
-    this.hush();
     // the focus must not stay behind in the hidden bar
     if (this.bar.contains(document.activeElement)) (document.activeElement as HTMLElement).blur();
     this.bar.hidden = true;
@@ -168,7 +155,6 @@ export class Tour {
     this.next.title = this.last ? t('tour.exit') : t('tour.next');
     // the framing fits the room the tour's bar leaves, once the page has laid itself out without the dock
     requestAnimationFrame(() => app.refit());
-    if (this.reading) this.speak();
     this.refresh();
   }
 
@@ -186,11 +172,10 @@ export class Tour {
       const j = presetById(s.preset!)?.journey?.();
       u = j ? Math.min(1, Math.max(0, (app.sim.day - j.from) / (j.to - j.from || 1))) * 0.8 : 0;
     } else {
-      // the hold waits while paused, and for the caption to be read to the end
+      // the hold waits while paused
       if (!this.paused) this.held += dt;
       u = s.hold ? (s.journey ? 0.8 : 0) + Math.min(1, this.held / s.hold) * (s.journey ? 0.2 : 1) : 1;
-      // (a voice that never says it has finished is waited for a little while, not for ever)
-      if (s.hold && this.held >= s.hold && (!this.speaking || this.held > s.hold + 15) && !this.paused) this.go(this.i + 1);
+      if (s.hold && this.held >= s.hold && !this.paused) this.go(this.i + 1);
     }
     this.dotButtons[this.i]?.style.setProperty('--u', u.toFixed(3));
   };
@@ -201,22 +186,5 @@ export class Tour {
     this.bar.classList.toggle('paused', this.paused);
     this.play.setAttribute('aria-label', this.paused ? t('tour.play') : t('tour.pause'));
     this.play.title = `${this.paused ? t('tour.play') : t('tour.pause')} (Space)`;
-  }
-
-  private speak(): void {
-    const s = this.stop;
-    if (!s) return;
-    this.hush();
-    const u = new SpeechSynthesisUtterance(`${s.title}. ${s.text}`);
-    u.lang = document.documentElement.lang || 'en';
-    u.rate = 1;
-    this.speaking = true;
-    u.onend = u.onerror = () => { if (this.stop === s) this.speaking = false; };
-    speechSynthesis.speak(u);
-  }
-
-  private hush(): void {
-    this.speaking = false;
-    if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
   }
 }
