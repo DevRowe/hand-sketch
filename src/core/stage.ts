@@ -99,6 +99,8 @@ interface Page {
   scaled: { canvas: HTMLCanvasElement; steps: Iterator<void> | null } | null;
   /** When it was last laid through a magnified view (performance.now()). */
   laidAt: number;
+  /** A texture (paper, tooth) that runs on, mirrored, where the view shows past the page's edge. */
+  bleed: boolean;
 }
 
 /** Run a page build to its end. */
@@ -210,16 +212,18 @@ export class Stage implements FrameSize {
    * A page layer: `build` draws it once, in logical units over the whole page as the home view shows it, and it is
    * kept whatever the view does. Lay it with `lay` (or `blit`), which maps it through the view. `build` must draw only
    * page-locked content, and set transforms only through `reset` (never to the identity): it also draws sharp copies,
-   * under the live view and shifted by a margin.
+   * under the live view and shifted by a margin. A `bleed` layer is a texture that may run on past the page's edge:
+   * where the live view shows beyond the page (the explorer lets it slide under its controls), `lay` continues it
+   * mirrored across the edge, so paper and tooth meet their reflection without a seam; content (a still) stops there.
    */
-  pageLayer(key: string, build: PageBuild): HTMLCanvasElement {
+  pageLayer(key: string, build: PageBuild, bleed = false): HTMLCanvasElement {
     const id = `${key}@${this.outW}x${this.outH}`;
     const found = this.pages.get(id);
     if (found) return found.canvas;
     const canvas = document.createElement('canvas');
     canvas.width = this.outW;
     canvas.height = this.outH;
-    const page: Page = { canvas, build, sharp: null, next: null, scaled: null, laidAt: -1e9 };
+    const page: Page = { canvas, build, sharp: null, next: null, scaled: null, laidAt: -1e9, bleed };
     this.pages.set(id, page);
     this.pageOf.set(canvas, page);
     this.builds++;
@@ -389,6 +393,32 @@ export class Stage implements FrameSize {
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.drawImage(layer, dx, dy, this.outW, this.outH);
     }
+    if (page?.bleed) this.bleed(ctx, page.canvas, dx, dy);
     ctx.restore();
+  }
+
+  /** Continue a page texture mirrored across each edge of the page the view shows, outside the page only. */
+  private bleed(ctx: Ctx, layer: HTMLCanvasElement, dx: number, dy: number): void {
+    const { zoom, x, y } = this.camera, W = ctx.canvas.width, H = ctx.canvas.height;
+    const x0 = this.base * (this.w / 2 - zoom * x) + dx, y0 = this.base * (this.h / 2 - zoom * y) + dy;
+    const x1 = x0 + zoom * this.outW, y1 = y0 + zoom * this.outH;
+    if (x0 <= 0 && y0 <= 0 && x1 >= W && y1 >= H) return;
+    // mirrored about lines a pixel inside the edge, so the copies overlap the page's soft last pixel and no seam of
+    // the desk shows between them
+    const e = 1, [mx0, my0, mx1, my1] = [x0 + e, y0 + e, x1 - e, y1 - e];
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.beginPath();
+    ctx.rect(0, 0, W, H);
+    ctx.rect(mx0, my0, mx1 - mx0, my1 - my0);
+    ctx.clip('evenodd');
+    for (const i of [-1, 0, 1]) {
+      if ((i < 0 && x0 <= 0) || (i > 0 && x1 >= W)) continue;
+      for (const j of [-1, 0, 1]) {
+        if ((!i && !j) || (j < 0 && y0 <= 0) || (j > 0 && y1 >= H)) continue;
+        // a copy flipped about the line it lies beyond: page point p lands at 2 * line - p
+        ctx.setTransform(i ? -zoom : zoom, 0, 0, j ? -zoom : zoom, i < 0 ? 2 * mx0 - x0 : i > 0 ? 2 * mx1 - x0 : x0, j < 0 ? 2 * my0 - y0 : j > 0 ? 2 * my1 - y0 : y0);
+        ctx.drawImage(layer, 0, 0, this.outW, this.outH);
+      }
+    }
   }
 }

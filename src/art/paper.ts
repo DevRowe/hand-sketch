@@ -27,7 +27,7 @@ export function drawPaper(ctx: Ctx, stage: Stage, o: PaperOptions): void {
   const { color, band = null, seed = 5, texture = 1 } = o;
   const key = `paper:${color}:${band}:${seed}:${texture}:${o.speckle ?? ''}`;
   // page-locked: built once per stage size, and a moving view camera only maps it
-  const layer = stage.pageLayer(key, (g, region) => paperSteps(stage, g, region, { ...o, band, seed, texture }));
+  const layer = stage.pageLayer(key, (g, region) => paperSteps(stage, g, region, { ...o, band, seed, texture }), true);
   stage.blit(ctx, layer);
 }
 

@@ -10,7 +10,7 @@ import type { Vec2 } from '../core/math';
 import type { PlanetName } from '../scenes/solar/common';
 import { C } from '../scenes/solar/common';
 import { dayOf, heliocentric } from '../scenes/solar/ephemeris';
-import type { App } from './app';
+import type { App, DesignBox } from './app';
 import type { BodyId, ViewId } from './bodies';
 import { dateLong } from './format';
 import { fromEarthKm, km, lightTime } from './live';
@@ -61,9 +61,10 @@ export interface Preset {
   focus?: { body: BodyId; zoom: number };
   /**
    * Otherwise frame the plan: fit a circle of `fit` design units round `at` (default the page's centre: the Sun, or the
-   * Earth) into the free screen; `at` may be worked out for the moment (where the Moon is).
+   * Earth) into the free screen; `at` may be worked out for the moment (where the Moon is). Or fit a `box` of design
+   * units (a flight's whole path).
    */
-  frame?: { fit: number; at?: Vec2 | (() => Vec2) };
+  frame?: { fit: number; at?: Vec2 | (() => Vec2) } | { box: () => DesignBox };
   /** The pace to run at from the moment, days a second (it opens paused). */
   pace?: number;
   /** The same moment seen in the other scale (among the planets, or up close round the Earth). */
@@ -189,6 +190,20 @@ function nextOpposition(from: number): number {
 }
 
 /* ---------- missions ---------- */
+
+/** The design box round flights' whole paths, with `pad` design units round it for the planets and the names. */
+function pathsBox(flights: readonly Flight[], pad: number): DesignBox {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const f of flights) {
+    for (const [x, y] of f.path(f.start, f.end, 20)) {
+      x0 = Math.min(x0, x);
+      y0 = Math.min(y0, y);
+      x1 = Math.max(x1, x);
+      y1 = Math.max(y1, y);
+    }
+  }
+  return [x0 - pad, y0 - pad, x1 + pad, y1 + pad];
+}
 
 const VOYAGER_2 = new Flight([
   wp('earth', utc(1977, 8, 20, 14, 30), ''),
@@ -363,7 +378,8 @@ const SOLAR_PRESETS: readonly Preset[] = [
     kicker: 'A once-in-175-years line-up of the outer planets.',
     day: () => utc(1977, 8, 20, 14, 30),
     view: 'sky',
-    frame: { fit: 510 },
+    // the two flights, out to Neptune: on a wide screen that takes the page under the dock, so the finale is not
+    frame: { box: () => pathsBox([VOYAGER_1, VOYAGER_2], 36) },
     journey: () => ({ from: utc(1977, 8, 20, 14, 30), to: utc(1989, 8, 25, 3, 56), pace: YEAR, label: 'Fly the Grand Tour' }),
     overlay(ctx, app) {
       flightOverlay(VOYAGER_1, 'Voyager 1', '#f4e3b5', true)(ctx, app);

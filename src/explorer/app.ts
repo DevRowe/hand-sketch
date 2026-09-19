@@ -67,6 +67,9 @@ const HOME_SNAP = 0.07;
 /** Screens where the controls take a large share of the room: home is fitted to it (elsewhere the page fills the screen). */
 const COMPACT = matchMedia('(max-width: 980px), (max-height: 540px)');
 
+/** A box in design units: [x0, y0, x1, y1]. */
+export type DesignBox = readonly [number, number, number, number];
+
 /** Trails are drawn at a light touch to start with (their lengths are each view's own: `views.ts`). */
 export const DEFAULT_OPACITY = 0.6;
 /**
@@ -152,8 +155,8 @@ export class App {
   private dirty = true;
   /** The camera rests on (or glides to) the home view. */
   private homed = true;
-  /** The design circle the camera was last framed on (a moment's geometry), until the viewer moves it. */
-  private framed: { radius: number; at: readonly [number, number] } | null = null;
+  /** The design box the camera was last framed on (a moment's geometry), until the viewer moves it. */
+  private framed: DesignBox | null = null;
   private lastDraw = -1e9;
   /** When the sky, the camera and the trails last moved (ms). */
   private stillSince = 0;
@@ -236,6 +239,7 @@ export class App {
     this.labelLayout.reset();
     this.camera.min = VIEWS[view].zoomMin;
     this.camera.max = VIEWS[view].zoomMax;
+    this.syncRoom(0);
     this.push = { factor: 1, at: 0 };
     if (!crossing) {
       // home differs by view: glide to the new one's
@@ -422,7 +426,7 @@ export class App {
     this.camera.zoomAt(factor, lx, ly);
     this.homed = false;
     this.framed = null;
-    if (this.camera.zoom <= this.camera.min) this.following = false;
+    if (this.camera.zoom <= this.camera.least) this.following = false;
     this.changed();
   }
 
@@ -502,7 +506,8 @@ export class App {
 
   /** Show the design point `at` in the middle of the free part of the screen at `zoom` (a shared link's view). */
   lookAt(at: readonly [number, number], zoom: number, glide = this.glide): void {
-    const z = clamp(zoom, this.camera.min, this.camera.max), [lx, ly] = this.renderer.designToLogical(at[0], at[1]), [cx, cy] = this.centreFor(lx, ly, z);
+    this.syncRoom();
+    const z = clamp(zoom, this.camera.least, this.camera.max), [lx, ly] = this.renderer.designToLogical(at[0], at[1]), [cx, cy] = this.centreFor(lx, ly, z);
     this.following = false;
     this.homed = false;
     this.framed = null;
@@ -512,14 +517,39 @@ export class App {
 
   /** Glide to fit a circle of `radius` design units round the design point `at` into the free part of the screen. */
   frameDesign(radius: number, at: readonly [number, number], glide = this.glide): void {
-    const r = this.freeRect(), perDesign = this.renderer.designScale / this.camera.zoom;
-    const zoom = clamp((Math.min(r.w, r.h) - 2 * FRAME_MARGIN) / (2 * radius * perDesign), this.camera.min, this.camera.max);
-    const [lx, ly] = this.renderer.designToLogical(at[0], at[1]), [cx, cy] = this.centreFor(lx, ly, zoom);
+    this.frameBox([at[0] - radius, at[1] - radius, at[0] + radius, at[1] + radius], glide);
+  }
+
+  /**
+   * Glide to fit a design box into the free part of the screen. On a wide screen a tall box (a flight out to Neptune)
+   * may take the page under the top bar and the dock, and zoom out past the whole page where the cards leave the room
+   * narrow (`Camera.setRoom`).
+   */
+  frameBox(box: DesignBox, glide = this.glide): void {
+    this.syncRoom();
+    const [x0, y0, x1, y1] = box, r = this.freeRect(), perDesign = this.renderer.designScale / this.camera.zoom;
+    const fit = Math.min((r.w - 2 * FRAME_MARGIN) / ((x1 - x0) * perDesign), (r.h - 2 * FRAME_MARGIN) / ((y1 - y0) * perDesign));
+    const zoom = clamp(fit, this.camera.least, this.camera.max);
+    const [lx, ly] = this.renderer.designToLogical((x0 + x1) / 2, (y0 + y1) / 2), [cx, cy] = this.centreFor(lx, ly, zoom);
     this.following = false;
     this.homed = false;
-    this.framed = { radius, at };
+    this.framed = box;
     this.camera.glideTo({ zoom, x: cx, y: cy }, glide);
     this.changed();
+  }
+
+  /**
+   * Tell the camera which part of the screen the controls leave clear, so the page may slide under them (the plans only:
+   * the Earth and Moon view keeps its paper home and maps the view itself). A room that no longer allows the view eases
+   * into one that does.
+   */
+  syncRoom(glide = this.glide): void {
+    if (this.view === 'earth') {
+      this.camera.setRoom(null, 0);
+      return;
+    }
+    const r = this.freeRect(), k = this.renderer.logicalScale;
+    this.camera.setRoom({ l: r.x / k, t: r.y / k, r: Math.max(0, innerWidth - r.x - r.w) / k, b: Math.max(0, innerHeight - r.y - r.h) / k }, glide);
   }
 
   /**
@@ -528,8 +558,9 @@ export class App {
    * the viewer chose stays as it is.
    */
   refit(glide = this.glide): void {
+    this.syncRoom(glide);
     if (this.homed) this.camera.glideTo(this.homeView(), glide);
-    else if (this.framed) this.frameDesign(this.framed.radius, this.framed.at, glide);
+    else if (this.framed) this.frameBox(this.framed, glide);
     this.dirty = true;
   }
 
@@ -540,6 +571,7 @@ export class App {
   reveal(): void {
     const m = this.markOf(this.selected);
     if (!m) return;
+    this.syncRoom();
     const r = this.freeRect(), [sx, sy] = this.renderer.toScreen(m.x, m.y), pad = 24;
     if (sx >= r.x + pad && sx <= r.x + r.w - pad && sy >= r.y + pad && sy <= r.y + r.h - pad) return;
     const z = this.camera.target.zoom, [lx, ly] = this.renderer.designToLogical(m.x, m.y), [cx, cy] = this.centreFor(lx, ly, z);
@@ -554,7 +586,7 @@ export class App {
     const m = this.markOf(this.selected, true);
     if (!m || m.ring !== undefined) return;
     const least = this.view === 'earth' ? (FOCUS[m.id] ?? 4) : 1;
-    const z = clamp(Math.max(zoom, least, this.camera.zoom), this.camera.min, this.camera.max), [lx, ly] = this.renderer.designToLogical(m.x, m.y), [cx, cy] = this.centreFor(lx, ly, z);
+    const z = clamp(Math.max(zoom, least, this.camera.zoom), this.camera.least, this.camera.max), [lx, ly] = this.renderer.designToLogical(m.x, m.y), [cx, cy] = this.centreFor(lx, ly, z);
     this.following = true;
     this.homed = false;
     this.framed = null;

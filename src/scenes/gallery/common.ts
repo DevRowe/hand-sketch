@@ -127,7 +127,7 @@ export function ground(f: SceneFrame, color: string, o: GroundOptions = {}): voi
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, stage.w, stage.h);
     }
-  });
+  }, true);
   composite(f, layer);
 }
 
@@ -211,7 +211,7 @@ export function toothMask(f: SceneFrame, o: ToothOptions): HTMLCanvasElement {
       }
       g.globalAlpha = 1;
     }
-  });
+  }, true);
 }
 
 /** Knock a texture mask out of layer context `g` (ink skipping on paper tooth, grain in a block). */

@@ -415,7 +415,7 @@ export function wireControls(app: App, hooks: ControlHooks): Controls {
       // Earth and Moon view
       for (const b of zoomButtons) {
         if (b.dataset.zoom === 'in') b.disabled = z >= app.camera.max - 1e-6 && !app.canDive;
-        else if (b.dataset.zoom === 'out') b.disabled = z <= app.camera.min + 1e-6 && app.view !== 'earth';
+        else if (b.dataset.zoom === 'out') b.disabled = z <= app.camera.least + 1e-6 && app.view !== 'earth';
         else b.disabled = app.atHome;
       }
     }

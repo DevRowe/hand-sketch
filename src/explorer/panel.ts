@@ -539,6 +539,7 @@ export class Panel {
     const target = p.focus?.body ?? p.select ?? null;
     app.select(target, false);
     if (p.focus) app.focusSelected(p.focus.zoom);
+    else if (p.frame && 'box' in p.frame) app.frameBox(p.frame.box());
     else if (p.frame) app.frameDesign(p.frame.fit, typeof p.frame.at === 'function' ? p.frame.at() : p.frame.at ?? [540, 540]);
     // home, fitted into the room the card leaves
     else app.resetView();

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { earthMarks, pick } from '../src/explorer/bodies';
 import { dateLabel, isFuture, isoDate, parseIsoDate } from '../src/explorer/format';
-import { FLIGHTS, SPACEFLIGHT, SPACEFLIGHT_FEATURED } from '../src/explorer/spaceflight';
+import { FLIGHTS, SPACEFLIGHT, SPACEFLIGHT_FEATURED, subjectAt } from '../src/explorer/spaceflight';
 import { presetById } from '../src/explorer/presets';
 import { farthest, launchOrbit, lunarFlight } from '../src/explorer/trajectories';
 import { readUrl } from '../src/explorer/url';
@@ -197,6 +197,18 @@ describe('the Earth and Moon view in the explorer', () => {
       expect(short.length).toBeLessThanOrEqual(p!.title.length);
     }
     for (const p of SPACEFLIGHT) expect(p.view, p.id).toBe('earth');
+  });
+
+  it('opens every moment with its craft or station in sight, near the Earth on its near side', () => {
+    const craft = SPACEFLIGHT.filter(p => p.overlay || (p.select && trackedById(p.select)));
+    expect(craft.length).toBeGreaterThan(15);
+    for (const p of craft) {
+      const q = subjectAt(p.id, p.day());
+      expect(q, p.id).not.toBeNull();
+      expect(hiddenByEarth(q!), p.id).toBe(false);
+      // close in, the limb is no place to show it: it must sit in front of the disc
+      if (dist(q!) < 2 * EARTH_R) expect(q![2], p.id).toBeGreaterThan(1000);
+    }
   });
 
   it('reads the Earth and Moon view from the address bar', () => {
