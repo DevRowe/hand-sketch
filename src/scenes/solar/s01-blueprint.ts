@@ -12,7 +12,7 @@ import { drawGroup, scheduleWithin, type Slot, type StrokeGroup } from '../../co
 import { clamp, TAU, type Vec2 } from '../../core/math';
 import type { Scene } from '../../core/scene';
 import { drawStroke, drawStrokeRange, prepareStroke, type PreparedStroke, type StrokeStyle } from '../../core/stroke';
-import { circle, ground, group, polyPath, sec, still } from '../gallery/common';
+import { circle, ground, group, held, polyPath, sec, still } from '../gallery/common';
 import { SOLAR } from './palettes';
 import { BELT, C, disc, drawnFrame, enter, frameFit, LOOP, MOON, moonOffset, once, PLANETS, planetAngle, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Planet } from './common';
 import { skyOf, trailSweep, type Sky } from './sky';
@@ -176,11 +176,20 @@ export const blueprintScene: Scene = {
       }
     });
 
+    // what stands still once drawn is `held`: the live explorer keeps each run of it as a layer
+    const inFrame = (g: typeof f, draw: () => void): void => {
+      g.ctx.save();
+      enter(g.ctx, fr);
+      draw();
+      g.ctx.restore();
+    };
+    held(f, 's01-rules', g => inFrame(g, () => {
+      drawGroup(g, L.cross, L.crossSlots);
+      drawGroup(g, L.scale, L.scaleSlots);
+    }));
+
     ctx.save();
     enter(ctx, fr);
-    const fx = { ...f, ctx };
-    drawGroup(fx, L.cross, L.crossSlots);
-    drawGroup(fx, L.scale, L.scaleSlots);
 
     // the belt, a scatter of fine specks that shears as it turns
     const beltIn = clamp((n - F.scale[0]) / 10, 0, 1);
@@ -207,12 +216,20 @@ export const blueprintScene: Scene = {
       ctx.restore();
     }
 
-    // orbits swung like a compass, then the pencil trail behind each planet
+    ctx.restore();
+
+    // orbits swung like a compass (no orbit crosses another's trail, so all of them go down first), then the pencil
+    // trail behind each planet
+    held(f, 's01-orbits', g => inFrame(g, () => {
+      PLANETS.forEach((_p, k) => {
+        const prog = clamp((n - (F.orbits + k * F.orbitEvery)) / F.orbitSwing, 0, 1);
+        if (prog > 0) drawStroke(g.ctx, L.orbits[k]!, prog);
+      });
+    }));
+    ctx.save();
+    enter(ctx, fr);
     PLANETS.forEach((p, k) => {
-      const t0 = F.orbits + k * F.orbitEvery, prog = clamp((n - t0) / F.orbitSwing, 0, 1);
-      if (prog <= 0) return;
       const orbit = L.orbits[k]!;
-      drawStroke(ctx, orbit, prog);
       const on = clamp((n - orbitDone(k)) / 6, 0, 1);
       if (on <= 0) return;
       const { sweep, alpha } = trailSweep(sky, k, Math.min(0.22, TRAIL / (TAU * p.a)) * TAU);
@@ -226,21 +243,27 @@ export const blueprintScene: Scene = {
       }
     });
 
-    // the Sun: a pencil-yellow glow drawn into the blueprint, then its rim and rays
-    const sunIn = clamp((n - F.sun[0]) / 8, 0, 1);
-    if (sunIn > 0) {
-      ctx.save();
-      ctx.globalAlpha *= sunIn;
-      const glow = ctx.createRadialGradient(C[0], C[1], 0, C[0], C[1], SUN_R * 2.6);
-      glow.addColorStop(0, 'rgba(243,214,122,0.4)');
-      glow.addColorStop(0.4, 'rgba(243,214,122,0.18)');
-      glow.addColorStop(1, 'rgba(243,214,122,0)');
-      ctx.fillStyle = glow;
-      ctx.fillRect(C[0] - SUN_R * 2.6, C[1] - SUN_R * 2.6, SUN_R * 5.2, SUN_R * 5.2);
-      ctx.restore();
-    }
-    drawGroup(fx, L.sun, L.sunSlots);
+    ctx.restore();
 
+    // the Sun: a pencil-yellow glow drawn into the blueprint, then its rim and rays
+    held(f, 's01-sun', g => inFrame(g, () => {
+      const c = g.ctx, sunIn = clamp((n - F.sun[0]) / 8, 0, 1);
+      if (sunIn > 0) {
+        c.save();
+        c.globalAlpha *= sunIn;
+        const glow = c.createRadialGradient(C[0], C[1], 0, C[0], C[1], SUN_R * 2.6);
+        glow.addColorStop(0, 'rgba(243,214,122,0.4)');
+        glow.addColorStop(0.4, 'rgba(243,214,122,0.18)');
+        glow.addColorStop(1, 'rgba(243,214,122,0)');
+        c.fillStyle = glow;
+        c.fillRect(C[0] - SUN_R * 2.6, C[1] - SUN_R * 2.6, SUN_R * 5.2, SUN_R * 5.2);
+        c.restore();
+      }
+      drawGroup(g, L.sun, L.sunSlots);
+    }));
+
+    ctx.save();
+    enter(ctx, fr);
     PLANETS.forEach((p, k) => {
       const on = clamp((n - orbitDone(k)) / 4, 0, 1);
       if (on <= 0) return;
@@ -249,7 +272,7 @@ export const blueprintScene: Scene = {
       drawPlanet(ctx, L, p, k, sky);
       ctx.restore();
     });
-    drawGroup(fx, L.notes, L.noteSlots);
     ctx.restore();
+    held(f, 's01-notes', g => inFrame(g, () => drawGroup(g, L.notes, L.noteSlots)));
   },
 };

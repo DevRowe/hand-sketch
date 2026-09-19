@@ -11,7 +11,7 @@ import { TAU, type Vec2 } from '../../core/math';
 import { noise1, rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
 import { drawStroke, prepareStroke, type PreparedStroke, type StrokeStyle } from '../../core/stroke';
-import { circle, composite, ground, ink, knockOut, polyPath, still, toothMask } from '../gallery/common';
+import { circle, composite, ground, held, ink, knockOut, polyPath, still, toothMask } from '../gallery/common';
 import { annulus, BOX, brushChar, C, dayHalf, disc, enter, frameFit, LOOP, MOON, moonOffset, once, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, pageOf, rockAt, roomOf, sheetOf, SUN_R, sunward, topRight, URANUS_RING, type DesignBox, type Frame, type PlanetName } from './common';
 import { skyOf } from './sky';
 import { orbitTrail } from './trails';
@@ -222,12 +222,19 @@ export const woodblockScene: Scene = {
 
     // the key block, a hair out of register
     ink(f, 's02-key', g => {
+      // the cut lines that never move: the live explorer keeps them as a layer of the block
+      held(g, 's02-key-lines', h => {
+        const c = h.ctx;
+        c.save();
+        enter(c, fr);
+        for (const s of L.orbits) drawStroke(c, s, 1);
+        for (const s of L.sun) drawStroke(c, s, 1);
+        for (const s of frameOn(sheetOf(f))) drawStroke(c, s, 1);
+        for (const s of TITLE()) corner(c, () => drawStroke(c, s, 1));
+        c.restore();
+      });
       const c = g.ctx;
       enter(c, fr);
-      for (const s of L.orbits) drawStroke(c, s, 1);
-      for (const s of L.sun) drawStroke(c, s, 1);
-      for (const s of frameOn(sheetOf(f))) drawStroke(c, s, 1);
-      for (const s of TITLE()) corner(c, () => drawStroke(c, s, 1));
       // the belt: a scatter of round punches in the key
       c.fillStyle = KEY;
       c.beginPath();

@@ -62,6 +62,11 @@ export class Sim {
   trails: Trails;
   /** A lifetime the wakes draw (your years, from the day you were born): Earth's wake reaches all the way back to it. */
   life: number | null = null;
+  /**
+   * Design units between wake samples (the wakes' level of detail, set by the app from how many device pixels a
+   * design unit covers); null keeps the wakes' own, finest spacing.
+   */
+  spacing: number | null = null;
 
   constructor(day: number, pace: number, trails: Pick<Trails, 'on' | 'span' | 'opacity'>) {
     this.day = clamp(day, DAY_MIN, DAY_MAX);
@@ -113,6 +118,6 @@ export class Sim {
   sky(): Sky {
     const t = this.trails, eased = t.reveal * t.reveal * (3 - 2 * t.reveal);
     const life = this.life === null ? {} : { life: { since: this.life, k: EARTH_K } };
-    return datedSky({ day: this.day, beat: this.beat, trails: { span: t.span, reveal: eased, alpha: t.alpha, ...life } });
+    return datedSky({ day: this.day, beat: this.beat, trails: { span: t.span, reveal: eased, alpha: t.alpha, ...life, ...(this.spacing === null ? {} : { spacing: this.spacing }) } });
   }
 }

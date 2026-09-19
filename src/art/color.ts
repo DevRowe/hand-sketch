@@ -5,7 +5,10 @@ import { clamp, lerp } from '../core/math';
 
 export type RGB = [number, number, number];
 
-export function parseColor(c: string): RGB {
+/** Colours already parsed (a pure function of the string, asked for again every frame); cleared when large. */
+const parsed = new Map<string, RGB>();
+
+function parse(c: string): RGB {
   const s = c.trim();
   if (s.startsWith('#')) {
     const h = s.length === 4 ? [...s.slice(1)].map(ch => ch + ch).join('') : s.slice(1, 7);
@@ -19,8 +22,21 @@ export function parseColor(c: string): RGB {
   throw new Error(`unsupported colour: ${c}`);
 }
 
-export const toHex = ([r, g, b]: RGB): string =>
-  '#' + [r, g, b].map(v => Math.round(clamp(v, 0, 255)).toString(16).padStart(2, '0')).join('');
+export function parseColor(c: string): RGB {
+  let rgb = parsed.get(c);
+  if (!rgb) {
+    rgb = parse(c);
+    if (parsed.size >= 1024) parsed.clear();
+    parsed.set(c, rgb);
+  }
+  // a copy: the caller may keep or change it
+  return [rgb[0], rgb[1], rgb[2]];
+}
+
+const HEX = Array.from({ length: 256 }, (_, v) => v.toString(16).padStart(2, '0'));
+const hex = (v: number): string => HEX[Math.round(clamp(v, 0, 255))]!;
+
+export const toHex = ([r, g, b]: RGB): string => '#' + hex(r) + hex(g) + hex(b);
 
 export function mix(a: string, b: string, t: number): string {
   const A = parseColor(a), B = parseColor(b);

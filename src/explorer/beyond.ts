@@ -65,7 +65,7 @@ interface Kbo {
   tone: number;
 }
 
-/** The ink strengths the belt's dots are drawn in: each is one path, filled once. */
+/** The ink strengths the belt's dots are drawn in. */
 const TONES = [0.3, 0.45, 0.62] as const;
 /** The belt's haze spans these distances, au. */
 const HAZE: readonly [number, number] = [36, 50];
@@ -138,7 +138,8 @@ export function drawDwarfs(ctx: CanvasRenderingContext2D, app: App, selected: bo
   ctx.arc(C[0], C[1], r1, 0, TAU);
   ctx.arc(C[0], C[1], r0, TAU, 0, true);
   ctx.fill();
-  // specks a pixel or two across: squares, as the paper's own stars are, and far cheaper to draw than discs
+  // specks a pixel or two across: squares, as the paper's own stars are, and far cheaper to draw than discs (each its
+  // own `fillRect`: measured, hundreds of those beat one path of as many rects)
   const xy = beltPlaces(day);
   TONES.forEach((tone, t) => {
     ctx.fillStyle = rgba(ink, tone);

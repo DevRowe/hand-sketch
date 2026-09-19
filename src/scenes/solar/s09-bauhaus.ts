@@ -9,7 +9,7 @@
  */
 import { TAU, type Vec2 } from '../../core/math';
 import type { Scene } from '../../core/scene';
-import { ground, ink, polyPath } from '../gallery/common';
+import { ground, held, ink, polyPath } from '../gallery/common';
 import { annulus, BELT, C, dayHalf, disc, enter, frameFit, LOOP, MOON, moonOffset, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, sheetOf, SUN_R, sunward, URANUS_RING, type PlanetName } from './common';
 import { skyOf } from './sky';
 import { orbitTrail } from './trails';
@@ -79,37 +79,46 @@ export const bauhausScene: Scene = {
 
     // the black screen
     ink(f, 's09-black', g => {
+      // the bars and the ruled circles never move: the live explorer keeps them as a layer of the screen
+      held(g, 's09-rules', h => {
+        const c = h.ctx;
+        c.save();
+        enter(c, fr);
+        c.fillStyle = BLACK;
+        c.fillRect(x0, y0, x1 - 96 - x0, 22);
+        c.fillRect(x1 - 22, y0 + 96, 22, y1 - y0 - 96);
+        c.strokeStyle = BLACK;
+        c.lineWidth = 1.6;
+        c.beginPath();
+        for (const p of PLANETS) {
+          if (HEAVY.has(p.name)) continue;
+          c.moveTo(C[0] + p.a, C[1]);
+          c.arc(C[0], C[1], p.a, 0, TAU);
+        }
+        c.stroke();
+        c.lineWidth = 6;
+        c.beginPath();
+        for (const p of PLANETS) {
+          if (!HEAVY.has(p.name)) continue;
+          c.moveTo(C[0] + p.a, C[1]);
+          c.arc(C[0], C[1], p.a, 0, TAU);
+        }
+        c.stroke();
+        c.lineWidth = 3;
+        c.beginPath();
+        for (const r of [BELT.inner - 6, BELT.outer + 6]) { c.moveTo(C[0] + r, C[1]); c.arc(C[0], C[1], r, 0, TAU); }
+        c.stroke();
+        // the Sun's black ring
+        c.lineWidth = 2.4;
+        c.beginPath();
+        c.arc(C[0], C[1], SUN_R + 30, 0, TAU);
+        c.stroke();
+        c.restore();
+      });
       const c = g.ctx;
       enter(c, fr);
       c.fillStyle = BLACK;
-      c.fillRect(x0, y0, x1 - 96 - x0, 22);
-      c.fillRect(x1 - 22, y0 + 96, 22, y1 - y0 - 96);
       c.strokeStyle = BLACK;
-      c.lineWidth = 1.6;
-      c.beginPath();
-      for (const p of PLANETS) {
-        if (HEAVY.has(p.name)) continue;
-        c.moveTo(C[0] + p.a, C[1]);
-        c.arc(C[0], C[1], p.a, 0, TAU);
-      }
-      c.stroke();
-      c.lineWidth = 6;
-      c.beginPath();
-      for (const p of PLANETS) {
-        if (!HEAVY.has(p.name)) continue;
-        c.moveTo(C[0] + p.a, C[1]);
-        c.arc(C[0], C[1], p.a, 0, TAU);
-      }
-      c.stroke();
-      c.lineWidth = 3;
-      c.beginPath();
-      for (const r of [BELT.inner - 6, BELT.outer + 6]) { c.moveTo(C[0] + r, C[1]); c.arc(C[0], C[1], r, 0, TAU); }
-      c.stroke();
-      // the Sun's black ring
-      c.lineWidth = 2.4;
-      c.beginPath();
-      c.arc(C[0], C[1], SUN_R + 30, 0, TAU);
-      c.stroke();
       // the orbit lines stop at each planet's rim: a planet is a shape laid over the plan, not threaded on it
       c.save();
       c.globalCompositeOperation = 'destination-out';

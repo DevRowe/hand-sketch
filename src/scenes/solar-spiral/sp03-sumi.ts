@@ -67,13 +67,16 @@ const layout = once((): Layout => {
  */
 function brushRun(c: CanvasRenderingContext2D, run: Sample[], half0: number, dark: number, seed: number): void {
   if (run.length < 2) return;
-  const half = (s: Sample): number => half0 * s.s * Math.max(0, 1 - s.age) * (1 + 0.3 * along(s.q, seed, 26));
+  // a sample's half width, worked out once (every bristle and every segment asks for it)
+  const halves = new Map<Sample, number>();
+  for (const s of run) halves.set(s, half0 * s.s * Math.max(0, 1 - s.age) * (1 + 0.3 * along(s.q, seed, 26)));
   const normals = run.map((_, i) => tangent(run, i));
   for (let b = 0; b < BRISTLES; b++) {
     const u = (b / (BRISTLES - 1)) * 2 - 1;
     const line: Sample[] = run.map((s, i) => {
-      const h = half(s) * u * 0.8, [tx, ty] = normals[i]!;
-      return { ...s, x: s.x - ty * h, y: s.y + tx * h };
+      const h = halves.get(s)! * u * 0.8, [tx, ty] = normals[i]!, moved = { ...s, x: s.x - ty * h, y: s.y + tx * h };
+      halves.set(moved, halves.get(s)!);
+      return moved;
     });
     strokeRun(c, line, 3, s => {
       // the ink runs dry: past a point that creeps along the stroke with age, bristles skip
@@ -81,7 +84,7 @@ function brushRun(c: CanvasRenderingContext2D, run: Sample[], half0: number, dar
       if (along(s.q, seed + 17 * b, 70) * 0.5 + 0.5 < dry) return null;
       const inkiness = dark * (0.42 + 0.58 * smooth(-0.6, 0.6, s.side)) * (1 - s.age * 0.45);
       c.strokeStyle = mix('#ffffff', SOOT, clamp(inkiness, 0, 1));
-      return { width: ((half(s) * 2) / BRISTLES) * 1.6 + 0.4, alpha: 1 };
+      return { width: ((halves.get(s)! * 2) / BRISTLES) * 1.6 + 0.4, alpha: 1 };
     });
   }
 }
@@ -208,6 +211,6 @@ export const sumiSpiral: Scene = {
       c.beginPath();
       for (const pts of brushChar(84, 982, 26, 2360)) pts.forEach(([x, y], k) => (k ? c.lineTo(x, y) : c.moveTo(x, y)));
       c.stroke();
-    }, { tooth: { seed: 2304, density: 60, size: 1.6, alpha: 0.5 }, alpha: 0.92 });
+    }, { tooth: { seed: 2304, density: 60, size: 1.6, alpha: 0.5 }, alpha: 0.92, fixed: true });
   },
 };

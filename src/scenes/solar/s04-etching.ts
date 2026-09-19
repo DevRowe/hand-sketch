@@ -11,7 +11,7 @@ import { cursive } from '../../art/glyphs';
 import { TAU, type Vec2 } from '../../core/math';
 import { rng } from '../../core/random';
 import type { Scene, SceneFrame } from '../../core/scene';
-import { cached, ground, hatchLines, ink, still } from '../gallery/common';
+import { cached, ground, hatchLines, held, ink, still } from '../gallery/common';
 import { annulus, BELT, BOX, C, disc, enter, frameFit, LOOP, MOON, moonOffset, PLANETS, planetAt, POSTER_M, RINGS, ROCKS, rockAt, SUN_R, sunward, URANUS_RING, type Frame, type Planet } from './common';
 import { skyOf, type Sky } from './sky';
 import { orbitTrail } from './trails';
@@ -333,9 +333,19 @@ export const etchingScene: Scene = {
     });
     // the warm plate, printed second and a hair off
     ink(f, 's04-warm', g => {
+      // the engraved Sun never moves: the live explorer keeps it as a layer of the plate
+      held(g, 's04-sun', h => {
+        h.ctx.save();
+        enter(h.ctx, fr);
+        sunPlate(h.ctx);
+        h.ctx.restore();
+      });
       const c = g.ctx;
       enter(c, fr);
-      sunPlate(c);
+      // the pen as the Sun's engraving leaves it: the marks that follow take it up
+      c.strokeStyle = WARM;
+      c.lineCap = 'round';
+      c.lineWidth = 1.8;
       c.fillStyle = WARM;
       c.beginPath();
       for (const rk of ROCKS) {

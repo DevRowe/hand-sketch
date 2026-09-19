@@ -38,12 +38,13 @@ const HEAVY_PIXELS = 2.5e6;
 const PHONE_SIDE = 540;
 /**
  * Most backing pixels on a phone, by view: for the heaviest styles, then the rest (about 1.2 and 1.6 device pixels per
- * CSS pixel In motion on a 390-wide phone; an upright phone's canvas holds ~0.33 million CSS pixels).
+ * CSS pixel In motion on a 390-wide phone, 1.6 and 1.75 From above; an upright phone's canvas holds ~0.33 million CSS
+ * pixels). These are for motion: at rest the picture is drawn again at the screen's own sharpness (`rest`).
  */
 const PHONE_PIXELS: Readonly<Record<ViewId, readonly [heavy: number, light: number]>> = {
   wake: [0.5e6, 0.8e6],
-  sky: [0.8e6, Infinity],
-  earth: [Infinity, Infinity],
+  sky: [0.8e6, 1.0e6],
+  earth: [0.8e6, Infinity],
 };
 /** Most milliseconds a phone's frame may take: past 50 ms it is a long task, and a touch waits behind it. */
 const PHONE_FRAME_MS = 48;
@@ -144,6 +145,8 @@ export class Renderer {
   private readonly governor = new Governor();
   private drawStart = -1;
   private drawJs = 0;
+  /** What recent drawings really cost, ms (draw start to the next animation frame), smoothed; cache builds left out. */
+  cost = 0;
   private sceneName = '';
   /** The view the last drawing was made for: every mapping between the screen and the design goes through it. */
   private view: View = HOME;
@@ -260,7 +263,7 @@ export class Renderer {
    * Draw `scene` under `sky` through `view` (or handing it `view` as a lens), `intro` drawn frames into its draw-on (it
    * rests whole from its loop start on), then `overlay` in design units, then any view crossing under way.
    */
-  draw(scene: Scene, intro: number, sky: Sky, view: View, overlay?: (ctx: CanvasRenderingContext2D) => void, o?: DrawOptions): void {
+  draw(scene: Scene, intro: number, sky: Sky, view: View, overlay?: (ctx: CanvasRenderingContext2D) => void, o?: DrawOptions, moving = false): void {
     if (scene.name !== this.sceneName) {
       this.sceneName = scene.name;
       const before = this.governor.level;
@@ -268,16 +271,17 @@ export class Renderer {
       if (this.governor.level !== before) this.stage = null;
     }
     const stage = this.current, builds = stage.builds;
+    stage.coarse = moving;
     this.drawStart = performance.now();
     this.view = view;
-    this.paint(this.ctx, stage, scene, intro, sky, view, overlay, o);
+    this.paint(this.ctx, stage, scene, intro, sky, view, overlay, o, true);
     this.drawCrossing();
     this.drawJs = performance.now() - this.drawStart;
     this.built = stage.builds !== builds;
   }
 
   /** The scene under `sky` through `view` on `stage`, painted into `ctx` (its canvas the stage's output size), then `overlay`. */
-  private paint(ctx: CanvasRenderingContext2D, stage: Stage, scene: Scene, intro: number, sky: Sky, view: View, overlay?: (ctx: CanvasRenderingContext2D) => void, o?: DrawOptions): void {
+  private paint(ctx: CanvasRenderingContext2D, stage: Stage, scene: Scene, intro: number, sky: Sky, view: View, overlay?: (ctx: CanvasRenderingContext2D) => void, o?: DrawOptions, hold = false): void {
     stage.setView(o?.lens ? { zoom: 1, x: stage.w / 2, y: stage.h / 2 } : view);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
@@ -285,7 +289,9 @@ export class Renderer {
     ctx.fillStyle = DESK;
     ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     const rest = toFrames(scene.loopFrom ?? 0, ON_TWOS.fps);
-    drawScene(ctx, stage, scene, Math.min(rest, Math.max(0, intro)), ON_TWOS, DEFAULT_SETTINGS, o?.lens ? { sky, lens: view, step: o.step } : o?.room ? { sky, room: o.room } : { sky });
+    // a scene drawn whole keeps its still marks as layers (`held`); a saved picture, on a stage of its own, does not
+    const held = hold && intro >= rest;
+    drawScene(ctx, stage, scene, Math.min(rest, Math.max(0, intro)), ON_TWOS, DEFAULT_SETTINGS, o?.lens ? { sky, lens: view, step: o.step } : o?.room ? { sky, room: o.room, held } : { sky, held });
     if (overlay) {
       ctx.save();
       const k = stage.base * view.zoom;
@@ -335,6 +341,7 @@ export class Renderer {
     if (this.drawStart < 0) return false;
     const cost = now - this.drawStart;
     this.drawStart = -1;
+    if (!this.built) this.cost += (Math.min(cost, 250) - this.cost) * (this.cost ? 0.3 : 1);
     // a drawing at rest keeps no pace, and one that built caches says nothing of the steady cost
     if (this.built || this.resting) return false;
     if (this.governor.observe(this.sceneName, cost, this.drawJs, this.phone ? Math.min(interval, PHONE_FRAME_MS) : interval, dt)) {

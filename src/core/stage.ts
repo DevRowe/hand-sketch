@@ -177,6 +177,13 @@ export class Stage implements FrameSize {
   private zoomedAt = -1e9;
   /** Counts canvases created and page layers drawn: a frame that moved it paid for building caches. */
   builds = 0;
+  /**
+   * The view is on the move (set by the live explorer only): page layers mapped through it are sampled to the nearest
+   * pixel, several times cheaper than smoothing them, until the view holds and sharp copies take over. Textures
+   * (`bleed` layers: paper, ground, tooth) are sampled so whenever they are mapped, since grain stays grain. At home,
+   * where every render is, nothing is mapped at all.
+   */
+  coarse = false;
 
   constructor(readonly format: Format) {
     ({ w: this.w, h: this.h, scale: this.base, outW: this.outW, outH: this.outH } = frameSize(format));
@@ -276,6 +283,14 @@ export class Stage implements FrameSize {
     g.setTransform(k, 0, 0, k, 0, 0);
     this.as({ zoom: 1, x: this.w / 2, y: this.h / 2 }, 0, () => runBuild(build, g, null));
     return canvas;
+  }
+
+  /** Forget a page layer (one whose key will not be asked for again), with its sharp copies. */
+  dropPage(key: string): void {
+    const id = `${key}@${this.outW}x${this.outH}`, page = this.pages.get(id);
+    if (!page) return;
+    this.pages.delete(id);
+    this.pageOf.delete(page.canvas);
   }
 
   /**
@@ -438,6 +453,7 @@ export class Stage implements FrameSize {
     } else if (page) {
       const { zoom, x, y } = this.camera;
       ctx.setTransform(zoom, 0, 0, zoom, this.base * (this.w / 2 - zoom * x) + dx, this.base * (this.h / 2 - zoom * y) + dy);
+      if (page.bleed || this.coarse) ctx.imageSmoothingEnabled = false;
       const r = ext && this.within(layer, ext[0], ext[1], ext[2], ext[3], 2);
       if (r) ctx.drawImage(layer, r[0], r[1], r[2], r[3], r[0], r[1], r[2], r[3]);
       else if (!ext) ctx.drawImage(layer, 0, 0, this.outW, this.outH);

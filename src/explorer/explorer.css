@@ -832,10 +832,11 @@ body.panel-open .tour-bar { left: calc(50% - 212px - var(--safe-r) / 2); width: 
 
 @media (max-width: 420px) {
   .chip { padding: 0 9px; }
-  /* the tour's stops on a line of their own, its buttons spread along the next */
+  /* the tour's stops on a line of their own; on the next, back, play and next together in the middle, the way out at the end */
   .tour-nav { flex-wrap: wrap; gap: 4px; }
   .tour-dots { flex: 1 1 100%; justify-content: center; }
-  .tour-buttons { flex: 1 1 100%; justify-content: space-between; gap: 6px; }
+  .tour-buttons { flex: 1 1 100%; justify-content: center; gap: 22px; position: relative; }
+  .tour-buttons #tour-exit { position: absolute; right: 0; top: 50%; transform: translateY(-50%); }
   .v-text span { font-size: 12px; }
   /* four planets a row still, with room for a whole date under each */
   .ages li { padding: 6px 4px 7px 6px; }

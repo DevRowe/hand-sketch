@@ -12,6 +12,7 @@ import type { View } from '../core/stage';
 import { C as EARTH_C } from '../scenes/cislunar/common';
 import type { DesignBox } from '../scenes/solar/common';
 import type { Sky } from '../scenes/solar/sky';
+import { SPACING } from '../scenes/solar-spiral/common';
 import { sceneMarks, pick, type BodyId, type Mark, type Pick, type Scene as Marks, type ViewId } from './bodies';
 import { drawDwarfs, dwarfMarks } from './beyond';
 import { Camera } from './camera';
@@ -49,6 +50,8 @@ const RANK: readonly BodyId[] = [
   'iss', 'tiangong', 'hubble', 'mir', 'skylab', 'salyut', 'sputnik', 'geo', 'gps', 'leo', 'starlink', 'kuiper',
 ];
 
+/** A drawing that takes longer than this (ms) is running long: detail gives way while the view moves. */
+const LONG_MS = 40;
 /** Most degrees the quickest motion on show may move between drawings before the cadence rises. */
 const STEP_DEG = 8;
 /** The cadence tops out at film rate: past it a faster planet only blurs, and resolution and battery matter more. */
@@ -154,6 +157,11 @@ export class App {
   /** Drawn frames into the scene's draw-on; `DONE` once it has played (on load or Reset), so a new style starts whole. */
   private intro: number;
   private dirty = true;
+  /** The view the last drawing was made through, and whether it was drawn coarse because the view was on the move. */
+  private drawnView: View | null = null;
+  private coarse = false;
+  /** The animation loop is running (it stops while the tab is hidden). */
+  private looping = true;
   /** The camera rests on (or glides to) the home view. */
   private homed = true;
   /** The sheet the scene's fixed pieces keep to (`sheetRoom`), design units; none in the Earth and Moon view. */
@@ -675,9 +683,20 @@ export class App {
 
   start(): void {
     requestAnimationFrame(this.frame);
+    // a hidden tab draws nothing: the loop stops, and starts afresh (no time having passed) when the tab is back
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden || this.looping) return;
+      this.last = 0;
+      this.looping = true;
+      requestAnimationFrame(this.frame);
+    });
   }
 
   private readonly frame = (now: number): void => {
+    if (document.hidden) {
+      this.looping = false;
+      return;
+    }
     // ask for the next frame first: nothing thrown below can stop the loop
     requestAnimationFrame(this.frame);
     const dt = this.last ? Math.min(0.25, (now - this.last) / 1000) : 0;
@@ -698,8 +717,12 @@ export class App {
     // a picture left at rest a moment is drawn again at full resolution
     if (this.sim.playing || settling || moving || drawingOn) this.stillSince = now;
     if (this.renderer.rest(now - this.stillSince > REST_MS)) this.dirty = true;
-    // the sky keeps the pace's cadence; a control or the camera may draw sooner, but never above HAND_FPS
-    const interval = this.dirty || moving ? Math.min(this.interval, 1000 / HAND_FPS) : this.interval;
+    if (this.coarse) this.dirty = true;
+    // the sky keeps the pace's cadence; a control or the camera may draw sooner, but never above HAND_FPS, and never
+    // back to back: where a drawing takes long, the hand's cadence falls towards twelve a second, so a third of the
+    // time stays free for touches, names and the page
+    const hand = clamp(this.renderer.cost * 1.5, 1000 / HAND_FPS, 1000 / 12);
+    const interval = this.dirty || moving ? Math.min(this.interval, hand) : this.interval;
     if ((this.dirty || this.sim.playing || settling || moving || drawingOn) && now - this.lastDraw >= interval - 3) {
       // the governor judges frames by the sky's own cadence (on twos while paused): a camera move or a control drawing
       // quicker than that is a bonus, and missing it is no reason to lower the resolution
@@ -713,7 +736,23 @@ export class App {
     }
   };
 
+  /**
+   * The wakes' level of detail: their samples are set 2.5 design units apart, which is under two device pixels on a
+   * phone's whole plan, and every sample is a mark to draw. Where a design unit covers less than a device pixel the
+   * samples are set further apart, in whole steps so the marks keyed to them change hands seldom; zoomed in, or on a
+   * large screen, they keep their own spacing.
+   */
+  private wakeSpacing(): number | null {
+    const perUnit = this.renderer.designScale * this.renderer.cssScale;
+    const still = perUnit >= 0.8 ? 1 : perUnit >= 0.57 ? 1.5 : 2;
+    // a view on the move on a device its drawings run long on: coarser yet while it moves, since motion hides it and
+    // the hand needs the time; the wakes take their own spacing up again when the view holds
+    const k = this.coarse && this.renderer.cost > LONG_MS ? Math.max(2, still * 1.5) : still;
+    return k === 1 ? null : SPACING * k;
+  }
+
   private draw(): void {
+    this.sim.spacing = this.wakeSpacing();
     const sky = this.sim.sky();
     this.marks = this.marksAt(this.view, sky, this.camera.zoom);
     if (this.following) {
@@ -726,10 +765,14 @@ export class App {
       }
     }
     const view: View = this.camera.view, step = this.sim.playing ? (this.sim.velocity * this.interval) / 1000 : 0;
+    // a view on the move (a glide, a drag, a pinch) is drawn coarse, and once more, smooth, when it holds
+    const was = this.drawnView;
+    this.coarse = this.camera.moving || (was !== null && (was.zoom !== view.zoom || was.x !== view.x || was.y !== view.y));
+    this.drawnView = { ...view };
     this.captions = [];
     const free = this.freeRect();
     this.captionRoom = { room: [free.x, free.y, free.x + free.w, free.y + free.h], ui: [...this.floating(), ...this.selectionBox()] };
-    this.renderer.draw(this.scene, this.intro, sky, view, ctx => this.decorate(ctx, true), { lens: this.view === 'earth', step, room: this.sheet });
+    this.renderer.draw(this.scene, this.intro, sky, view, ctx => this.decorate(ctx, true), { lens: this.view === 'earth', step, room: this.sheet }, this.coarse);
     this.placeLabels();
     this.onDraw();
   }
@@ -758,13 +801,16 @@ export class App {
    */
   still(scale: number): HTMLCanvasElement {
     // the still's captions are its own: the names on screen keep to the last drawing's
-    const captions = this.captions, room = this.captionRoom;
+    const captions = this.captions, room = this.captionRoom, spacing = this.sim.spacing;
     this.captionRoom = null;
+    // a picture to keep is sampled at the wakes' finest
+    this.sim.spacing = null;
     try {
       return this.renderer.still(scale, this.scene, this.sim.sky(), this.camera.view, ctx => this.decorate(ctx, false), { lens: this.view === 'earth', step: 0, room: this.sheet });
     } finally {
       this.captions = captions;
       this.captionRoom = room;
+      this.sim.spacing = spacing;
     }
   }
 

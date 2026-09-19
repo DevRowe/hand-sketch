@@ -159,10 +159,17 @@ function wake(c: CanvasRenderingContext2D, p: Planet, sky: Sky): void {
   band.closePath();
   // a viewer's trail may run right round the orbit: screen the whole ring then
   const [x, y] = planetAt(p, sky), reach = WAKE + p.r, R = p.a + w;
+  const far = R + CELL, near = Math.max(0, p.a - w - CELL);
   const box: [number, number, number, number] = sky.trails ? [C[0] - R, C[1] - R, 2 * R, 2 * R] : [x - reach, y - reach, 2 * reach, 2 * reach];
   screen(c, box, {
     cell: CELL, angle: ANGLE.pink, color: PINK, clip: band,
     density: (px, py) => {
+      // live, where the box is the whole ring: a dot further from the band than it is wide is clipped away whole, so
+      // there is no need to ask how far behind it lies (a render keeps every dot in its path, to the last bit)
+      if (sky.trails) {
+        const d2 = (px - C[0]) ** 2 + (py - C[1]) ** 2;
+        if (d2 > far * far || d2 < near * near) return 0;
+      }
       const behind = ((((Math.atan2(py - C[1], px - C[0]) - a) % TAU) + TAU) % TAU) / span;
       return behind <= 1 ? 0.85 * (1 - behind) ** 1.4 * alpha : 0;
     },
