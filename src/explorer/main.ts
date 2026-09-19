@@ -354,8 +354,17 @@ app.freeRect = () => {
   return { x: left, y: top, w: Math.max(80, right - left), h: Math.max(80, bottom - top) };
 };
 
-const panelEl = document.getElementById('panel')!;
-app.cardRect = () => (panelEl.hidden ? null : panelEl.getBoundingClientRect());
+/** The controls that float over the picture itself: the moment's pill, the Whole view pill and a toast while it shows. */
+const floatingEls = ['preset-pill', 'home-pill'].map(id => document.getElementById(id)!);
+app.floating = () => {
+  const out: [number, number, number, number][] = [];
+  for (const el of [...floatingEls, toastEl]) {
+    if (el.hidden || (el === toastEl && !el.classList.contains('show'))) continue;
+    const r = el.getBoundingClientRect();
+    if (r.width && r.height) out.push([r.left - 4, r.top - 4, r.right + 4, r.bottom + 4]);
+  }
+  return out;
+};
 
 /* ---------- size ---------- */
 

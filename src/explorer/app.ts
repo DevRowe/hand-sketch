@@ -144,8 +144,6 @@ export class App {
   private lifeSpan: number | null = null;
   /** The part of the screen the controls leave free (CSS pixels): framing centres things there. */
   freeRect: () => { x: number; y: number; w: number; h: number } = () => ({ x: 0, y: 0, w: innerWidth, h: innerHeight });
-  /** The open card, where one is (CSS pixels): the bodies it covers are not named through it. */
-  cardRect: () => DOMRect | null = () => null;
   /** Called after every drawing (readouts) and on every state change (controls). */
   onDraw: () => void = () => {};
   onChange: () => void = () => {};
@@ -172,6 +170,13 @@ export class App {
   private labelsPending = false;
   /** Where the overlays set captions in the last drawing (CSS pixels): the names give way to them. */
   captions: Box[] = [];
+  /**
+   * Where captions may go in the drawing under way (CSS pixels): the room the controls leave, and the controls floating
+   * over the picture that captions and names keep clear of; null for a still, which has no controls.
+   */
+  captionRoom: { room: Box; ui: readonly Box[] } | null = null;
+  /** Controls floating over the picture (a moment's pill, a toast), CSS pixels: names and captions keep clear of them. */
+  floating: () => Box[] = () => [];
 
   constructor(private readonly o: AppOptions) {
     this.sim = o.sim;
@@ -702,6 +707,8 @@ export class App {
     }
     const view: View = this.camera.view, step = this.sim.playing ? (this.sim.velocity * this.interval) / 1000 : 0;
     this.captions = [];
+    const free = this.freeRect();
+    this.captionRoom = { room: [free.x, free.y, free.x + free.w, free.y + free.h], ui: [...this.floating(), ...this.selectionBox()] };
     this.renderer.draw(this.scene, this.intro, sky, view, ctx => this.decorate(ctx, true), this.view === 'earth' ? { lens: true, step } : undefined);
     this.placeLabels();
     this.onDraw();
@@ -731,10 +738,22 @@ export class App {
    */
   still(scale: number): HTMLCanvasElement {
     // the still's captions are its own: the names on screen keep to the last drawing's
-    const captions = this.captions;
-    const still = this.renderer.still(scale, this.scene, this.sim.sky(), this.camera.view, ctx => this.decorate(ctx, false), this.view === 'earth' ? { lens: true, step: 0 } : undefined);
-    this.captions = captions;
-    return still;
+    const captions = this.captions, room = this.captionRoom;
+    this.captionRoom = null;
+    try {
+      return this.renderer.still(scale, this.scene, this.sim.sky(), this.camera.view, ctx => this.decorate(ctx, false), this.view === 'earth' ? { lens: true, step: 0 } : undefined);
+    } finally {
+      this.captions = captions;
+      this.captionRoom = room;
+    }
+  }
+
+  /** Where the ring round the selected body stands on screen (CSS pixels): captions keep clear of the body looked at. */
+  private selectionBox(): Box[] {
+    const m = this.selected && this.selected !== 'belt' ? this.marks?.bodies.find(b => b.id === this.selected) : undefined;
+    if (!m || m.ring !== undefined) return [];
+    const [x, y] = this.renderer.toScreen(m.x, m.y), R = Math.max(m.reach, m.r) * this.renderer.designScale + 11;
+    return [[x - R, y - R, x + R, y + R]];
   }
 
   /** A ring round the selected body, the same width on screen at any zoom, legible on light and dark papers. */
@@ -781,7 +800,7 @@ export class App {
   private placeLabels(): void {
     const marks = this.marks;
     if (!marks) return;
-    const s = this.renderer.designScale, free = this.freeRect(), card = this.cardRect();
+    const s = this.renderer.designScale, free = this.freeRect(), room: Box = [free.x, free.y, free.x + free.w, free.y + free.h];
     const rank = (id: BodyId): number => (id === this.selected ? -1 : RANK.indexOf(id));
     const inputs = [...marks.bodies].sort((a, b) => rank(a.id) - rank(b.id)).flatMap(m => {
       const el = this.labelEls.get(m.id);
@@ -797,13 +816,12 @@ export class App {
         return at ? [{ id: m.id, x: at[0], y: at[1], r: 3, w, h: 18 }] : [];
       }
       const [x, y] = this.renderer.toScreen(m.x, m.y);
-      // a body off the screen, or under the open card, names nothing: its name would hang over the edge or show
-      // through the card
-      if (x < 0 || x > innerWidth || y < 0 || y > innerHeight) return [];
-      if (card && x >= card.left && x <= card.right && y >= card.top && y <= card.bottom) return [];
+      // a body off the screen, or under the controls or the open card, names nothing: its name would hang over the
+      // edge or show through them
+      if (x < room[0] || x > room[2] || y < room[1] || y > room[3]) return [];
       return [{ id: m.id, x, y, r: Math.max(m.id === 'sun' ? m.r : m.reach, m.r) * s, w, h: 18 }];
     });
-    const { labels, pending } = this.labelLayout.place(inputs, innerWidth, performance.now(), this.captions);
+    const { labels, pending } = this.labelLayout.place(inputs, room, performance.now(), [...this.captions, ...(this.captionRoom?.ui ?? [])]);
     this.labelsPending = pending;
     const placed = new Set<string>();
     for (const l of labels) {

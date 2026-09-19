@@ -171,36 +171,46 @@ describe('explorer words', () => {
 
 describe('explorer names', () => {
   const at = (x: number, y = 100) => ({ id: 'a', x, y, r: 10, w: 60, h: 18 });
+  const ROOM_1000 = [0, 0, 1000, 800] as const, ROOM_600 = [0, 0, 600, 800] as const;
 
   it('keeps a name steady while its body grazes a more important one, and fades it only after a moment', () => {
     const layout = new LabelLayout(), sun = { ...at(100), id: 'sun' }, moon = (y: number) => ({ ...at(100, y), id: 'moon' });
     // apart: both show
-    let out = layout.place([sun, moon(160)], 1000, 0).labels;
+    let out = layout.place([sun, moon(160)], ROOM_1000, 0).labels;
     expect(out.map(l => l.shown)).toEqual([true, true]);
     // a brush of a few pixels does not hide a name on show
-    out = layout.place([sun, moon(100 + 18 - 3)], 1000, 50).labels;
+    out = layout.place([sun, moon(100 + 18 - 3)], ROOM_1000, 50).labels;
     expect(out[1]!.shown).toBe(true);
     // a real overlap hides it, but only once it has lasted
-    const over = layout.place([sun, moon(104)], 1000, 100);
+    const over = layout.place([sun, moon(104)], ROOM_1000, 100);
     expect(over.labels[1]!.shown).toBe(true);
     expect(over.pending).toBe(true);
-    expect(layout.place([sun, moon(104)], 1000, 400).labels[1]!.shown).toBe(false);
+    expect(layout.place([sun, moon(104)], ROOM_1000, 400).labels[1]!.shown).toBe(false);
     // clear again for a moment only: it waits, faded, rather than blinking back
-    expect(layout.place([sun, moon(125)], 1000, 450).labels[1]!.shown).toBe(false);
-    expect(layout.place([sun, moon(104)], 1000, 500).labels[1]!.shown).toBe(false);
+    expect(layout.place([sun, moon(125)], ROOM_1000, 450).labels[1]!.shown).toBe(false);
+    expect(layout.place([sun, moon(104)], ROOM_1000, 500).labels[1]!.shown).toBe(false);
     // clear for long enough: it returns
-    layout.place([sun, moon(160)], 1000, 600);
-    expect(layout.place([sun, moon(160)], 1000, 1400).labels[1]!.shown).toBe(true);
+    layout.place([sun, moon(160)], ROOM_1000, 600);
+    expect(layout.place([sun, moon(160)], ROOM_1000, 1400).labels[1]!.shown).toBe(true);
   });
 
   it('puts a name on the left only at the screen edge, and brings it back once it clearly fits', () => {
     const layout = new LabelLayout();
-    expect(layout.place([at(500)], 600, 0).labels[0]!.left).toBe(516);
-    const edge = layout.place([at(560)], 600, 10).labels[0]!;
+    expect(layout.place([at(500)], ROOM_600, 0).labels[0]!.left).toBe(516);
+    const edge = layout.place([at(560)], ROOM_600, 10).labels[0]!;
     expect(edge.left).toBe(560 - 10 - 6 - 60);
     // a pixel back from the edge is not enough to flip again
-    expect(layout.place([at(522)], 600, 20).labels[0]!.left).toBe(522 - 10 - 6 - 60);
-    expect(layout.place([at(500)], 600, 30).labels[0]!.left).toBe(516);
+    expect(layout.place([at(522)], ROOM_600, 20).labels[0]!.left).toBe(522 - 10 - 6 - 60);
+    expect(layout.place([at(500)], ROOM_600, 30).labels[0]!.left).toBe(516);
+  });
+
+  it('keeps a name inside the room a card leaves, and clear of a control floating over the picture', () => {
+    const layout = new LabelLayout(), room = [0, 60, 420, 700] as const;
+    // the card begins at 420: a name that would run under it goes to the left
+    expect(layout.place([at(380)], room, 0).labels[0]!.left).toBe(380 - 10 - 6 - 60);
+    // a pill over the picture is an obstacle like a caption
+    const pill = [300, 90, 460, 120] as const, fresh = new LabelLayout();
+    expect(fresh.place([{ ...at(250, 105), id: 'b' }], room, 0, [pill]).labels[0]!.shown).toBe(false);
   });
 });
 
