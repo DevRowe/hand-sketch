@@ -329,6 +329,14 @@ app.freeRect = (o = {}) => {
     if (cs.display === 'none' || cs.visibility === 'hidden') return null;
     return el.getBoundingClientRect();
   };
+  // a card slides in (its entrance animates a shift it rests without): measure it where it will rest, or a moment
+  // framed as it opens lands off the room's centre, and a body revealed above a phone's sheet ends up under it
+  const resting = (r: DOMRect | null, id: string): DOMRect | null => {
+    const t = r && getComputedStyle(document.getElementById(id)!).transform;
+    if (!r || !t || t === 'none') return r;
+    const m = new DOMMatrixReadOnly(t);
+    return new DOMRect(r.x - m.e, r.y - m.f, r.width, r.height);
+  };
   // a journey trades the dock and the moments (and on a compact screen the top bar) for its own small bar
   if (!hidden) {
     const t = journey && compactQuery.matches ? null : box('top'), d = journey ? null : box('dock'), m = journey ? null : box('moments');
@@ -345,7 +353,7 @@ app.freeRect = (o = {}) => {
   // a journey's bar, or the tour's
   const j = journey ? box('journey-bar') ?? box('tour-bar') : null;
   if (j) bottom = Math.min(bottom, j.top - gap);
-  const p = o.resting ? null : box('panel');
+  const p = o.resting ? null : resting(box('panel'), 'panel');
   if (p) {
     // a side panel on a wide or short screen, a sheet along the bottom on an upright phone
     if (p.width < W * 0.7) right = p.left - gap;
